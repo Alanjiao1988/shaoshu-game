@@ -1,0 +1,25 @@
+# ---- 历史版本备份 ----
+# git 自己有版本历史，这些快照是给「线上出问题立刻回退」用的，不进仓库
+.workbuddy/backup/
+
+# ---- 孩子的真实数据：绝不进仓库 ----
+# 本地桌面版（启动少年主公.vbs）跑起来会生成这个目录，里面是 localStorage 的落盘副本
+少年主公_数据/
+*.sqlite
+*.sqlite3
+*.db
+
+# ---- WorkBuddy 自己的文件，跟本项目无关 ----
+.wbapp_*.genie
+.workbuddy/applications.yaml
+
+# ---- 测试临时产物 ----
+.workbuddy/tests/_profile_*
+.workbuddy/tools/_icon_tmp/
+_*.log
+
+# ---- 系统垃圾 ----
+Thumbs.db
+desktop.ini
+.DS_Store
+ehthumbs.db

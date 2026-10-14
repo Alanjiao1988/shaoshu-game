@@ -1,0 +1,553 @@
+/* 逻辑自测（vm 沙箱，无需浏览器）
+   用法：node .workbuddy/tests/logic.js
+   覆盖：数据迁移 · 补录窗口 · 账目冻结 · 休假 · 兑现 · 难度 · 主动性 · 存储告警 · 渲染冒烟 */
+const fs = require("fs"), path = require("path"), vm = require("vm");
+const ROOT = path.join(__dirname, "..", "..");
+const html = fs.readFileSync(path.join(ROOT, "少年主公.html"), "utf8");
+let code = html.match(/<script>([\s\S]*)<\/script>/)[1];
+try { new vm.Script(code); console.log("✅ 语法检查通过"); }
+catch (e) { console.error("❌ 语法错误:", e.message); process.exit(1); }
+
+function fakeEl(){
+  const set=new Set();
+  return { innerHTML:"", textContent:"", style:{}, value:"", disabled:false, dataset:{}, className:"",
+    classList:{add(c){set.add(c);},remove(c){set.delete(c);},toggle(c,f){f?set.add(c):set.delete(c);},contains(c){return set.has(c);}},
+    addEventListener(){}, click(){}, remove(){}, appendChild(){},
+    querySelector(){return fakeEl();}, querySelectorAll(){return [];}, closest(){return null;},
+    getBoundingClientRect(){return {left:0,top:0,width:0,height:0};} };
+}
+const store = {}, elCache = {};
+const qs = (s) => (elCache[s] = elCache[s] || fakeEl());
+let storageBroken = false;
+const documentFake = {
+  _lastMask: null,
+  createElement: () => fakeEl(),
+  querySelector: (s) => (s === ".mask" ? documentFake._lastMask : qs(s)),
+  querySelectorAll: () => [], addEventListener(){},
+  body: { style:{}, appendChild(el){
+    if (/mask/.test(el.className || "")){
+      el.remove = () => { if (documentFake._lastMask === el) documentFake._lastMask = null; };
+      documentFake._lastMask = el;
+    }
+  } },
+  documentElement:{ setAttribute(){}, removeAttribute(){} }
+};
+const sandbox = {
+  console, Math, Date, JSON, Object, Array, String, Number, Boolean, RegExp, Error,
+  parseInt, parseFloat, isNaN, setTimeout, clearTimeout,
+  Blob:class{}, URL:{createObjectURL(){return "";}, revokeObjectURL(){}}, FileReader:class{},
+  localStorage:{ getItem:k=>(k in store?store[k]:null),
+    setItem:(k,v)=>{ if(storageBroken) throw new Error("SecurityError"); store[k]=String(v); },
+    removeItem:k=>{ delete store[k]; } },
+  document: documentFake,
+  window:{ scrollTo(){}, addEventListener(){}, innerWidth:1000, innerHeight:800 },
+  confirm:()=>true, alert:()=>{}
+};
+sandbox.globalThis = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(code.replace(/\(function init\(\)\{[\s\S]*?\}\)\(\);\s*$/, ""), sandbox);
+vm.runInContext("ST = load(); if(!ST){ ST = defaultState(); save(); }", sandbox);
+
+const run = e => vm.runInContext(e, sandbox);
+function withRandom(v, fn){ const o=sandbox.Math.random; sandbox.Math.random=()=>v; try{return fn();}finally{sandbox.Math.random=o;} }
+function withStub(n, fn, body){ const o=sandbox[n]; sandbox[n]=fn; try{return body();}finally{sandbox[n]=o;} }
+let pass=0, fail=0;
+function t(name, cond, extra){
+  if(cond){ pass++; console.log("  ✅ "+name); }
+  else { fail++; console.log("  ❌ "+name+(extra?"  → "+extra:"")); }
+}
+const DAYS_2 = `ST.tasks=[
+  {id:"a",name:"语文早读",subject:"cn",type:"daily",emoji:"📜",timeSlot:"morning",planMin:15,weekTarget:5,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false},
+  {id:"b",name:"数学口算",subject:"math",type:"daily",emoji:"🧮",timeSlot:"morning",planMin:10,weekTarget:5,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}
+];`;
+function setup(dates){
+  run(`ST=defaultState(); ST.records={}; ST.bossDefeats={}; ST.draws=0; ST.ledger={}; ST.createdAt="2026-10-01"; ${DAYS_2}`);
+  for(const d of dates) run(`setRec("${d}","a",1,"full",15); setRec("${d}","b",1,"full",10);`);
+}
+const TODAY = run(`TODAY()`);
+const FLOOR = run(`backfillFloor()`);
+const WIN = [run(`addD(TODAY(),-2)`), run(`addD(TODAY(),-1)`), TODAY];
+const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODAY(),-3)`)];
+console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
+
+console.log("=== 1. 版本与静态资源 ===");
+t("软件版本为 1.9.0", run(`APP_VERSION`)==="1.9.0", run(`APP_VERSION`));
+t("数据结构版本为 6", run(`SCHEMA`)===6, String(run(`SCHEMA`)));
+t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
+t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
+t("site 里图标文件齐全", ["apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png",
+  "icon-maskable-192.png","icon-maskable-512.png","manifest.json","sw.js"]
+  .every(f => fs.existsSync(path.join(ROOT,"site",f))));
+t("manifest 里带了 maskable 图标（安卓/鸿蒙裁圆才好看）", (()=>{
+  const mf = JSON.parse(fs.readFileSync(path.join(ROOT,"site","manifest.json"),"utf8"));
+  return mf.icons.some(i=>i.purpose==="maskable") && mf.display==="standalone"
+    && mf.icons.length===4;
+})());
+t("maskable 图标留了安全区（内嵌 PNG 尺寸合理）", (()=>{
+  const a = fs.statSync(path.join(ROOT,"site","icon-512.png")).size;
+  const b = fs.statSync(path.join(ROOT,"site","icon-maskable-512.png")).size;
+  return a > 0 && b > 0 && Math.abs(a-b)/a < 0.25;   // 同设计同尺寸，体积应该接近
+})(), "普通 " + fs.statSync(path.join(ROOT,"site","icon-512.png")).size
+   + " / maskable " + fs.statSync(path.join(ROOT,"site","icon-maskable-512.png")).size);
+t("根目录有 .ico 和启动器", fs.existsSync(path.join(ROOT,"少年主公.ico")) && fs.existsSync(path.join(ROOT,"启动少年主公.vbs")));
+t("启动器是 UTF-16LE + BOM（Windows 才不乱码）", (()=>{
+  const b=fs.readFileSync(path.join(ROOT,"启动少年主公.vbs"));
+  return b[0]===0xFF && b[1]===0xFE && b.slice(2).toString("utf16le").includes("少年主公");
+})());
+t("有持久化存储的申请逻辑", /navigator\.storage\.persist/.test(html) && /requestPersistentStorage/.test(html));
+t("sw.js 缓存清单包含 maskable 图标", (()=>{
+  const sw = fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8");
+  return /icon-maskable-512\.png/.test(sw) && /VERSION = "1\.9\.0"/.test(sw);
+})());
+
+console.log("\n=== 2. 补录窗口 ===");
+t("窗口是最近 3 天（含今天）", FLOOR===run(`addD(TODAY(),-2)`), FLOOR);
+t("窗口内不算冻结", WIN.every(d=>run(`isFrozen("${d}")`)===false));
+t("窗口外已冻结", FROZEN.every(d=>run(`isFrozen("${d}")`)===true));
+t("未来不可补录", run(`canBackfill(addD(TODAY(),1))`)===false);
+setup(FROZEN); run(`settleLedger();`);
+t("结算只处理窗口之外", (()=>{
+  const k=run(`Object.keys(ST.ledger)`);
+  return k.includes(FROZEN[2]) && !k.includes(WIN[0]);
+})());
+t("窗口内补录后军功立刻到账", (()=>{
+  const m0=run(`earnedMerit()`);
+  run(`setRec("${WIN[0]}","a",1,"full",15); setRec("${WIN[0]}","b",1,"full",10);`);
+  return run(`earnedMerit()`) > m0;
+})());
+t("窗口内补录后招贤令立刻到账", (()=>{
+  const k0=run(`ticketsEarned()`);
+  run(`setRec("${WIN[1]}","a",1,"full",15); setRec("${WIN[1]}","b",1,"full",10);`);
+  return run(`ticketsEarned()`) > k0;
+})());
+t("窗口内可撤销重录", (()=>{ run(`clearRec("a","${WIN[1]}");`); return !run(`rec("${WIN[1]}","a")`); })());
+t("窗口外仍只读", (()=>{ run(`clearRec("a","${FROZEN[2]}");`); return run(`rec("${FROZEN[2]}","a").level`)===1; })());
+
+console.log("\n=== 3. 账目冻结 ===");
+setup(FROZEN); run(`settleLedger();`);
+const TK=run(`ticketsEarned()`), MT=run(`earnedMerit()`);
+t("三天满勤 3 枚券", TK===3, String(TK));
+t("连击加成算进账本（2+2+2.4）", MT===6.4, String(MT));
+run(`settleLedger(); ST.tasks.push({id:"c",name:"新令",subject:"en",type:"daily",emoji:"z",timeSlot:"any",planMin:10,weekTarget:5,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}); settleLedger();`);
+t("新增军令后已得的券不变", run(`ticketsEarned()`)===3, String(run(`ticketsEarned()`)));
+t("历史军功不倒扣", run(`earnedMerit()`)===MT, MT+" → "+run(`earnedMerit()`));
+run(`settleLedger(); ST.tasks=ST.tasks.filter(t=>t.id!=="b"); for(const d in ST.records){ delete ST.records[d]["b"]; }`);
+t("删军令后历史军功不倒扣", run(`earnedMerit()`)===MT);
+t("删掉的军令仍在账本快照里", run(`(ST.ledger["${FROZEN[2]}"].tasks||[]).some(x=>x.name==="数学口算")`));
+t("官职只升不降", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=520; const r1=myRank().cur.n; ST.bonusMerit=430;`);
+  return run(`myRank().cur.n`)==="校尉";
+})());
+t("可用军功不再掩盖亏空", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=10; ST.vault=[{uid:"v",name:"x",emoji:"x",tier:"common",merit:50,redeemed:true,gotAt:"2026-10-01"}];`);
+  return run(`availMerit()`)===-40;
+})());
+t("空白日子也被冻结", (()=>{
+  run(`ST=defaultState(); ST.ledger={}; ST.records={}; ST.createdAt=addD(TODAY(),-12); settleLedger();`);
+  // 结算 今天-12 到 今天-3（窗口边界前一日），共 10 天
+  return run(`Object.keys(ST.ledger).length`)===10;
+})(), String(run(`Object.keys(ST.ledger).length`)));
+
+console.log("\n=== 4. 数据迁移 ===");
+t("v1 老数据一路升到 v6", (()=>{
+  store["shaozhu_v1"]=JSON.stringify({ version:1, childName:"小虎",
+    tasks:[{id:"z",name:"旧军令",subject:"cn",type:"daily",weekdays:[0,1,2,3,4,5,6]}],
+    records:{"2026-10-01":{"z":{level:1,type:"full",minutes:10}}},
+    bossDefeats:{}, vault:[], heroes:{"关羽":"2026-09-01"}, heroCount:{}, draws:2, bonusMerit:25,
+    ledger:{}, peakMerit:100, pity:{sinceLegend:3}, graduated:{}, lastOpen:"" });
+  run(`ST=load();`);
+  const ok = run(`ST.schema`)===6 && run(`ST.childName`)==="小虎" && run(`ST.peakMerit`)===100
+    && Array.isArray(run(`ST.coupons`)) && Array.isArray(run(`ST.breaks`))
+    && Array.isArray(run(`ST.signals`)) && typeof run(`ST.hintApplied`)==="object";
+  run(`ST=defaultState(); save();`);
+  return ok;
+})());
+t("v2 → v3 会放开窗口内的账本条目", (()=>{
+  store["shaozhu_v1"]=JSON.stringify({ schema:2, appVersion:"1.5.0",
+    tasks:[{id:"z",name:"n",subject:"cn",type:"daily",weekdays:[0,1,2,3,4,5,6]}],
+    ledger:{ [run(`addD(TODAY(),-10)`)]:{settled:true,merit:0,ticket:0,total:0,complete:false},
+             [TODAY]:{settled:true,merit:0,ticket:0,total:0,complete:false} },
+    vault:[], heroes:{}, heroCount:{}, records:{}, bossDefeats:{}, prizes:[], coupons:[], breaks:[],
+    extraDays:{}, signals:[], pity:{sinceLegend:0}, graduated:{}, reports:{}, achievements:{} });
+  run(`ST=load();`);
+  const ok = run(`!!ST.ledger["${run(`addD(TODAY(),-10)`)}"]`)===true && run(`!!ST.ledger["${TODAY}"]`)===false;
+  run(`ST=defaultState(); save();`);
+  return ok;
+})());
+t("已开过的旧锦囊补一张已兑现券", (()=>{
+  store["shaozhu_v1"]=JSON.stringify({ tasks:[{id:"z",name:"n",subject:"cn",type:"daily",weekdays:[1]}],
+    vault:[{uid:"v1",name:"小零食",emoji:"🍬",tier:"common",merit:50,redeemed:true,gotAt:"2026-10-01"},
+           {uid:"v2",name:"旅行",emoji:"✈️",tier:"legend",merit:1500,redeemed:false,gotAt:"2026-10-02"}] });
+  run(`ST=load();`);
+  const ok = run(`ST.coupons.length`)===1 && run(`ST.coupons[0].status`)==="done";
+  run(`ST=defaultState(); save();`);
+  return ok;
+})());
+t("损坏 JSON 返回 null", (()=>{
+  store["shaozhu_v1"]="{坏";
+  const r=run(`load()`); run(`ST=defaultState(); save();`); return r===null;
+})());
+
+console.log("\n=== 5. 休假模式 ===");
+setup([run(`addD(TODAY(),-8)`),run(`addD(TODAY(),-7)`),run(`addD(TODAY(),-6)`)]);
+run(`ST.breaks=[{id:"r1",from:"${run(`addD(TODAY(),-5)`)}",to:"${run(`addD(TODAY(),-3)`)}",reason:"生病"}]; settleLedger();`);
+t("休整日不派军令", run(`tasksForDate("${run(`addD(TODAY(),-4)`)}").length`)===0);
+t("账本给休整日打标记", run(`ST.ledger["${run(`addD(TODAY(),-4)`)}"].rest`)===true);
+t("休整日不发券、不算未完成", run(`ST.ledger["${run(`addD(TODAY(),-4)`)}"].ticket`)===0 && run(`ST.ledger["${run(`addD(TODAY(),-4)`)}"].total`)===0);
+t("★ 连击跨过休整日继续", (()=>{
+  run(`setRec("${WIN[0]}","a",1,"full",15); setRec("${WIN[0]}","b",1,"full",10);`);
+  return run(`streakEndingAt("${WIN[0]}")`)===4;
+})(), String(run(`streakEndingAt("${WIN[0]}")`)));
+t("休整日不算进连击", run(`streakEndingAt("${run(`addD(TODAY(),-3)`)}")`)===3, String(run(`streakEndingAt("${run(`addD(TODAY(),-3)`)}")`)));
+t("「今天想做一点」翻成开工日", (()=>{
+  run(`ST.breaks=[{id:"r2",from:TODAY(),to:TODAY(),reason:"生病"}];`);
+  const before=run(`tasksForDate(TODAY()).length`);
+  run(`markExtraDay(TODAY());`);
+  return before===0 && run(`tasksForDate(TODAY()).length`)>0;
+})());
+t("休整日不渲染破敌区块", (()=>{
+  run(`ST.extraDays={}; ST.breaks=[{id:"r3",from:TODAY(),to:TODAY(),reason:"期末"}]; VIEW_DATE=TODAY();`);
+  const out=run(`viewToday()`);
+  return !/boss-card/.test(out) && /今日休整/.test(out);
+})());
+
+console.log("\n=== 6. 兑现闭环 ===");
+run(`ST=defaultState(); ST.breaks=[]; ST.vault=[{uid:"v1",name:"游乐场",emoji:"🎡",tier:"rare",merit:400,redeemed:false,gotAt:"2026-10-11",from:"draw"}]; ST.bonusMerit=500; ST.coupons=[];`);
+t("开启锦囊生成兑现券", (()=>{ run(`redeem("v1"); closeSheet();`);
+  return run(`ST.coupons.length`)===1 && run(`ST.coupons[0].status`)==="pending"; })());
+t("确认兑现翻转状态并留备注", (()=>{ run(`settleCoupon(ST.coupons[0].id,"周日下午去了");`);
+  return run(`ST.coupons[0].status`)==="done" && run(`ST.coupons[0].note`)==="周日下午去了"; })());
+t("兑现率与逾期判定", (()=>{
+  run(`ST.coupons.push({id:"c2",name:"还欠着",emoji:"🎁",tier:"common",merit:50,openedAt:addD(TODAY(),-9),status:"pending",doneAt:"",note:""});`);
+  return run(`couponRate()`)===50 && run(`couponOverdue(7).length`)===1;
+})());
+
+console.log("\n=== 7. 难度下调 ===");
+t("连续两周做不完 → 建议降目标", (()=>{
+  run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.hintApplied={}; ST.createdAt=addD(TODAY(),-40);
+    ST.tasks=[{id:"t1",name:"英文阅读",subject:"en",type:"flex",emoji:"📖",timeSlot:"any",planMin:15,weekTarget:5,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}];
+    setRec(weekDates(addD(weekStart(TODAY()),-7))[1],"t1",1,"full",15);
+    setRec(weekDates(addD(weekStart(TODAY()),-14))[1],"t1",1,"full",15);`);
+  const hs=run(`difficultyHints()`);
+  return hs.length===1 && hs[0].kind==="lower";
+})(), JSON.stringify(run(`difficultyHints()`)));
+t("一键应用改了周目标", (()=>{ run(`applyHint("t1","lower");`); return run(`ST.tasks[0].weekTarget`)===4; })());
+t("应用后进入 14 天观察期", run(`difficultyHints().length`)===0 && run(`hintCooling("t1")`)===true);
+t("完成得好就不该有建议", (()=>{
+  run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.hintApplied={}; ST.createdAt=addD(TODAY(),-40);
+    ST.tasks=[{id:"t3",name:"好习惯",subject:"cn",type:"flex",emoji:"x",timeSlot:"any",planMin:15,weekTarget:2,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}];
+    [1,2].forEach(function(i){ var w=addD(weekStart(TODAY()),-7*i); setRec(weekDates(w)[1],"t3",1,"full",15); setRec(weekDates(w)[2],"t3",1,"full",15); });`);
+  return run(`difficultyHints().length`)===0;
+})());
+
+console.log("\n=== 8. 主动性与孩子的口子 ===");
+t("四类信号都有中文名", run(`Object.keys(SIGNAL_NAME).length`)===4);
+t("本周筛选只取本周", (()=>{
+  run(`ST=defaultState(); ST.signals=[{date:addD(TODAY(),-10),kind:"wish",detail:"旧的",at:1},{date:TODAY(),kind:"wish",detail:"新的",at:2}];`);
+  const w=run(`signalsThisWeek()`);
+  return w.length===1 && w[0].detail==="新的";
+})());
+t("心愿标记可开可关", (()=>{
+  run(`ST=defaultState(); ST.vault=[{uid:"w1",name:"手串",emoji:"📿",tier:"rare",merit:300,redeemed:false,gotAt:TODAY(),from:"draw"}]; ST.signals=[];`);
+  run(`markWish("w1");`); const a=run(`!!ST.vault[0].wish`);
+  run(`markWish("w1");`); const b=run(`!!ST.vault[0].wish`);
+  return a && !b && run(`ST.signals.length`)===1;
+})());
+t("军报出现「本周孩子主动做的事」", (()=>{
+  run(`ST.signals=[{date:TODAY(),kind:"add_task",detail:"多读一章",at:1}]; ST.breaks=[];`);
+  return /本周孩子主动做的事/.test(run(`viewReport()`)) && /多读一章/.test(run(`viewReport()`));
+})());
+t("没有主动行为时给解释", (()=>{
+  run(`ST.signals=[];`);
+  return /完成率可以靠推，主动推不出来/.test(run(`viewReport()`));
+})());
+
+console.log("\n=== 9. 原有机制回归 ===");
+t("滑动窗口不翻旧账", (()=>{
+  run(`ST=defaultState(); ST.ledger={}; ST.records={}; ST.breaks=[]; ST.createdAt=addD(TODAY(),-20);
+    ST.tasks=[{id:"t1",name:"英文阅读",subject:"en",type:"flex",emoji:"📖",timeSlot:"any",planMin:15,weekTarget:4,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}];`);
+  return run(`tasksForDate(addD(TODAY(),2)).length`)===1 && run(`Object.keys(ST.records).length`)===0;
+})());
+t("免战牌顺延", (()=>{
+  run(`setRec(TODAY(),"t1",0,"skip",0);`);
+  return run(`tasksForDate(TODAY()).length`)===0 && run(`tasksForDate(addD(TODAY(),1)).length`)===1;
+})());
+t("连击倍率分级", run(`streakMult(1)===1 && streakMult(3)===1.2 && streakMult(5)===1.5 && streakMult(7)===2`));
+t("保底满额必出神将", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.pity.sinceLegend=20;`);
+  const r=withRandom(0.99,()=>run(`rollDraw()`));
+  return (r.kind==="hero"||r.kind==="dup") && r.hero.tier==="legend" && r.forced===true;
+})());
+t("毕业仍是 4 个完整周", (()=>{
+  run(`ST=defaultState(); ST.ledger={}; ST.records={}; ST.graduated={}; ST.breaks=[]; ST.createdAt=addD(TODAY(),-60);
+    ST.tasks=[{id:"m",name:"周一专项",subject:"cn",type:"fixed",emoji:"📜",timeSlot:"any",planMin:20,weekTarget:1,weekdays:[1],boss:false,archived:false}];`);
+  if(run(`checkGraduation().length`)!==0) return false;
+  run(`[1,2,3,4].forEach(function(i){ setRec(weekStart(addD(TODAY(),-7*i)),"m",1,"full",20); });`);
+  return run(`checkGraduation().length`)===1;
+})());
+t("武将库 160 位 / 三国演义 120 回", run(`heroTotal()`)===160 && run(`SANGUO.length`)===120);
+t("重复名将折算军功", (()=>{
+  run(`ST=defaultState(); ST.heroes={"关羽":"2026-01-01"}; ST.heroCount={}; ST.bonusMerit=0; ST.pity.sinceLegend=0;`);
+  return withStub("pickHero", ()=>({tier:"legend",n:"关羽",e:"🗡️",d:"武圣"}), ()=>
+    withRandom(0.5, ()=>{ const r=run(`rollDraw()`); return r.kind==="dup" && r.merit===80; }));
+})());
+
+console.log("\n=== 10. 存储告警 ===");
+t("正常时返回 true", run(`storageAvailable()`)===true);
+storageBroken=true;
+t("被禁用时亮告警条", run(`checkStorage()`)===false && run(`$("#storageWarn")`).classList.contains("show"));
+storageBroken=false;
+t("恢复后消失", run(`checkStorage()`)===true && !run(`$("#storageWarn")`).classList.contains("show"));
+
+console.log("\n=== 10.5 武将库 160 位（怀沙实体卡） ===");
+t("总数 160 位", run(`heroTotal()`)===160, String(run(`heroTotal()`)));
+t("阵营分布 汉84 / 魏31 / 蜀18 / 吴27", (()=>{
+  const f=run(`JSON.stringify(FACTION_ORDER.map(x=>[x,HEROES_BY_FACTION[x].length]))`);
+  return f==='[["汉",84],["魏",31],["蜀",18],["吴",27]]';
+})(), run(`JSON.stringify(FACTION_ORDER.map(x=>[x,HEROES_BY_FACTION[x].length]))`));
+t("等级映射到正确档位（吕布SS→神将）", run(`HERO_BY_NAME["吕布"].tier`)==="legend" && run(`HERO_BY_NAME["吕布"].g`)==="SS");
+t("诸葛亮按实体卡等级是良将（B-）", run(`HERO_BY_NAME["诸葛亮"].tier`)==="common" && run(`HERO_BY_NAME["诸葛亮"].g`)==="B-");
+t("神将 17 / 名将 31 / 良将 112", (()=>{
+  const a=run(`HEROES.legend.length`), b=run(`HEROES.rare.length`), c=run(`HEROES.common.length`);
+  return a===17 && b===31 && c===112;
+})(), [run(`HEROES.legend.length`),run(`HEROES.rare.length`),run(`HEROES.common.length`)].join("/"));
+t("图鉴分组内按等级从高到低", (()=>{
+  const order=run(`JSON.stringify(GRADE_ORDER)`);
+  return run(`(function(){
+    var bad=0;
+    for(var i=0;i<FACTION_ORDER.length;i++){
+      var l=HEROES_BY_FACTION[FACTION_ORDER[i]];
+      for(var k=1;k<l.length;k++) if(GRADE_ORDER.indexOf(l[k-1].g)>GRADE_ORDER.indexOf(l[k].g)) bad++;
+    }
+    return bad;
+  })()`)===0;
+})());
+t("每位都有阵营/等级/图标/描述", run(`HEROES_ALL.filter(x=>!x.n||!x.f||!x.g||!x.e||!x.d).length`)===0);
+t("姓名无重复", run(`new Set(HEROES_ALL.map(x=>x.n)).size`)===160);
+t("旧 36 位里有 27 位被保留", (()=>{
+  const keep=["诸葛亮","关羽","赵云","吕布","周瑜","司马懿","张飞","马超","张辽","许褚","太史慈","甘宁","陆逊","孙策","廖化","周仓","关平","乐进","于禁","曹洪","李典","丁奉","徐盛","周泰","蒋钦","韩当","程普"];
+  return keep.every(n=>run(`!!HERO_BY_NAME["${n}"]`)) && keep.length===27;
+})());
+t("旧武将 9 位已移出（含黄忠）", (()=>{
+  const gone=["黄忠","姜维","魏延","庞统","张苞","马岱","王平","马良","严颜"];
+  return gone.every(n=>run(`!HERO_BY_NAME["${n}"]`));
+})());
+t("抽卡只从 160 位里出", (()=>{
+  run(`ST=defaultState();`);
+  for(let i=0;i<400;i++){
+    const r=run(`rollDraw()`);
+    if(r.kind==="hero"||r.kind==="dup"){
+      if(!run(`!!HERO_BY_NAME["${r.hero.n}"]`)) return false;
+    }
+  }
+  return true;
+})());
+t("神将出率在合理区间（3%~10%）", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.bonusMerit=0; ST.pity.sinceLegend=0;`);
+  let n=0,tot=0;
+  for(let i=0;i<6000;i++){
+    const r=run(`rollDraw()`);
+    if(r.kind==="hero"||r.kind==="dup"){ tot++; if(r.hero.tier==="legend") n++; }
+  }
+  const p=n/tot*100;
+  return p>3 && p<10;
+})(), (()=>{
+  run(`ST=defaultState();`);
+  let n=0,tot=0;
+  for(let i=0;i<6000;i++){ const r=run(`rollDraw()`);
+    if(r.kind==="hero"||r.kind==="dup"){ tot++; if(r.hero.tier==="legend") n++; } }
+  return (n/tot*100).toFixed(1)+"%";
+})());
+t("集齐速度估算：揭 100 榜能招募到 40 位以上", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.bonusMerit=0; ST.pity.sinceLegend=0; ST.vault=[];`);
+  for(let i=0;i<100;i++) run(`rollDraw()`);
+  return run(`heroOwnedCount()`)>=40;
+})(), run(`heroOwnedCount()`) + " 位");
+t("★ 已招募的旧武将会折算成军功补偿", (()=>{
+  run(`ST=defaultState(); ST.heroes={"黄忠":"2026-09-01","姜维":"2026-09-02","关羽":"2026-09-03"}; ST.heroCount={"黄忠":2}; ST.bonusMerit=0; ST.schema=3;`);
+  run(`ST=migrate(ST);`);
+  return run(`!!ST.heroMigrateNote`) && run(`ST.bonusMerit`)===120
+      && run(`!ST.heroes["黄忠"]`) && run(`!ST.heroes["姜维"]`) && run(`!!ST.heroes["关羽"]`);
+})(), run(`ST.bonusMerit`) + " 军功 · " + run(`ST.heroMigrateNote||""`));
+t("补偿提示只出现一次", (()=>{
+  run(`delete ST.heroMigrateNote; ST.schema=3; ST.heroes={"黄忠":"2026-09-01"}; ST.bonusMerit=0;`);
+  run(`const _a1=migrate(ST);`);
+  const first = run(`!!ST.heroMigrateNote`);
+  run(`delete ST.heroMigrateNote;`);
+  run(`migrate(ST);`);
+  return first && !run(`!!ST.heroMigrateNote`);
+})());
+t("图鉴页按阵营显示并标注等级", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":"2026-09-01"};`);
+  const out=run(`viewHeroes()`);
+  return /武将图鉴/.test(out) && /已招募 1 \/ 160/.test(out)
+      && /汉/.test(out) && /魏/.test(out) && /蜀/.test(out) && /吴/.test(out)
+      && />SS</.test(out);
+})());
+t("未招募的卡显示等级作为线索", run(`/等级 S\+?[^B]/.test(viewHeroes())`) || /等级 B-/.test(run(`viewHeroes()`)));
+
+console.log("\n=== 10.8 主线书目：只有三国演义 ===");
+t("代码里已无 BOOKS 书库", !/const BOOKS/.test(html));
+t("已无换书相关的函数与输入框", !/loadBookChap|saveStory|sBookName|sChaps/.test(html));
+t("已无「去设置里挑一本主线书吧」兜底", !/去设置里挑/.test(html));
+t("设置页不再出现「主线书目」卡片", !/<h3>主线书目<\/h3>/.test(html));
+t("书名走常量 SANGUO_BOOK_NAME", run(`typeof SANGUO_BOOK_NAME`)==="string" && run(`SANGUO_BOOK_NAME`)==="三国演义");
+t("默认书目是三国演义", run(`ST.story.book`)==="三国演义");
+t("回目是完整的 120 回", run(`ST.story.chapters.length`)===120, String(run(`ST.story.chapters.length`)));
+t("首尾回目没串位", (()=>{
+  const a=run(`ST.story.chapters[0]`), b=run(`ST.story.chapters[119]`);
+  return /宴桃园豪杰三结义/.test(a) && /降孙皓三分归一统/.test(b);
+})());
+t("剧情卡正常渲染当前回目", (()=>{
+  run(`VIEW_DATE=TODAY();`);
+  const out=run(`viewToday()`);
+  return /📜 主线 · 《三国演义》/.test(out) && /第 .+ 回/.test(out);
+})());
+t("★ 选过别的书的人会被归位到三国演义", (()=>{
+  run(`ST=defaultState(); ST.story.book="西游记"; ST.story.chapters=["石猴出世","拜师学艺"]; ST.schema=4;`);
+  run(`ST=migrate(ST);`);
+  return run(`ST.story.book`)==="三国演义" && run(`ST.story.chapters.length`)===120 && run(`ST.schema`)===6;
+})(), run(`ST.story.book`) + " / " + run(`ST.story.chapters.length`) + " 回");
+t("已经是三国演义的人不会被二次改写", (()=>{
+  run(`ST=defaultState(); ST.schema=4;`);
+  const ref=run(`ST.story.chapters[0]+"|"+ST.story.chapters[60]+"|"+ST.story.chapters[119]`);
+  run(`ST=migrate(ST);`);
+  return run(`ST.story.chapters[0]+"|"+ST.story.chapters[60]+"|"+ST.story.chapters[119]`)===ref;
+})());
+t("剧情推进仍按周计算", (()=>{
+  run(`ST=defaultState(); ST.story.startWeek=weekStart(TODAY());`);
+  const w0=run(`(function(){var st=ST.story;var c=st.chapters;var i=Math.max(0,Math.floor((parseD(weekStart(TODAY()))-parseD(st.startWeek))/604800000));return i%c.length;})()`);
+  return w0===0;
+})());
+
+console.log("\n=== 10.9 主线靠努力推进 ===");
+const doneOn = (dates) => {
+  // 必须换掉默认任务，否则 a/b 这两条记录落在不存在的任务上，dayIsComplete 永远为 false
+  run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.extraDays={};
+       ST.createdAt=addD(TODAY(),-200); ST.story.startDay=addD(TODAY(),-200); ST.story.baseDays=0; ${DAYS_2}`);
+  for(const d of dates) run(`setRec("${d}","a",1,"full",15); setRec("${d}","b",1,"full",10);`);
+};
+t("推进常量是每 3 天全勤 1 回", run(`CHAPTER_PER_DONE_DAYS`)===3);
+t("一天没完成时停在第 1 回", (()=>{ doneOn([]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===3; })());
+t("完成 1 天：还没推进，但要再攒 2 天", (()=>{ doneOn([run(`addD(TODAY(),-2)`)]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===2; })());
+t("完成 2 天：再攒 1 天", (()=>{ doneOn([run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===1; })());
+t("★ 完成 3 天：推进到第 2 回", (()=>{
+  doneOn([run(`addD(TODAY(),-3)`),run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]);
+  return run(`storyChapterRaw()`)===1;
+})(), "第 " + (run(`storyChapterRaw()`)+1) + " 回");
+t("完成 9 天：推进到第 4 回", (()=>{
+  doneOn([0,1,2,3,4,5,6,7,8].map(i=>run(`addD(TODAY(),-${i+1})`)));
+  return run(`storyChapterRaw()`)===3;
+})(), "第 " + (run(`storyChapterRaw()`)+1) + " 回");
+t("只完成一半的日子不算数", (()=>{
+  run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.createdAt=addD(TODAY(),-200); ST.story.startDay=addD(TODAY(),-200); ST.story.baseDays=0;`);
+  [1,2,3].forEach(i=>run(`setRec("${run(`addD(TODAY(),-${i})`)}","a",0.5,"half",8);`));
+  return run(`storyDoneDays()`)===0 && run(`storyChapterRaw()`)===0;
+})());
+t("★ 休整日不会被误算成全勤", (()=>{
+  // 前后各一天全勤，中间一段休整期（没有任务）——全勤应该正好是 2
+  doneOn([run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-1)`)]);
+  run(`ST.breaks=[{id:"br",from:addD(TODAY(),-4),to:addD(TODAY(),-2),reason:"生病"}];`);
+  return run(`storyDoneDays()`)===2 && run(`storyChapterRaw()`)===0;
+})(), "全勤 " + run(`storyDoneDays()`) + " 天");
+t("休整期里的「今天想做一点」照样能推进", (()=>{
+  doneOn([]);
+  run(`ST.breaks=[{id:"br",from:TODAY(),to:TODAY(),reason:"生病"}];`);
+  const before = run(`storyDoneDays()`);
+  run(`markExtraDay(TODAY());`);
+  run(`setRec(TODAY(),"a",1,"full",15); setRec(TODAY(),"b",1,"full",10);`);
+  return before===0 && run(`storyDoneDays()`)===1;
+})());
+t("★ 往后补录也会推进（不限于当天）", (()=>{
+  doneOn([run(`addD(TODAY(),-2)`)]);
+  const a=run(`storyChapterRaw()`);
+  run(`setRec("${run(`addD(TODAY(),-1)`)}","a",1,"full",15); setRec("${run(`addD(TODAY(),-1)`)}","b",1,"full",10);`);
+  run(`setRec("${TODAY}","a",1,"full",15); setRec("${TODAY}","b",1,"full",10);`);
+  return a===0 && run(`storyChapterRaw()`)===1;
+})());
+t("★ 撤销记录后进度只可能停住，不会倒退到 0 以下", (()=>{
+  doneOn([run(`addD(TODAY(),-3)`),run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]);
+  const a=run(`storyChapterRaw()`);
+  run(`clearRec("a","${run(`addD(TODAY(),-1)`)}"); clearRec("b","${run(`addD(TODAY(),-1)`)}");`);
+  return a===1 && run(`storyChapterRaw()`)<=a && run(`storyDoneDays()`)>=0;
+})());
+t("★ 读满 120 回后封顶，不会归零重来", (()=>{
+  run(`ST=defaultState(); ST.story.baseDays=120*3; ST.story.startDay=addD(TODAY(),-200); ST.records={}; ST.ledger={}; ST.breaks=[];`);
+  const out=run(`viewToday()`);
+  return run(`storyChapterRaw()`)===120
+      && /第 一百二十 回/.test(out) || /已推进 120 \/ 120 回/.test(out);
+})(), (()=>{ run(`ST=defaultState(); ST.story.baseDays=360; ST.story.startDay=addD(TODAY(),-200);`);
+  return "raw=" + run(`storyChapterRaw()`) + " 顶回=" + run(`Math.min(storyChapterRaw(),ST.story.chapters.length)`); })());
+t("剧情卡显示「再攒 N 天全勤」", (()=>{
+  run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.story.startDay=TODAY(); ST.story.baseDays=0;`);
+  return /再攒 3 天全勤/.test(run(`viewToday()`));
+})());
+t("★ 旧的按周进度会折算过来，不倒退", (()=>{
+  run(`ST=defaultState(); ST.records={}; ST.story.startWeek=addD(weekStart(TODAY()),-7*30); ST.schema=5; delete ST.story.baseDays; delete ST.story.startDay;`);
+  run(`ST=migrate(ST);`);
+  return run(`ST.story.baseDays`)===30*3 && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===6;
+})(), "折算 " + run(`ST.story.baseDays`) + " 天 → 第 " + (run(`storyChapterRaw()`)+1) + " 回");
+t("新装的人不受迁移影响（baseDays=0）", (()=>{
+  run(`ST=defaultState();`);
+  return run(`ST.story.baseDays`)===0 && run(`!!ST.story.startDay`) && run(`storyChapterRaw()`)===0;
+})());
+t("推进速度算得清：满勤约一年读完", (()=>{
+  const days = run(`ST.story.chapters.length`) * run(`CHAPTER_PER_DONE_DAYS`);
+  return days===360;
+})(), "120 回 × 3 天 = 360 天满勤");
+
+console.log("\n=== 11. 渲染冒烟 ===");
+run(`
+  ST=defaultState(); VIEW_DATE=TODAY(); ST.createdAt=addD(TODAY(),-45);
+  ST.ledger={}; ST.records={};
+  for(var i=40;i>=1;i--){
+    var d=addD(TODAY(),-i);
+    if(isRestDay(d)) continue;
+    tasksForDate(d).forEach(function(t){
+      var r=Math.random(); if(r<0.12) return;
+      var ty=r<0.7?'full':(r<0.86?'half':'poor');
+      setRec(d,t.id,ty==='full'?1:0.5,ty,Math.round((t.planMin||15)*(0.7+Math.random()*0.8)));
+    });
+  }
+  ST.breaks=[{id:"br",from:addD(TODAY(),-9),to:addD(TODAY(),-7),reason:"生病"}];
+  settleLedger();
+  ST.bossDefeats[addD(TODAY(),-2)]=true;
+  ST.heroes={"关羽":"2026-09-01","诸葛亮":"2026-09-10"};
+  ST.vault=[{uid:'v1',name:'一支新笔',emoji:'✏️',tier:'common',merit:40,redeemed:false,gotAt:TODAY(),from:'draw',wish:true},
+            {uid:'v2',name:'心仪的书',emoji:'📚',tier:'rare',merit:200,redeemed:true,gotAt:addD(TODAY(),-3),redeemedAt:addD(TODAY(),-2),from:'boss'}];
+  ST.coupons=[{id:'c1',name:'心仪的书',emoji:'📚',tier:'rare',merit:200,openedAt:addD(TODAY(),-2),status:'done',doneAt:addD(TODAY(),-1),note:'买了'},
+              {id:'c2',name:'游乐场',emoji:'🎡',tier:'rare',merit:400,openedAt:addD(TODAY(),-9),status:'pending',doneAt:'',note:''}];
+  ST.signals=[{date:TODAY(),kind:'add_task',detail:'多读一章',at:1},{date:TODAY(),kind:'too_hard',detail:'奥数',at:2}];
+  ST.graduated={gg:{name:"古筝练习",emoji:"🎵",subject:"other",at:"2026-10-01",weeks:4}};
+  delete ST.records[addD(TODAY(),-1)];
+  calcAchievements();
+`);
+for(const fn of ["viewToday","viewWeek","viewHeroes","viewStats","viewReport","viewSettings"]){
+  try{ const out=run(`${fn}()`); t(fn+" 正常渲染", typeof out==="string" && out.length>300, "长度 "+(out?out.length:0)); }
+  catch(e){ t(fn+" 正常渲染", false, e.message); }
+}
+t("武将页出现兑现台与兑现率", /兑现台/.test(run(`viewHeroes()`)) && /兑现率/.test(run(`viewHeroes()`)));
+t("设置页有休整期与版本号", /休整期/.test(run(`viewSettings()`)) && /少年主公 v/.test(run(`viewSettings()`)));
+t("今日页有「再给我加一项」", /再给我加一项/.test(run(`viewToday()`)));
+t("窗口内的过去日期提示可补录", (()=>{
+  run(`VIEW_DATE="${WIN[1]}"`); const out=run(`viewToday()`); run(`VIEW_DATE=TODAY()`);
+  return /还可以补录/.test(out);
+})());
+t("窗口外的日期不提示补录", (()=>{
+  run(`VIEW_DATE="${FROZEN[2]}"`); const out=run(`viewToday()`); run(`VIEW_DATE=TODAY()`);
+  return !/还可以补录/.test(out);
+})());
+t("空数据也能渲染", (()=>{ try{
+  run(`ST=defaultState(); ST.breaks=[]; VIEW_DATE=TODAY();`);
+  return ["viewToday","viewWeek","viewHeroes","viewStats","viewReport","viewSettings"]
+    .every(f => run(`${f}()`).length > 200);
+}catch(e){ return false; } })());
+t("输出无 undefined / NaN", (()=>{
+  const out=run(`viewToday()+viewWeek()+viewHeroes()+viewStats()+viewReport()+viewSettings()`);
+  return !/undefined/.test(out) && !/>NaN</.test(out) && !/NaN%/.test(out);
+})());
+
+console.log("\n"+"=".repeat(52));
+console.log(`  逻辑测试：${pass} 通过 / ${fail} 失败`);
+console.log("=".repeat(52));
+process.exit(fail?1:0);
