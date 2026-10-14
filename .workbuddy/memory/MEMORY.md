@@ -33,7 +33,17 @@
 - **发布后验证**：curl 查版本号、sw.js 可达、与本地 `diff` 一致
 - 源码只改 `少年主公.html`；`site/` 是发布副本，不要直接改
 
-### 关键限制（别踩）
+### Git / GitHub
+
+- **仓库**：`https://github.com/Alanjiao1988/shaoshu-game.git`（私有，分支 `main`）
+  - 用户名首字母**大写**：`Alanjiao1988`（git 全局配置里的 `user.name` 是小写 `alanjiao1988`，GitHub 实际显示名是大写）
+  - 仓库名是 **shaoshu-game**（不是 shaozhu —— 这两个字母容易读反，用户自己也输错过一次）
+- **推送脚本**：`bash .workbuddy/tools/push_github.sh <仓库地址>`（幂等）
+- ⚠️ **推送必须关掉沙箱**：Git Credential Manager 的浏览器登录要在本地起一个 `HttpListener` 接 OAuth 回调，沙箱里会直接 `System.AccessViolationException` 崩溃。用 `dangerouslyDisableSandbox: true` 跑。
+- 凭据已由 GCM 存好（账号 `Alanjiao1988`），后续推送不会再弹浏览器
+- 仓库里保留了 GitHub 建仓时自动生成的 README.md（一行），我的提交 rebase 在它上面，**没有强推**
+
+## 关键限制（别踩）
 - iOS Safari 的 **ITP 7 天规则**会清空 localStorage；**「添加到主屏幕」豁免**，且其存储与 Safari **隔离**
 - **Chrome 在 `file://` 下 localStorage 可用**（实测），所以本地桌面版可行
 - 沙箱**禁止执行 cscript / wscript / WScript.Shell COM / taskkill**，WSH 脚本只能靠审读 + 编码正确来保证
