@@ -1,0 +1,13 @@
+# 统一用 LF 行尾。
+# 不加这个的话，Windows 上 clone 会把 HTML/JS 转成 CRLF，
+# 导致 site/index.html 和源文件 diff 对不上，发布时容易误判。
+* text=auto eol=lf
+
+# 二进制资源显式声明，别让 git 猜
+*.png binary
+*.ico binary
+*.jpg binary
+*.gif binary
+
+# 启动器是 UTF-16LE + BOM 的 Windows 脚本，按二进制处理
+*.vbs binary
