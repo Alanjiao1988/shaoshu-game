@@ -40,6 +40,11 @@
   - 仓库名是 **shaoshu-game**（不是 shaozhu —— 这两个字母容易读反，用户自己也输错过一次）
 - **推送脚本**：`bash .workbuddy/tools/push_github.sh <仓库地址>`（幂等）
 - ⚠️ **推送必须关掉沙箱**：Git Credential Manager 的浏览器登录要在本地起一个 `HttpListener` 接 OAuth 回调，沙箱里会直接 `System.AccessViolationException` 崩溃。用 `dangerouslyDisableSandbox: true` 跑。
+- ⚠️ **代理**：git 全局配了 `http.proxy=http://127.0.0.1:10808`。**代理没开时推送会直接失败**（`Failed to connect to github.com:443 over proxy`）。绕过方法：
+  ```
+  git -c http.proxy= -c https.proxy= push origin main
+  ```
+  （2026-10-16 实测：代理不开也能直连 GitHub，加这两个空参数就行）
 - 凭据已由 GCM 存好（账号 `Alanjiao1988`），后续推送不会再弹浏览器
 - 仓库里保留了 GitHub 建仓时自动生成的 README.md（一行），我的提交 rebase 在它上面，**没有强推**
 
