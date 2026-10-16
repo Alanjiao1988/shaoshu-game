@@ -634,7 +634,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.0.0"
+const APP_VERSION = "2.0.1";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 7;
 // 最近几天（含今天）的账还没冻结，可以补录点卯。
@@ -1098,7 +1098,7 @@ function migrate(s){
     // 实体卡里没有，若已招募则折算成军功补偿 —— 不让孩子的收集凭空消失。
     const gone = Object.keys(s.heroes||{}).filter(n=>!HERO_BY_NAME[n]);
     if(gone.length){
-      s.bonusMerit = round1((s.bonusMerit||0) + gone.length * REMOVED_HERO_MERIT);
+      addMerit(s, gone.length * REMOVED_HERO_MERIT, "migrate");
       for(const n of gone) delete s.heroes[n];
       for(const n of gone) delete s.heroCount[n];
       s.heroMigrateNote = gone.length + " 位旧武将不在新图鉴里（" + gone.join("、") + "），已各补 ⭐" + REMOVED_HERO_MERIT + " 军功";
@@ -1612,6 +1612,31 @@ function applyHint(taskId, kind){
 function heroOwned(name){ return !!ST.heroes[name]; }
 function heroTotal(){ return HEROES_ALL.length; }
 function heroOwnedCount(){ return Object.keys(ST.heroes).filter(n=>!!HERO_BY_NAME[n]).length; }
+/* ---- 军功来源记账 ----
+   bonusMerit 有三个来源（旧将重逢 / 集齐奖励 / 升级补偿），
+   以前全显示成「旧将重逢」，家长看不出异常是哪来的。现在分开记。 */
+function addMerit(st, n, src){
+  st = st || ST;
+  st.bonusMerit = round1((st.bonusMerit||0) + (n||0));
+  if(!st.meritSrc || typeof st.meritSrc!=="object") st.meritSrc={ dup:0, collect:0, migrate:0 };
+  st.meritSrc[src] = round1((st.meritSrc[src]||0) + (n||0));
+  return st.bonusMerit;
+}
+const MERIT_SRC_NAME = { dup:"旧将重逢", collect:"集齐奖励", migrate:"升级补偿" };
+function meritSrcLine(){
+  const s=ST.meritSrc;
+  if(!s || typeof s!=="object") return (ST.bonusMerit?(" · 其他 "+round1(ST.bonusMerit)):"");
+  const parts=[];
+  for(const k of ["dup","collect","migrate"]){
+    const v=s[k]||0;
+    if(v>0) parts.push(MERIT_SRC_NAME[k]+" "+round1(v));
+  }
+  // 老数据没有分项记录时，把总额兜进去，别让数字凭空消失
+  const sum=round1((s.dup||0)+(s.collect||0)+(s.migrate||0));
+  const rest=round1((ST.bonusMerit||0)-sum);
+  if(rest>0.05) parts.push("其他 "+rest);
+  return parts.length ? (" · "+parts.join(" · ")) : "";
+}
 function heroTierOf(name){ const h=HERO_BY_NAME[name]; return h ? h.tier : "common"; }
 
 /* ---- 集齐奖励 ----
@@ -1633,13 +1658,13 @@ function checkCollection(st){
     const got=(HEROES_BY_FACTION[f]||[]).filter(x=>!!st.heroes[x.n]).length;
     if(got>=tot && !st.factionDone[f]){
       st.factionDone[f]=TODAY();
-      st.bonusMerit=round1((st.bonusMerit||0)+FACTION_DONE_MERIT);
+      addMerit(st, FACTION_DONE_MERIT, "collect");
       out.push({type:"faction", f, tot, merit:FACTION_DONE_MERIT});
     }
   }
   if(HEROES_ALL.length>0 && owned>=HEROES_ALL.length && !st.allDone){
     st.allDone=TODAY();
-    st.bonusMerit=round1((st.bonusMerit||0)+ALL_DONE_MERIT);
+    addMerit(st, ALL_DONE_MERIT, "collect");
     out.push({type:"all", merit:ALL_DONE_MERIT});
   }
   return out;
@@ -1693,7 +1718,7 @@ function rollDraw(){
     if(heroOwned(h.n)){
       const m=DUP_MERIT[h.tier]||6;
       ST.heroCount[h.n]=(ST.heroCount[h.n]||1)+1;
-      ST.bonusMerit=(ST.bonusMerit||0)+m;
+      addMerit(ST, m, "dup");
       return { kind:"dup", hero:h, merit:m, forced:force };
     }
     ST.heroes[h.n]=TODAY();
@@ -2857,7 +2882,7 @@ function viewStats(){
   }
   h+='</div>';
   h+='<div style="font-size:12.5px;font-weight:600;color:var(--ink-2);line-height:1.95;">'
-   + '累计军功 ⭐'+totalMerit()+'（点卯所得 '+earnedMerit()+(ST.bonusMerit?(" · 旧将重逢 "+round1(ST.bonusMerit)):"")+'）<br>'
+   + '累计军功 ⭐'+totalMerit()+'（点卯所得 '+earnedMerit()+meritSrcLine()+'）<br>'
    + '可用 ⭐'+availMerit()+' · 已开锦囊用去 ⭐'+spentMerit()
    + '</div></div>';
 

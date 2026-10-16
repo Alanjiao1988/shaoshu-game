@@ -71,7 +71,7 @@ const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODA
 console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
 
 console.log("=== 1. 版本与静态资源 ===");
-t("软件版本为 2.0.0", run(`APP_VERSION`)==="2.0.0", run(`APP_VERSION`));
+t("软件版本为 2.0.1", run(`APP_VERSION`)==="2.0.1", run(`APP_VERSION`));
 t("数据结构版本为 7", run(`SCHEMA`)===7, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
@@ -97,7 +97,7 @@ t("启动器是 UTF-16LE + BOM（Windows 才不乱码）", (()=>{
 t("有持久化存储的申请逻辑", /navigator\.storage\.persist/.test(html) && /requestPersistentStorage/.test(html));
 t("sw.js 缓存清单包含 maskable 图标", (()=>{
   const sw = fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8");
-  return /icon-maskable-512\.png/.test(sw) && /VERSION = "2\.0\.0"/.test(sw);
+  return /icon-maskable-512\.png/.test(sw) && /VERSION = "2\.0\.1"/.test(sw);
 })());
 
 console.log("\n=== 2. 补录窗口 ===");
@@ -664,6 +664,49 @@ t("孩子看的页面叫「奖励一览」", /<h3>奖励一览<\/h3>/.test(run(`
 t("家长改的叫「锦囊设置」", /<h3>锦囊设置<\/h3>/.test(run(`viewSettings()`)));
 t("不再有两处同名「锦囊内容」", !/<h3>锦囊内容<\/h3>/.test(html));
 t("编辑入口在设置页", /openPrizeEdit/.test(run(`viewSettings()`)));
+
+console.log("\n=== 10.14 军功来源拆分 ===");
+t("旧将重逢记在 dup 项下", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={}; ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0}; ST.vault=[];`);
+  run(`addMerit(ST, 80, "dup");`);
+  return run(`ST.meritSrc.dup`)===80 && run(`ST.bonusMerit`)===80;
+})());
+t("集齐奖励记在 collect 项下", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0};`);
+  run(`addMerit(ST, 200, "collect"); addMerit(ST, 1000, "collect");`);
+  return run(`ST.meritSrc.collect`)===1200 && run(`ST.bonusMerit`)===1200;
+})());
+t("升级补偿记在 migrate 项下", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0};`);
+  run(`addMerit(ST, 540, "migrate");`);
+  return run(`ST.meritSrc.migrate`)===540;
+})());
+t("三项相加等于 bonusMerit", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0};`);
+  run(`addMerit(ST,80,"dup"); addMerit(ST,200,"collect"); addMerit(ST,60,"migrate");`);
+  const s=run(`ST.meritSrc`);
+  const sum = Math.round((s.dup+s.collect+s.migrate)*10)/10;
+  return sum===run(`ST.bonusMerit`);
+})());
+t("军报按来源分项显示", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0}; ST.ledger={};`);
+  run(`addMerit(ST,80,"dup"); addMerit(ST,200,"collect");`);
+  const line=run(`meritSrcLine()`);
+  return /旧将重逢 80/.test(line) && /集齐奖励 200/.test(line) && !/升级补偿/.test(line);
+})(), run(`meritSrcLine()`));
+t("★ 老数据没有分项时不丢数（兜进「其他」）", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=95; delete ST.meritSrc;`);
+  const line=run(`meritSrcLine()`);
+  return /其他 95/.test(line);
+})(), run(`meritSrcLine()`));
+t("没有额外军功时不留空后缀", (()=>{
+  run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0};`);
+  return run(`meritSrcLine()`)==="";
+})());
+t("集齐奖励走 addMerit 记录来源", /addMerit\(st, FACTION_DONE_MERIT, "collect"\)/.test(html)
+  && /addMerit\(st, ALL_DONE_MERIT, "collect"\)/.test(html)
+  && !/st\.bonusMerit=round1\(\(st\.bonusMerit\|\|0\)\+FACTION_DONE_MERIT\)/.test(html));
+t("迁移补偿走 addMerit 记录来源", /addMerit\(s, gone\.length \* REMOVED_HERO_MERIT, "migrate"\)/.test(html));
 
 console.log("\n=== 11. 渲染冒烟 ===");
 run(`
