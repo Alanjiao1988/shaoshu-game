@@ -6,10 +6,17 @@ const FILE = path.join(ROOT, "少年主公.html");
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, ".workbuddy", "ref", "heroes.json"), "utf8"));
 
 const esc = s => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-// 每行一位：["姓名","阵营","等级","图标","一句话"]
-const lines = data.heroes.map(h =>
-  `  ["${esc(h.n)}","${esc(h.f)}","${esc(h.g)}","${esc(h.e)}","${esc(h.d)}"]`
-);
+// 纹章用的「姓氏」：复姓取整个复姓，单姓取首字
+const COMPOUND = ["公孙","夏侯","司马","诸葛","皇甫","淳于","太史","令狐","呼延","慕容","宇文","长孙","尉迟","单于","万俟","闻人","东方","赫连","澹台","公治","宗政","濮阳","淳于","单于","太叔","申屠","公仲","壤驷","公良","夹谷","宰父","谷粱","段干","百里","东郭","南门","羊舌","微生","公西","南门"];
+function surnameOf(n){
+  for(const c of COMPOUND) if(n.startsWith(c)) return c;
+  return n.slice(0,1);
+}
+// 每行一位：["姓名","阵营","等级","图标","一句话","纹章姓氏"]
+const lines = data.heroes.map(h => {
+  const s = surnameOf(h.n);
+  return `  ["${esc(h.n)}","${esc(h.f)}","${esc(h.g)}","${esc(h.e)}","${esc(h.d)}","${esc(s)}"]`;
+});
 const literal = "const HERO_DATA = [\n" + lines.join(",\n") + "\n];";
 
 let html = fs.readFileSync(FILE, "utf8");

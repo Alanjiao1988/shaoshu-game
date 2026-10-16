@@ -171,7 +171,7 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     await cdp.eval("try{closeSheet();}catch(e){} ST=defaultState(); ST.createdAt=addD(TODAY(),-30); ST.lastOpen=TODAY(); save(); VIEW='today'; VIEW_DATE=TODAY(); render();");
     await sleep(400);
     t("今日视图渲染出内容", (await cdp.eval(`document.querySelector("#main").innerHTML.length`)) > 800);
-    t("版本号显示为 1.9.0", /少年主公 v1\.9\.0/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
+    t("版本号显示为 2.0.0", /少年主公 v2\.0\.0/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
     for (const v of ["today","week","heroes","stats","report","settings"]) {
       const len = await cdp.eval(`(function(){ VIEW="${v}"; render(); return document.querySelector("#main").innerHTML.length; })()`);
       t("切换到「" + v + "」正常", len > 200, "长度 " + len);
@@ -182,7 +182,7 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
       return JSON.stringify({ n: rs.length, state: rs[0] && rs[0].active ? rs[0].active.state : "none" }); })`));
     t("已注册并激活", sw.n > 0 && sw.state === "activated", JSON.stringify(sw));
     const caches = await cdp.eval(`caches.keys().then(function(k){ return JSON.stringify(k); })`);
-    t("缓存名为 shaozhu-v1.9.0", /shaozhu-v1\.9\.0/.test(caches), caches);
+    t("缓存名为 shaozhu-v2.0.0", /shaozhu-v2\.0\.0/.test(caches), caches);
     const cached = await cdp.eval(`caches.keys().then(function(k){
       return caches.open(k[0]).then(function(c){ return c.keys(); }).then(function(rs){
         return JSON.stringify(rs.map(function(r){ return r.url.split("/").pop() || "root"; })); }); })`);
@@ -204,6 +204,8 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
       ST.breaks=[{id:"b1",from:addD(TODAY(),-9),to:addD(TODAY(),-7),reason:"生病"}];
       settleLedger(); ST.bossDefeats[addD(TODAY(),-2)]=true;
       ST.heroes={"关羽":"2026-09-01","诸葛亮":"2026-09-10","赵云":"2026-10-01"};
+      ST.heroCount={"关羽":3,"赵云":6};   // 造两个有星级的，截图好看
+      ST.heroCount={"关羽":3,"赵云":6};   // 造两个有星级的，截图好看
       ST.vault=[{uid:"v1",name:"心仪的书一本",emoji:"📚",tier:"rare",merit:200,redeemed:false,gotAt:addD(TODAY(),-1),from:"draw",wish:true}];
       ST.coupons=[{id:"c1",name:"小零食",emoji:"🍬",tier:"common",merit:50,openedAt:addD(TODAY(),-12),status:"done",doneAt:addD(TODAY(),-10),note:"周日买了"},
                   {id:"c2",name:"周末半日自由安排",emoji:"🎡",tier:"rare",merit:400,openedAt:addD(TODAY(),-9),status:"pending",doneAt:"",note:""}];

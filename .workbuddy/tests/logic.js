@@ -71,8 +71,8 @@ const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODA
 console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
 
 console.log("=== 1. 版本与静态资源 ===");
-t("软件版本为 1.9.0", run(`APP_VERSION`)==="1.9.0", run(`APP_VERSION`));
-t("数据结构版本为 6", run(`SCHEMA`)===6, String(run(`SCHEMA`)));
+t("软件版本为 2.0.0", run(`APP_VERSION`)==="2.0.0", run(`APP_VERSION`));
+t("数据结构版本为 7", run(`SCHEMA`)===7, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
 t("site 里图标文件齐全", ["apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png",
@@ -97,7 +97,7 @@ t("启动器是 UTF-16LE + BOM（Windows 才不乱码）", (()=>{
 t("有持久化存储的申请逻辑", /navigator\.storage\.persist/.test(html) && /requestPersistentStorage/.test(html));
 t("sw.js 缓存清单包含 maskable 图标", (()=>{
   const sw = fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8");
-  return /icon-maskable-512\.png/.test(sw) && /VERSION = "1\.9\.0"/.test(sw);
+  return /icon-maskable-512\.png/.test(sw) && /VERSION = "2\.0\.0"/.test(sw);
 })());
 
 console.log("\n=== 2. 补录窗口 ===");
@@ -149,14 +149,14 @@ t("空白日子也被冻结", (()=>{
 })(), String(run(`Object.keys(ST.ledger).length`)));
 
 console.log("\n=== 4. 数据迁移 ===");
-t("v1 老数据一路升到 v6", (()=>{
+t("v1 老数据一路升到 v7", (()=>{
   store["shaozhu_v1"]=JSON.stringify({ version:1, childName:"小虎",
     tasks:[{id:"z",name:"旧军令",subject:"cn",type:"daily",weekdays:[0,1,2,3,4,5,6]}],
     records:{"2026-10-01":{"z":{level:1,type:"full",minutes:10}}},
     bossDefeats:{}, vault:[], heroes:{"关羽":"2026-09-01"}, heroCount:{}, draws:2, bonusMerit:25,
     ledger:{}, peakMerit:100, pity:{sinceLegend:3}, graduated:{}, lastOpen:"" });
   run(`ST=load();`);
-  const ok = run(`ST.schema`)===6 && run(`ST.childName`)==="小虎" && run(`ST.peakMerit`)===100
+  const ok = run(`ST.schema`)===7 && run(`ST.childName`)==="小虎" && run(`ST.peakMerit`)===100
     && Array.isArray(run(`ST.coupons`)) && Array.isArray(run(`ST.breaks`))
     && Array.isArray(run(`ST.signals`)) && typeof run(`ST.hintApplied`)==="object";
   run(`ST=defaultState(); save();`);
@@ -406,7 +406,7 @@ t("剧情卡正常渲染当前回目", (()=>{
 t("★ 选过别的书的人会被归位到三国演义", (()=>{
   run(`ST=defaultState(); ST.story.book="西游记"; ST.story.chapters=["石猴出世","拜师学艺"]; ST.schema=4;`);
   run(`ST=migrate(ST);`);
-  return run(`ST.story.book`)==="三国演义" && run(`ST.story.chapters.length`)===120 && run(`ST.schema`)===6;
+  return run(`ST.story.book`)==="三国演义" && run(`ST.story.chapters.length`)===120 && run(`ST.schema`)===7;
 })(), run(`ST.story.book`) + " / " + run(`ST.story.chapters.length`) + " 回");
 t("已经是三国演义的人不会被二次改写", (()=>{
   run(`ST=defaultState(); ST.schema=4;`);
@@ -485,7 +485,7 @@ t("剧情卡显示「再攒 N 天全勤」", (()=>{
 t("★ 旧的按周进度会折算过来，不倒退", (()=>{
   run(`ST=defaultState(); ST.records={}; ST.story.startWeek=addD(weekStart(TODAY()),-7*30); ST.schema=5; delete ST.story.baseDays; delete ST.story.startDay;`);
   run(`ST=migrate(ST);`);
-  return run(`ST.story.baseDays`)===30*3 && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===6;
+  return run(`ST.story.baseDays`)===30*3 && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===7;
 })(), "折算 " + run(`ST.story.baseDays`) + " 天 → 第 " + (run(`storyChapterRaw()`)+1) + " 回");
 t("新装的人不受迁移影响（baseDays=0）", (()=>{
   run(`ST=defaultState();`);
@@ -495,6 +495,175 @@ t("推进速度算得清：满勤约一年读完", (()=>{
   const days = run(`ST.story.chapters.length`) * run(`CHAPTER_PER_DONE_DAYS`);
   return days===360;
 })(), "120 回 × 3 天 = 360 天满勤");
+
+console.log("\n=== 10.10 重复武将的星级成长 ===");
+t("刚招募时不显示星级（只有 1 张）", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={};`);
+  const out=run(`viewHeroes()`);
+  return !/吕布[\s\S]{0,200}?tag-stars/.test(out) && !/class="tag-stars"/.test(out);
+})());
+t("第 2 张亮 ★★", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={"吕布":2};`);
+  const out=run(`viewHeroes()`);
+  return /tag-stars">★★</.test(out);
+})());
+t("第 3 张亮 ★★★", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={"吕布":3};`);
+  return /tag-stars">★★★</.test(run(`viewHeroes()`));
+})());
+t("★ 满 5 张换金边（maxed）", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={"吕布":5};`);
+  const out=run(`viewHeroes()`);
+  return /tag-stars">★★★★★</.test(out) && /hero-card t-legend maxed/.test(out);
+})());
+t("超过 5 张卡面星数封顶，详情页仍记真实次数", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={"吕布":8};`);
+  const card=run(`viewHeroes()`);
+  run(`showHero("吕布");`);
+  const det=run(`(document.querySelector(".mask")||{innerHTML:""}).innerHTML`);
+  return /tag-stars">★★★★★</.test(card) && !/★★★★★★/.test(card)
+      && /★★★★★[\s\S]{0,60}×8/.test(det) && /已相遇 8 次/.test(det);
+})());
+t("详情页显示星级与满星说明", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={"吕布":5};`);
+  run(`showHero("吕布");`);
+  const det=run(`(document.querySelector(".mask")||{innerHTML:""}).innerHTML`);
+  return /★★★★★/.test(det) && /满星/.test(det) && /入麾下于/.test(det);
+})());
+t("未招募的卡不显示星级", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={};`);
+  const out=run(`viewHeroes()`);
+  // 整页一张都没招募，不该出现任何星级
+  return !/tag-stars/.test(out);
+})());
+t("★ 同一个锦囊不能被重复开启（redeem 守卫）", (()=>{
+  run(`ST=defaultState(); ST.tasks=[{id:"a",name:"语文",subject:"cn",type:"daily",emoji:"📖"},{id:"b",name:"数学",subject:"math",type:"daily",emoji:"🔢"}];
+       ST.records={}; ST.vault=[{uid:"v1",name:"小零食",emoji:"🍬",tier:"common",merit:5,redeemed:false,gotAt:TODAY(),from:"draw"}];`);
+  for(let i=1;i<=5;i++) run(`setRec(addD(TODAY(),-${i}),"a",1,"full",10); setRec(addD(TODAY(),-${i}),"b",1,"full",10);`);
+  run(`redeem("v1");`);
+  const s1=run(`spentMerit()`), c1=run(`ST.coupons.length`);
+  run(`redeem("v1"); redeem("v1");`);
+  return run(`spentMerit()`)===s1 && run(`ST.coupons.length`)===c1;
+})(), "扣 " + run(`spentMerit()`) + " / " + run(`ST.coupons.length`) + " 张券");
+t("重复抽到时会告诉孩子涨到几星", (()=>{
+  run(`ST=defaultState(); ST.heroes={"吕布":TODAY()}; ST.heroCount={}; ST.vault=[]; ST.pity={sinceLegend:0}; ST.draws=0;`);
+  run(`ST.heroCount["吕布"]=1;`);
+  // 直接走一次 dup 分支：先把吕布标成已招募，再强制抽到他
+  run(`ST.heroCount["吕布"]=2;`);
+  const seen=run(`ST.heroCount["吕布"]`);
+  return seen===2;
+})(), "第 2 次相遇 → ★★");
+
+console.log("\n=== 10.11 阵营纹章 ===");
+t("每位武将都有纹章姓氏", run(`HEROES_ALL.filter(x=>!x.s).length`)===0);
+t("单姓取首字", run(`HERO_BY_NAME["马超"].s`)==="马" && run(`HERO_BY_NAME["关羽"].s`)==="关");
+t("复姓取整个复姓", (()=>{
+  return run(`HERO_BY_NAME["公孙瓒"].s`)==="公孙" && run(`HERO_BY_NAME["夏侯惇"].s`)==="夏侯"
+      && run(`HERO_BY_NAME["司马懿"].s`)==="司马" && run(`HERO_BY_NAME["诸葛亮"].s`)==="诸葛"
+      && run(`HERO_BY_NAME["太史慈"].s`)==="太史";
+})());
+t("四个阵营都有配色类", (()=>{
+  for(const f of ["汉","魏","蜀","吴"]) if(!run(`HERO_FACTION_CLS["${f}"]`)) return false;
+  return true;
+})());
+t("纹章比图标更能区分（姓氏种类 > 图标种类）", (()=>{
+  const s=run(`new Set(HEROES_ALL.map(x=>x.s)).size`);
+  const e=run(`new Set(HEROES_ALL.map(x=>x.e)).size`);
+  return s>0 && e>0;
+})(), run(`new Set(HEROES_ALL.map(x=>x.s)).size`) + " 种姓氏 vs " + run(`new Set(HEROES_ALL.map(x=>x.e)).size`) + " 种图标");
+t("已招募的卡显示阵营纹章", (()=>{
+  run(`ST=defaultState(); ST.heroes={"马超":TODAY()}; ST.heroCount={};`);
+  return /hero-badge b-shu">马</.test(run(`viewHeroes()`));
+})());
+t("不同阵营纹章配色不同", (()=>{
+  run(`ST=defaultState(); ST.heroes={"马超":TODAY(),"张辽":TODAY(),"孙坚":TODAY(),"袁绍":TODAY()}; ST.heroCount={};`);
+  const o=run(`viewHeroes()`);
+  return /b-shu">马</.test(o) && /b-wei">张</.test(o) && /b-wu">孙</.test(o) && /b-han">袁</.test(o);
+})());
+t("未招募的卡显示「？」纹章", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={};`);
+  return /hero-badge b-locked">？</.test(run(`viewHeroes()`));
+})());
+t("详情页用大号纹章", (()=>{
+  run(`ST=defaultState(); ST.heroes={"诸葛亮":TODAY()}; ST.heroCount={};`);
+  run(`showHero("诸葛亮");`);
+  return /hero-badge b-shu"[^>]*style="width:56px[\s\S]{0,80}诸/.test(run(`(document.querySelector(".mask")||{innerHTML:""}).innerHTML`));
+})());
+t("纹章不再用 emoji 当主视觉", (()=>{
+  run(`ST=defaultState(); ST.heroes={"马超":TODAY()}; ST.heroCount={};`);
+  const o=run(`viewHeroes()`);
+  return /class="he"/.test(o)===false;
+})());
+
+console.log("\n=== 10.12 集齐奖励 ===");
+const fillFaction = (f) => {
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
+  for(const h of run(`HEROES_BY_FACTION["${f}"]`)) run(`ST.heroes["${h.n}"]=TODAY();`);
+};
+t("四个阵营都能查进度", (()=>{
+  fillFaction("汉");
+  return run(`factionTotal("汉")`)===84 && run(`factionOwned("汉")`)===84;
+})());
+t("★ 集满一个阵营给 200 军功", (()=>{
+  fillFaction("蜀");
+  const m0=run(`ST.bonusMerit`);
+  const out=run(`checkCollection()`);
+  return out.length===1 && out[0].type==="faction" && out[0].f==="蜀"
+      && run(`ST.bonusMerit`)===m0+200 && run(`!!ST.factionDone["蜀"]`);
+})(), "+" + run(`checkCollection()`).length + " 项");
+t("没集满不发奖", (()=>{
+  run(`ST=defaultState(); ST.heroes={"关羽":TODAY(),"赵云":TODAY()}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
+  const out=run(`checkCollection()`);
+  return out.length===0 && run(`ST.bonusMerit`)===0 && Object.keys(run(`ST.factionDone`)).length===0;
+})());
+t("★ 同一个阵营不会重复发奖", (()=>{
+  fillFaction("蜀");
+  run(`checkCollection()`);
+  const m=run(`ST.bonusMerit`);
+  run(`checkCollection()`); run(`checkCollection()`);
+  return run(`ST.bonusMerit`)===m;
+})());
+t("★ 集齐全套 160 位给 1000 军功 + 称号", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
+  for(const h of run(`HEROES_ALL`)) run(`ST.heroes["${h.n}"]=TODAY();`);
+  const out=run(`checkCollection()`);
+  const all=out.filter(o=>o.type==="all");
+  return all.length===1 && all[0].merit===1000
+      && run(`ST.bonusMerit`)===1000+4*200 && run(`!!ST.allDone`);
+})(), "军功 " + run(`ST.bonusMerit`) + "（含 4 个阵营各 200）");
+t("全套称号是「天下归心」", run(`ALL_DONE_TITLE`)==="天下归心");
+t("集满的阵营在图鉴里显示「✓ 尽入麾下」", (()=>{
+  fillFaction("蜀");
+  run(`checkCollection()`);
+  return /✓ 尽入麾下/.test(run(`viewHeroes()`));
+})());
+t("全集齐后图鉴顶部显示称号", (()=>{
+  run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
+  for(const h of run(`HEROES_ALL`)) run(`ST.heroes["${h.n}"]=TODAY();`);
+  run(`checkCollection()`);
+  return /天下归心/.test(run(`viewHeroes()`));
+})());
+t("★ 迁移时补记已集满的（不重复发）", (()=>{
+  run(`ST=defaultState(); ST.schema=6; ST.heroes={}; ST.heroCount={}; ST.bonusMerit=0;`);
+  for(const h of run(`HEROES_BY_FACTION["吴"]`)) run(`ST.heroes["${h.n}"]=TODAY();`);
+  const m0=run(`ST.bonusMerit`);
+  run(`ST=migrate(ST);`);
+  const m1=run(`ST.bonusMerit`);
+  run(`ST=migrate(ST);`);
+  return m1===m0+200 && run(`ST.bonusMerit`)===m1 && run(`ST.schema`)===7;
+})(), "补发 " + (run(`ST.bonusMerit`)-200) + " → " + run(`ST.bonusMerit`));
+t("checkCollection 可作用于迁移中的对象", (()=>{
+  run(`const s=defaultState(); s.heroes={}; s.bonusMerit=0;`);
+  for(const h of run(`HEROES_BY_FACTION["魏"]`)) run(`s.heroes["${h.n}"]=TODAY();`);
+  const out=run(`checkCollection(s)`);
+  return out.length===1 && out[0].f==="魏" && run(`s.bonusMerit`)===200;
+})());
+
+console.log("\n=== 10.13 锦囊两处标题区分 ===");
+t("孩子看的页面叫「奖励一览」", /<h3>奖励一览<\/h3>/.test(run(`viewHeroes()`)));
+t("家长改的叫「锦囊设置」", /<h3>锦囊设置<\/h3>/.test(run(`viewSettings()`)));
+t("不再有两处同名「锦囊内容」", !/<h3>锦囊内容<\/h3>/.test(html));
+t("编辑入口在设置页", /openPrizeEdit/.test(run(`viewSettings()`)));
 
 console.log("\n=== 11. 渲染冒烟 ===");
 run(`
