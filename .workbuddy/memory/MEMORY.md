@@ -87,3 +87,9 @@
 - **改武将库的正确姿势**：改 `ref/heroes.json` → 跑 `buildheroes.js` → 跑 `checkheroes.js` → 跑两套测试
 - **不要手改 HTML 里 `BUILD:HERO_DATA` 标记之间的数组**
 - 卡 81 已确认是**穆顺**（不是糜顺），数据源与原始转录均已修正
+
+### 武将卡字段（v2.1.0 起）
+- `HERO_DATA` 每行 8 列：姓名 / 阵营 / 等级 / 图标 / 一句话 / 纹章姓氏 / **字** / **名场面回目**
+- 字 95 位、回目 56 位，其余留空 —— **史书未载的不编**。工具：`.workbuddy/tools/addlore.js`
+- 图鉴三态：未识得（剪影+谜面）→ 已识得（读到该回，灰卡）→ 入麾下（抽到，彩色）
+- 咬合靠 `hero.c` 与 `storyChapterRaw()` 比较，`viewHeroes()` 只算一次 chapter
