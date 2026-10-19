@@ -55,7 +55,7 @@ t("★ 同一个锦囊不能被重复开启", (()=>{
   const spent1 = run(`spentMerit()`), coupons1 = run(`ST.coupons.length`);
   run(`redeem("v1");`);
   run(`redeem("v1");`);
-  return run(`spentMerit()`)===spent1 && run(`ST.coupons.length`)===coupons1;
+  return spent1===10 && coupons1===1 && run(`spentMerit()`)===spent1 && run(`ST.coupons.length`)===coupons1;
 })(), "开启 3 次 → 只扣一次 " + run(`spentMerit()`) + " / " + run(`ST.coupons.length`) + " 张券");
 
 // 4. 渲染多次（幂等性）
@@ -137,13 +137,45 @@ t("可用军功 ≤ 累计军功（始终）", (()=>{
 t("重复武将折算军功，每次都花掉一枚招贤令", (()=>{
   run(`${FRESH}`);
   run(`ST.heroes={"吕布":TODAY()}; ST.heroCount={}; ST.vault=[];`);
-  // 造 5 枚令（注意：rollDraw 本身不扣令，扣令在 UI 层 ST.draws++，这里模拟真实路径）
+  // 造 5 枚令，必须经过生产入口 drawOnce，不能手工扣令替实现背书。
   for(let i=1;i<=5;i++) run(`setRec(addD(TODAY(),-${i}),"a",1,"full",10); setRec(addD(TODAY(),-${i}),"b",1,"full",10);`);
   const tk0=run(`ticketsAvail()`);
-  run(`ST.draws++; rollDraw();`);
+  run(`drawOnce();`);
   const tk1=run(`ticketsAvail()`);
   return tk1===tk0-1;
 })(), "令 " + run(`ticketsAvail()`) + " 枚");
 
+console.log("\n=== 金额边界与正式使用入口 ===");
+t("负数锦囊不能反向增加余额", (()=>{
+  run(`${FRESH} ST.bonusMerit=20; ST.vault=[{uid:"negative",name:"错误门槛",tier:"common",merit:-1000,redeemed:false}];`);
+  run(`redeem("negative");`);
+  return !run(`ST.vault[0].redeemed`) && run(`availMerit()`)<=20;
+})());
+t("字符串记录按数字相加而不是拼接", (()=>{
+  run(`${FRESH} ST.records[TODAY()]={a:{level:"1"},b:{level:"1"}};`);
+  return run(`dayStars(TODAY())`)===2;
+})());
+t("字符串支出按数字相加而不是拼接", (()=>{
+  run(`${FRESH} ST.vault=[{merit:"40",redeemed:true},{merit:"50",redeemed:true}];`);
+  return run(`spentMerit()`)===90;
+})());
+t("补发调试入口不能退还已经消费的招贤令", (()=>{
+  run(`${FRESH} setRec(TODAY(),"a",1,"full",10); setRec(TODAY(),"b",1,"full",10); ST.draws=1;`);
+  const before=run(`ticketsAvail()`);
+  run(`grantTickets(3);`);
+  return run(`ticketsAvail()`)===before && run(`ST.draws`)===1;
+})());
+t("正式存档不能被示例数据覆盖", (()=>{
+  run(`${FRESH} setRec(TODAY(),"a",1,"full",10);`);
+  const before=run(`JSON.stringify(ST)`);
+  run(`seedDemo();`);
+  return run(`JSON.stringify(ST)`)===before;
+})());
+t("首次加载无schema旧档会执行迁移且不重复补偿", (()=>{
+  run(`${FRESH} ST.heroes={"黄忠":"2026-10-01"}; delete ST.schema; localStorage.setItem(KEY,JSON.stringify(ST)); ST=load();`);
+  if(!run(`ST && ST.bonusMerit===60 && !ST.heroes["黄忠"]`)) return false;
+  run(`save(); ST=load();`);
+  return run(`ST.bonusMerit`)===60;
+})());
 console.log(`\n  审计结果：${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail?1:0);

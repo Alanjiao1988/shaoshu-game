@@ -1,0 +1,3735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>少年主公 · 学习军令台</title>
+<!-- iPad / iPhone：加到主屏幕后全屏运行，像原生 App -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="少年主公">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#B93A32">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<!-- 主屏图标：iOS 只认 apple-touch-icon（不支持 data URI，必须是真实图片文件） -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- manifest 也在同一个目录里；本地单文件打开时它取不到，只是控制台一句 404，不影响使用 -->
+<link rel="manifest" href="manifest.json">
+<style>
+/* ============ 基础 & 主题（宣纸 · 朱砂 · 墨） ============ */
+:root{
+  --c-cn:#3F8F72;      /* 军师营 · 竹青 */
+  --c-math:#C08A1E;    /* 粮草营 · 麦金 */
+  --c-en:#41639E;      /* 鸿胪寺 · 黛蓝 */
+  --c-other:#B4453C;   /* 演武场 · 朱砂 */
+  --ink:#2E2A26; --ink-2:#6B6259; --ink-3:#A69C8E;
+  --card:#FFFDF8; --line:#EBE0CE; --line-2:#F3EBDB;
+  --bg1:#FBF6EC; --bg2:#F5EDDD; --bg3:#EDE1CD;
+  --zhu:#B93A32; --zhu-2:#D4665C; --gold:#B8912A;
+  --ok:#3F8F72; --warn:#C0872A; --bad:#B4483F;
+  --r-lg:14px; --r-md:10px; --r-sm:7px;
+  --sh:0 2px 9px rgba(96,74,44,.09);
+  --sh-lg:0 8px 26px rgba(96,74,44,.16);
+  --serif:"Songti SC","STSong","SimSun","Noto Serif SC",Georgia,serif;
+}
+html[data-skin="spring"]{--bg1:#FDEDE4;--bg2:#FBE3D8;--bg3:#F6D8CE;--zhu:#C0352B;}
+html[data-skin="dragon"]{--bg1:#EDF6EC;--bg2:#E2F0E4;--bg3:#D6E8DC;--zhu:#2F7A55;--zhu-2:#4F9C74;}
+html[data-skin="midautumn"]{--bg1:#EFF3FA;--bg2:#E7ECF6;--bg3:#DDE4F0;--zhu:#3A5A96;--zhu-2:#5B79B4;}
+html[data-skin="national"]{--bg1:#FDECEA;--bg2:#FBE2DD;--bg3:#F6D6D0;--zhu:#C0352B;}
+html[data-skin="kids"]{--bg1:#FBF4E2;--bg2:#F7EEDA;--bg3:#F0E4CC;}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+html{
+  /* 防止横屏时 iOS 自作主张放大字号 */
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+body{
+  font-family:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",-apple-system,"Segoe UI",system-ui,sans-serif;
+  color:var(--ink);
+  background:linear-gradient(166deg,var(--bg1) 0%,var(--bg2) 48%,var(--bg3) 100%) fixed;
+  min-height:100vh; font-size:15px; line-height:1.55;
+  padding-bottom:40px; overflow-x:hidden;
+  /* 刘海屏 / iPad 圆角安全区 */
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+/* 触屏设备：去掉双击缩放的 300ms 延迟 */
+button,.btn,.opt,.task-card,.daybar button,.tabs button,.hero-card,.wchip,.rank{
+  touch-action:manipulation;
+}
+.btn,.tabs button,.daybar button,.opt{
+  -webkit-user-select:none; user-select:none;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;outline:none;}
+button{border:none;background:none;cursor:pointer;}
+h1,h2,h3,h4{margin:0;font-weight:700;}
+
+/* ============ 顶栏 ============ */
+.app{max-width:1020px;margin:0 auto;padding:14px 14px 0;}
+.topbar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:rgba(255,253,248,.86);backdrop-filter:blur(12px);
+  border-radius:var(--r-lg);padding:12px 16px;box-shadow:var(--sh);
+  border:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:11px;flex:1;min-width:190px;}
+.seal-logo{
+  width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(140deg,#C0392B,#96302A);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:-1px;
+  line-height:1;padding-top:2px;box-shadow:0 3px 9px rgba(150,50,40,.34);
+}
+.brand h1{font-family:var(--serif);font-size:20px;letter-spacing:3px;font-weight:700;}
+.brand .sub{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:2px;letter-spacing:.3px;}
+.wallet{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.coin{
+  display:flex;align-items:center;gap:5px;background:#fff;border-radius:var(--r-sm);
+  padding:6px 12px;box-shadow:var(--sh);font-weight:700;font-size:13.5px;
+  border:1px solid var(--line);
+}
+.coin span{font-size:14px;}
+.coin b{font-variant-numeric:tabular-nums;font-family:var(--serif);font-size:15px;}
+.coin.mg b{color:var(--gold);}
+.coin.lg b{color:var(--zhu);}
+.btn{
+  border-radius:var(--r-sm);padding:9px 16px;font-weight:700;font-size:13.5px;min-height:40px;
+  background:linear-gradient(140deg,#C6473D,#A8332C);color:#fff;
+  box-shadow:0 3px 11px rgba(160,50,40,.3);transition:.15s;
+  display:inline-flex;align-items:center;gap:5px;justify-content:center;
+}
+.btn:active{transform:scale(.96);}
+.btn.ghost{background:#fff;color:var(--ink-2);box-shadow:var(--sh);border:1px solid var(--line);}
+.btn.jade{background:linear-gradient(140deg,#4A9E80,#37795F);box-shadow:0 3px 11px rgba(60,130,100,.3);}
+.btn.gold{background:linear-gradient(140deg,#D0A63A,#B08A1E);box-shadow:0 3px 11px rgba(180,140,40,.34);color:#fff;}
+.btn.danger{background:#FDF0EE;color:#A83A32;box-shadow:none;border:1px solid #F2D8D3;}
+.btn.sm{padding:6px 11px;font-size:12.5px;min-height:32px;}
+.btn:disabled{opacity:.42;box-shadow:none;cursor:not-allowed;}
+
+/* ============ 标签页 ============ */
+.tabs{
+  display:flex;gap:4px;margin:12px 0;background:rgba(255,253,248,.78);
+  border-radius:var(--r-md);padding:5px;box-shadow:var(--sh);border:1px solid var(--line);
+  overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tabs button{
+  flex:1;min-width:58px;border-radius:var(--r-sm);padding:10px 8px;font-weight:700;font-size:13.5px;
+  color:var(--ink-3);transition:.18s;white-space:nowrap;
+}
+.tabs button.active{background:var(--ink);color:#FBF6EC;box-shadow:0 3px 10px rgba(46,42,38,.26);}
+
+/* ============ 卡片 ============ */
+.card{
+  background:var(--card);border-radius:var(--r-lg);padding:16px;
+  box-shadow:var(--sh);margin-bottom:13px;border:1px solid var(--line);
+}
+.card-head{display:flex;align-items:center;gap:8px;margin-bottom:13px;}
+.card-head h3{font-size:15px;flex:1;font-weight:700;display:flex;align-items:center;gap:8px;}
+.card-head h3::before{content:"";display:inline-block;width:3px;height:14px;background:var(--zhu);border-radius:2px;flex-shrink:0;}
+.card-head .hint{font-size:12px;color:var(--ink-3);font-weight:600;}
+
+/* ============ 7天选择栏 ============ */
+.daybar{display:flex;gap:6px;margin-bottom:13px;}
+.daybar button{
+  flex:1;background:rgba(255,253,248,.92);border-radius:var(--r-md);padding:9px 3px;
+  box-shadow:var(--sh);transition:.18s;border:1.5px solid var(--line);position:relative;
+}
+.daybar button .dw{font-size:11px;color:var(--ink-3);font-weight:700;}
+.daybar button .dd{font-size:16px;font-weight:700;margin-top:1px;font-variant-numeric:tabular-nums;font-family:var(--serif);}
+.daybar button .mark{font-size:11px;height:14px;line-height:14px;}
+.daybar button.active{background:var(--ink);border-color:var(--ink);}
+.daybar button.active .dw,.daybar button.active .dd{color:#FBF6EC;}
+.daybar button.today{border-color:var(--zhu-2);}
+.daybar button.future{opacity:.5;}
+
+/* ============ 任务卡 ============ */
+.task-card{
+  display:flex;align-items:center;gap:11px;background:#FDFBF6;border-radius:var(--r-md);
+  padding:11px 13px;margin-bottom:9px;border:1px solid var(--line);transition:.16s;
+  cursor:pointer;position:relative;overflow:hidden;
+}
+.task-card:active{transform:scale(.988);}
+.task-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc,#ddd);}
+.task-card.s-cn{--sc:var(--c-cn);} .task-card.s-math{--sc:var(--c-math);}
+.task-card.s-en{--sc:var(--c-en);} .task-card.s-other{--sc:var(--c-other);}
+.task-card.done{background:#F6FBF7;border-color:#DBEBE2;}
+.task-card.done .tc-title{text-decoration:line-through;text-decoration-color:#A8CFBB;text-decoration-thickness:1.5px;color:#7C9E8C;}
+.task-card.boss{background:linear-gradient(100deg,#FEF6F4,#FDFAF4);border-color:#EFD9D1;}
+.tc-emoji{font-size:22px;width:30px;text-align:center;flex-shrink:0;}
+.tc-body{flex:1;min-width:0;}
+.tc-title{font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tc-title .tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;background:#F4EFE4;color:var(--ink-2);}
+.tc-title .tag.boss{background:#FBE7E3;color:#A83A32;}
+.tc-meta{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;}
+.tc-meta .rem{color:var(--zhu);font-weight:700;}
+.tc-right{flex-shrink:0;text-align:right;}
+.star-badge{
+  display:inline-flex;align-items:center;gap:3px;background:#FBEED0;
+  color:#8A6710;font-weight:700;font-size:12.5px;padding:4px 10px;border-radius:var(--r-sm);
+  border:1px solid #F0DCA6;
+}
+.star-badge.half{background:#EEF3F8;color:#4A6488;border-color:#D5E0EC;}
+.star-badge.poor{background:#FBF0E4;color:#A06A2C;border-color:#EFDDC4;}
+.star-badge.zero{background:#F7F3EC;color:#B5AC9E;border:none;}
+.star-badge.boss-win{background:#FBE3E0;color:#A8342C;border-color:#F0C9C4;}
+.dot-empty{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px dashed #DCD2BE;}
+
+/* ============ 进度条 ============ */
+.prog{height:9px;border-radius:999px;background:#F1EADB;overflow:hidden;}
+.prog i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--zhu-2),var(--zhu));transition:width .5s cubic-bezier(.3,1.3,.5,1);}
+.prog.mini{height:6px;}
+
+/* ============ 剧情卡（卷轴） ============ */
+.story-card{
+  background:linear-gradient(140deg,#4A3E33,#6B5844 55%,#8A7057);
+  color:#FBF3E4;border-radius:var(--r-lg);padding:16px 17px;
+  box-shadow:var(--sh-lg);margin-bottom:13px;position:relative;overflow:hidden;
+}
+.story-card::after{
+  content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;
+  border-radius:50%;background:rgba(255,240,210,.06);
+}
+.story-card .sc-top{font-size:12px;font-weight:600;opacity:.85;letter-spacing:.5px;}
+.story-card .sc-no{
+  font-family:var(--serif);font-size:13px;letter-spacing:2px;opacity:.9;
+  margin:9px 0 3px;color:#E8C98E;
+}
+.story-card .sc-title{
+  font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.5;
+  letter-spacing:1px;margin-bottom:12px;
+}
+.story-card .sc-bar{height:6px;border-radius:999px;background:rgba(255,240,210,.2);overflow:hidden;}
+.story-card .sc-bar i{display:block;height:100%;background:linear-gradient(90deg,#E8C98E,#C9A227);border-radius:999px;transition:width .6s;}
+.story-card .sc-foot{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;opacity:.82;margin-top:7px;}
+.story-card .chap-no{
+  position:absolute;right:15px;top:13px;font-family:var(--serif);
+  font-size:34px;opacity:.16;font-weight:700;
+}
+
+/* ============ 四军营地 ============ */
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;}
+.zone{background:#FDFBF6;border-radius:var(--r-md);padding:11px 12px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);}
+.zone .zt{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;}
+.zone .zt .zz{flex:1;}
+.zone .zv{font-size:10.5px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+.zone .zbar{height:7px;border-radius:999px;background:#F1EADB;overflow:hidden;}
+.zone .zbar i{display:block;height:100%;border-radius:999px;transition:width .5s;}
+
+/* ============ 破敌（BOSS） ============ */
+.boss-card{
+  background:linear-gradient(140deg,#33291F,#4C3A2B);color:#FBF3E4;
+  border-radius:var(--r-lg);padding:16px;box-shadow:var(--sh-lg);margin-bottom:13px;position:relative;overflow:hidden;
+}
+.boss-card.beaten{background:linear-gradient(140deg,#25382F,#33513F);}
+.boss-top{display:flex;align-items:center;gap:11px;margin-bottom:11px;}
+.boss-face{font-size:34px;line-height:1;flex-shrink:0;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35));}
+.boss-face.dead{filter:grayscale(1) brightness(.65);}
+.boss-info{flex:1;min-width:0;}
+.boss-name{font-family:var(--serif);font-size:17px;font-weight:700;letter-spacing:1.5px;}
+.boss-place{font-size:11px;color:#E8C98E;font-weight:600;letter-spacing:1px;margin-top:1px;}
+.boss-sub{font-size:11.5px;opacity:.76;font-weight:600;margin-top:4px;line-height:1.5;}
+.hp-wrap{height:16px;border-radius:999px;background:rgba(0,0,0,.32);overflow:hidden;position:relative;border:1px solid rgba(255,240,210,.18);}
+.hp-wrap i{display:block;height:100%;background:linear-gradient(90deg,#C6473D,#E0993F);transition:width .6s cubic-bezier(.3,1.3,.5,1);}
+.hp-wrap b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-shadow:0 1px 3px rgba(0,0,0,.55);}
+.boss-foot{display:flex;align-items:center;gap:9px;margin-top:11px;flex-wrap:wrap;}
+
+/* ============ 一周网格 ============ */
+.wgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+@media(max-width:760px){ .wgrid{min-width:620px;} }
+.wcol{background:#FDFBF6;border-radius:var(--r-md);padding:8px 6px;min-height:150px;border:1px solid var(--line);}
+.wcol .wh{text-align:center;font-size:11.5px;font-weight:700;color:var(--ink-2);padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:6px;}
+.wcol.today{background:#FDF6F4;border-color:#EFCFC9;}
+.wchip{font-size:10.5px;font-weight:600;border-radius:5px;padding:4px 5px;margin-bottom:4px;line-height:1.35;word-break:break-word;overflow-wrap:anywhere;border-left:3px solid var(--sc,#ccc);background:#fff;cursor:pointer;}
+.wchip.done{background:#F3FAF6;color:#5C8F76;}
+.wchip .lc{font-size:9.5px;opacity:.75;}
+.wrest{text-align:center;font-size:11px;color:var(--ink-3);padding:14px 0;font-weight:600;}
+
+/* ============ 数据页 ============ */
+.stage-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.stage-svg{width:190px;height:195px;flex-shrink:0;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px;}
+.stat{background:#FDFBF6;border-radius:var(--r-md);padding:11px;text-align:center;border:1px solid var(--line);}
+.stat .sv{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--serif);}
+.stat .sl{font-size:11px;color:var(--ink-3);font-weight:600;margin-top:2px;}
+.barcmp{display:flex;flex-direction:column;gap:9px;}
+.barcmp .row{display:flex;align-items:center;gap:9px;font-size:12px;}
+.barcmp .row .nm{width:92px;flex-shrink:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.barcmp .row .bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.barcmp .row .b1,.barcmp .row .b2{height:8px;border-radius:999px;}
+.barcmp .row .b1{background:#CFE0EE;}
+.barcmp .row .b2{background:var(--zhu-2);}
+.barcmp .row .vv{width:74px;text-align:right;font-size:11px;color:var(--ink-3);font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--ink-3);font-weight:600;margin-top:9px;}
+.legend i{display:inline-block;width:12px;height:8px;border-radius:3px;margin-right:4px;vertical-align:middle;}
+
+/* ============ 徽章 ============ */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px;}
+.badge{background:#FDFBF6;border-radius:var(--r-md);padding:11px 6px;text-align:center;opacity:.38;filter:grayscale(.9);transition:.25s;border:1px solid var(--line);}
+.badge.on{opacity:1;filter:none;background:linear-gradient(150deg,#FDF6E4,#F8EDD2);border-color:#EEDCB4;}
+.badge .bi{font-size:23px;}
+.badge .bn{font-size:10.5px;font-weight:700;margin-top:4px;line-height:1.3;}
+.badge .bd{font-size:9.5px;color:var(--ink-3);font-weight:600;margin-top:2px;line-height:1.35;}
+
+/* 官职轨 */
+.ranktrack{display:flex;gap:5px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none;}
+.ranktrack::-webkit-scrollbar{display:none;}
+.rank{flex-shrink:0;text-align:center;padding:9px 12px;border-radius:var(--r-md);background:#FDFBF6;min-width:80px;transition:.2s;border:1px solid var(--line);}
+.rank.on{background:linear-gradient(150deg,#FDF4E2,#F7E9CC);border-color:#EBD8AC;}
+.rank .re{font-size:20px;}
+.rank .rn{font-size:10.5px;font-weight:700;margin-top:3px;font-family:var(--serif);}
+.rank .rs{font-size:9.5px;color:var(--ink-3);font-weight:600;}
+
+/* ============ 武将图鉴 ============ */
+.hero-tier-title{
+  display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;
+  color:var(--ink-2);margin:14px 0 9px;letter-spacing:.5px;
+}
+.hero-tier-title .cnt{font-weight:600;color:var(--ink-3);font-size:11.5px;}
+.hero-tier-title::after{content:"";flex:1;height:1px;background:var(--line);}
+.heroes{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px;}
+.hero-card{
+  border-radius:var(--r-md);padding:10px 5px 9px;text-align:center;position:relative;
+  border:1px solid var(--line);background:#FDFBF6;transition:.2s;cursor:pointer;
+}
+.hero-card.locked{opacity:.42;filter:grayscale(1);cursor:default;background:#FAF6EE;}
+.hero-card .he{font-size:25px;line-height:1.1;}
+.hero-card .hn{font-size:12px;font-weight:700;margin-top:4px;font-family:var(--serif);letter-spacing:1px;}
+.hero-card .hd{font-size:9.5px;color:var(--ink-3);font-weight:600;margin-top:2px;line-height:1.35;min-height:26px;padding:0 2px;}
+.hero-card.t-legend{background:linear-gradient(155deg,#FDF3D6,#F8E5B0);border-color:#E8CE8E;}
+.hero-card.t-rare{background:linear-gradient(155deg,#F3F1FA,#E7E3F3);border-color:#D6CFE8;}
+.hero-card.t-common{background:#FDFBF6;}
+/* 重复抽到的成长：星级。1 张时不显示，2 张起亮星，满 5 张换金边 */
+.hero-card .tag-stars{position:absolute;top:6px;left:5px;font-size:8.5px;font-weight:800;
+  color:#C9922B;letter-spacing:0;line-height:1;text-shadow:0 0 3px rgba(255,235,180,.9);}
+.hero-card.locked .tag-stars{display:none;}
+.hero-card.maxed{border-color:#D9A93C;box-shadow:inset 0 0 0 1px #E8CE8E, 0 2px 10px rgba(200,160,60,.22);}
+/* 阵营纹章：姓氏大字 + 阵营色。替代原来重复率极高的 emoji */
+.hero-badge{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:0;line-height:1;margin:1px auto 4px;}
+.hero-badge.b-han{background:#E7E2F1;color:#4B3F70;}
+.hero-badge.b-wei{background:#DAE6F3;color:#2E4E6E;}
+.hero-badge.b-shu{background:#F7E7C9;color:#7A5610;}
+.hero-badge.b-wu {background:#DDEAE0;color:#396B14;}
+.hero-badge.b-locked{background:#EFEBE0;color:#B4AE9C;}
+.hero-card .tag-r{
+  position:absolute;top:5px;right:5px;font-size:9px;font-weight:700;
+  padding:1px 5px;border-radius:3px;letter-spacing:.5px;
+}
+.hero-card.t-legend .tag-r{background:#D9A93C;color:#fff;}
+.hero-card.t-rare .tag-r{background:#8A7CB8;color:#fff;}
+.hero-card.t-common .tag-r{background:#D9D2C2;color:#fff;}
+
+/* ============ 抽卡结果 ============ */
+.draw-stage{text-align:center;padding:12px 0 6px;}
+.draw-roll{font-size:76px;display:inline-block;animation:shake .5s ease-in-out infinite;}
+@keyframes shake{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.06)}}
+.draw-roll.opened{animation:none;transform:scale(1.28);}
+.result-box{border-radius:var(--r-lg);padding:20px 16px;text-align:center;margin-top:10px;animation:pop .4s cubic-bezier(.2,1.3,.4,1);}
+.result-box .re{font-size:54px;line-height:1;}
+.result-box .rn{font-size:19px;font-weight:700;margin-top:8px;font-family:var(--serif);letter-spacing:2px;}
+.result-box .rt{font-size:12px;font-weight:600;margin-top:5px;opacity:.85;}
+.result-box .rc{font-size:13px;font-weight:700;margin-top:10px;background:rgba(255,255,255,.62);border-radius:var(--r-sm);padding:6px 14px;display:inline-block;border:1px solid rgba(255,255,255,.5);}
+.t-normal{background:linear-gradient(150deg,#F5F1E6,#EBE4D3);color:#5C5343;}
+.t-rare{background:linear-gradient(150deg,#F1EEF9,#E2DCEF);color:#5A4B84;}
+.t-legend{background:linear-gradient(150deg,#FDF1CC,#F5DF95);color:#7A5610;box-shadow:0 8px 24px rgba(200,160,60,.34);}
+
+/* ============ 军报 ============ */
+.report-stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-bottom:13px;}
+.rs-box{background:linear-gradient(150deg,#FBF7EE,#F5EFE1);border-radius:var(--r-md);padding:11px 8px;text-align:center;border:1px solid var(--line);}
+.rs-box .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--serif);}
+.rs-box .l{font-size:10.5px;color:var(--ink-3);font-weight:600;margin-top:2px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:5px;}
+textarea,input[type=text],input[type=number],select{
+  width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;
+  background:#FDFBF6;font-size:13.5px;font-weight:600;transition:.15s;resize:vertical;
+}
+textarea:focus,input:focus,select:focus{border-color:#D3BFA0;background:#fff;box-shadow:0 0 0 3px rgba(190,160,110,.13);}
+textarea{min-height:66px;line-height:1.6;}
+.weeknav{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+.weeknav .wk{flex:1;text-align:center;font-weight:700;font-size:14px;font-family:var(--serif);letter-spacing:1px;}
+.hist-item{background:#FDFBF6;border-radius:var(--r-md);padding:11px 13px;margin-bottom:8px;font-size:12.5px;border:1px solid var(--line);}
+.hist-item .hh{display:flex;justify-content:space-between;font-weight:700;margin-bottom:5px;}
+.hist-item .hl{color:var(--ink-2);font-weight:600;margin-bottom:3px;line-height:1.55;}
+
+/* ============ 设置 ============ */
+.setrow{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--line-2);}
+.setrow:last-child{border-bottom:none;}
+.setrow .si{font-size:17px;width:24px;text-align:center;flex-shrink:0;}
+.setrow .sn{flex:1;font-size:13.5px;font-weight:700;min-width:0;line-height:1.45;}
+.setrow .sn small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;margin-top:2px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.chipsel{display:flex;gap:5px;flex-wrap:wrap;}
+.chipsel button{
+  border-radius:var(--r-sm);padding:7px 13px;font-size:12.5px;font-weight:700;
+  background:#F7F2E7;color:var(--ink-3);border:1px solid var(--line);min-height:34px;transition:.15s;
+}
+.chipsel button.on{background:var(--ink);color:#FBF6EC;border-color:var(--ink);}
+.prize-row{display:flex;align-items:center;gap:9px;background:#FDFBF6;border-radius:var(--r-md);padding:9px 12px;margin-bottom:7px;border:1px solid var(--line);}
+.prize-row .pe{font-size:19px;}
+.prize-row .pn{flex:1;font-size:13px;font-weight:700;line-height:1.4;min-width:0;}
+.prize-row .pn small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;margin-top:1px;}
+.prize-row .pc{font-size:11px;font-weight:700;color:var(--gold);white-space:nowrap;}
+
+/* ============ 弹窗 ============ */
+.mask{position:fixed;inset:0;background:rgba(46,38,28,.46);backdrop-filter:blur(3px);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fadein .18s;}
+@media(min-width:640px){.mask{align-items:center;padding:20px;}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.sheet{
+  background:var(--card);border-radius:var(--r-lg) var(--r-lg) 0 0;width:100%;max-width:480px;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;
+  animation:slideup .26s cubic-bezier(.2,1.1,.4,1);box-shadow:0 -8px 34px rgba(60,45,25,.28);
+  border:1px solid var(--line);
+}
+@media(min-width:640px){.sheet{border-radius:var(--r-lg);animation:pop .24s cubic-bezier(.2,1.2,.4,1);}}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.sheet h3{font-size:17px;margin-bottom:4px;font-family:var(--serif);letter-spacing:1px;}
+.sheet .sh-sub{font-size:12.5px;color:var(--ink-3);font-weight:600;margin-bottom:14px;line-height:1.55;}
+.opt{
+  display:flex;align-items:center;gap:11px;background:#FDFBF6;border-radius:var(--r-md);
+  padding:13px;margin-bottom:9px;border:1px solid var(--line);transition:.15s;width:100%;text-align:left;min-height:56px;
+}
+.opt:active{transform:scale(.98);}
+.opt.sel{border-color:#D3BFA0;background:#FCF7EE;box-shadow:0 0 0 2px rgba(190,160,110,.15);}
+.opt .oe{font-size:23px;flex-shrink:0;}
+.opt .ob{flex:1;min-width:0;}
+.opt .ot{font-weight:700;font-size:14.5px;}
+.opt .od{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:2px;line-height:1.5;}
+.opt .os{font-size:13px;font-weight:700;color:var(--gold);flex-shrink:0;}
+
+/* ============ 撒花（喜庆红金） ============ */
+.confetti{position:fixed;top:-14px;width:9px;height:13px;z-index:900;pointer-events:none;border-radius:1px;animation:fall 2.7s linear forwards;}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.1}}
+
+/* ============ 提示 ============ */
+.toast{
+  position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:1000;
+  background:rgba(46,38,28,.94);color:#FBF3E4;padding:11px 22px;border-radius:var(--r-sm);
+  font-size:13.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.28);
+  animation:tin .25s;max-width:86vw;text-align:center;line-height:1.5;
+}
+@keyframes tin{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ============ 其他 ============ */
+.empty{text-align:center;padding:26px 14px;color:var(--ink-3);font-weight:600;font-size:13px;line-height:1.75;}
+.empty .ee{font-size:34px;display:block;margin-bottom:8px;opacity:.7;}
+.holiday-row{display:flex;align-items:center;gap:8px;background:#F5FAF6;border-radius:var(--r-md);padding:9px 12px;margin-bottom:7px;font-size:12.5px;font-weight:600;color:#4A8065;border:1px solid #DDEDE2;}
+.footnote{text-align:center;font-size:11px;color:var(--ink-3);font-weight:600;padding:16px 0 8px;line-height:1.8;}
+.divider{height:1px;background:var(--line);margin:14px 0;}
+.scroll-x{overflow-x:auto;scrollbar-width:none;}
+.scroll-x::-webkit-scrollbar{display:none;}
+.quote{
+  font-family:var(--serif);font-size:12.5px;color:var(--ink-2);line-height:1.8;
+  background:#FAF5EA;border-left:3px solid #E0D2B6;border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:9px 12px;letter-spacing:.5px;
+}
+/* ============ 孩子的口子 ============ */
+.addrow{
+  width:100%;border:1.5px dashed var(--line);border-radius:var(--r-md);
+  padding:12px;margin-top:9px;font-size:13px;font-weight:700;color:var(--ink-3);
+  display:flex;align-items:center;justify-content:center;gap:6px;transition:.15s;background:transparent;
+}
+.addrow:active{transform:scale(.985);border-color:#D3BFA0;color:var(--ink-2);}
+.wishbtn{
+  border:none;background:transparent;font-size:17px;line-height:1;
+  padding:4px 6px;border-radius:var(--r-sm);flex-shrink:0;
+}
+.wishbtn.on{background:#FBE7E3;}
+
+/* ============ 兑现台 ============ */
+.coupon{
+  display:flex;align-items:center;gap:11px;background:#FDFBF6;border:1px solid var(--line);
+  border-radius:var(--r-md);padding:11px 13px;margin-bottom:8px;position:relative;overflow:hidden;
+}
+.coupon.overdue{background:#FDF4F2;border-color:#EFCFC9;}
+.coupon.done{opacity:.5;background:#F7FBF8;border-color:#DBEBE2;}
+.coupon .no{
+  position:absolute;right:9px;top:6px;font-size:9.5px;font-weight:700;
+  color:var(--ink-3);letter-spacing:.5px;font-family:var(--serif);
+}
+.coupon .ce{font-size:23px;flex-shrink:0;}
+.coupon .cb{flex:1;min-width:0;}
+.coupon .ct{font-size:13.5px;font-weight:700;}
+.coupon .cd{font-size:11px;color:var(--ink-3);font-weight:600;margin-top:3px;line-height:1.5;}
+.coupon .cd .late{color:var(--zhu);font-weight:700;}
+.ratebar{display:flex;align-items:center;gap:12px;background:#FAF5EA;border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px;}
+.ratebar .rv{font-family:var(--serif);font-size:26px;font-weight:700;line-height:1;flex-shrink:0;}
+.ratebar .rt{flex:1;font-size:11.5px;font-weight:600;color:var(--ink-2);line-height:1.65;}
+
+/* ============ 调整建议 ============ */
+.hintcard{
+  display:flex;gap:11px;background:#FDFBF6;border:1px solid var(--line);
+  border-radius:var(--r-md);padding:12px 13px;margin-bottom:9px;
+}
+.hintcard.warn{background:#FDF7EC;border-color:#EEDFC0;}
+.hintcard.info{background:#F3F7FA;border-color:#DCE6EE;}
+.hintcard .hi{font-size:20px;flex-shrink:0;line-height:1.3;}
+.hintcard .hb{flex:1;min-width:0;}
+.hintcard .ht{font-size:13px;font-weight:700;line-height:1.45;}
+.hintcard .hd{font-size:11.5px;color:var(--ink-2);font-weight:600;line-height:1.7;margin-top:4px;}
+.hintcard .ha{margin-top:9px;}
+
+/* ============ 主动性 ============ */
+.actlist{display:flex;flex-direction:column;gap:7px;}
+.actrow{display:flex;align-items:center;gap:9px;background:#F6FBF7;border:1px solid #DBEBE2;border-radius:var(--r-md);padding:9px 12px;font-size:12.5px;font-weight:600;}
+.actrow .ae{font-size:16px;flex-shrink:0;}
+.actrow .an{flex:1;min-width:0;}
+.actrow .ad{font-size:11px;color:var(--ink-3);font-weight:600;flex-shrink:0;}
+
+/* ============ 休整期 ============ */
+.breakrow{display:flex;align-items:center;gap:9px;background:#FDFBF6;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:7px;}
+.breakrow.on{background:#F3F7F4;border-color:#D5E5D9;}
+.breakrow .bn{flex:1;font-size:13px;font-weight:700;line-height:1.45;min-width:0;}
+.breakrow .bn small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;margin-top:2px;}
+
+/* ============ 版本号 ============ */
+.verline{text-align:center;font-size:11px;color:var(--ink-3);font-weight:600;padding:4px 0 2px;letter-spacing:.5px;font-family:var(--serif);}
+
+/* ============ 存储告警 ============ */
+.storage-warn{
+  display:none;background:linear-gradient(120deg,#FCEBE6,#F8DCD4);border:1px solid #EFC8BC;
+  border-radius:var(--r-lg);padding:14px 16px;margin-bottom:13px;font-size:12.5px;
+  font-weight:600;line-height:1.8;color:#8A3A32;
+}
+.storage-warn.show{display:block;}
+.storage-warn b{display:block;font-size:14px;margin-bottom:4px;}
+
+/* ============ 下一步提示条 ============ */
+.nextbar{
+  display:flex;align-items:center;gap:12px;border-radius:var(--r-lg);padding:13px 16px;
+  margin-bottom:13px;box-shadow:var(--sh);border:1px solid var(--line);position:relative;overflow:hidden;
+}
+.nextbar.push{background:linear-gradient(120deg,#FDF4E4,#FBEBD2);border-color:#EFDCB6;}
+.nextbar.hot{background:linear-gradient(120deg,#FCEBE6,#F8DCD4);border-color:#EFC8BC;}
+.nextbar.calm{background:linear-gradient(120deg,#F3F7F4,#E9F1EB);border-color:#D5E5D9;}
+.nextbar .ni{font-size:30px;flex-shrink:0;line-height:1;}
+.nextbar .nt{flex:1;min-width:0;}
+.nextbar .n1{font-size:15px;font-weight:700;letter-spacing:.3px;}
+.nextbar .n2{font-size:12px;color:var(--ink-2);font-weight:600;margin-top:3px;line-height:1.5;}
+.nextbar .nstreak{
+  font-size:11.5px;font-weight:700;color:#fff;background:var(--zhu);
+  border-radius:var(--r-sm);padding:5px 9px;flex-shrink:0;white-space:nowrap;
+}
+
+/* ============ 点卯飘字 ============ */
+@keyframes floatUp{
+  0%{opacity:0;transform:translate(-50%,6px) scale(.7);}
+  22%{opacity:1;transform:translate(-50%,-10px) scale(1.15);}
+  70%{opacity:1;transform:translate(-50%,-34px) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-58px) scale(.9);}
+}
+.float-up{
+  position:fixed;z-index:860;pointer-events:none;font-weight:700;font-size:20px;
+  color:var(--zhu);text-shadow:0 2px 8px rgba(255,248,235,.95),0 0 2px #fff;
+  animation:floatUp 1.15s cubic-bezier(.2,.9,.3,1) forwards;
+}
+.float-up.gold{color:#B8912A;}
+
+/* ============ 保底进度 ============ */
+.pity{margin-top:12px;}
+.pity .pt{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:6px;}
+.pity .pt .pl{color:var(--zhu);}
+
+/* ============ 荣誉墙（已养成） ============ */
+.honor{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:9px;}
+.honor-card{
+  background:linear-gradient(155deg,#F6FBF7,#EAF5EE);border:1px solid #D3E7DB;
+  border-radius:var(--r-md);padding:13px 10px;text-align:center;position:relative;
+}
+.honor-card .hc-badge{
+  position:absolute;top:-7px;right:-5px;font-size:17px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.16));
+}
+.honor-card .he{font-size:26px;line-height:1.1;filter:grayscale(.15);}
+.honor-card .hn{font-size:12.5px;font-weight:700;margin-top:5px;font-family:var(--serif);letter-spacing:1px;}
+.honor-card .hd{font-size:10px;color:var(--ink-3);font-weight:600;margin-top:3px;line-height:1.4;}
+.honor-card .hb{margin-top:8px;}
+.ceremony-hero{text-align:center;padding:6px 0 2px;}
+.ceremony-hero .ce{font-size:62px;line-height:1;display:inline-block;}
+.ceremony-hero .cn{
+  font-family:var(--serif);font-size:22px;font-weight:700;letter-spacing:3px;margin-top:10px;
+}
+
+/* ============ 仪式卡 ============ */
+.ritual-list{margin:14px 0 4px;}
+.ritual-row{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r-md);
+  background:#FDFBF6;border:1px solid var(--line);margin-bottom:7px;font-size:13px;font-weight:600;
+}
+.ritual-row .re{font-size:17px;flex-shrink:0;}
+.ritual-row .rn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ritual-row .rp{font-size:11.5px;color:var(--ink-3);flex-shrink:0;}
+
+@media(max-width:520px){ .grid2{grid-template-columns:1fr;} .stage-svg{width:150px;height:155px;} .brand h1{font-size:18px;letter-spacing:2px;} .nextbar .ni{font-size:26px;} }
+
+/* ============================================================
+   触屏 / iPad 专项覆盖
+   必须放在样式表最后 —— 这里的选择器和组件层同优先级，
+   写在前面会被后面的 .btn{min-height:40px} 之类直接盖掉。
+   ============================================================ */
+@media (pointer:coarse){
+  /* Apple 触控建议最小 44pt；小按钮给到 36 */
+  .btn{min-height:44px;}
+  .btn.sm{min-height:36px;padding:8px 13px;}
+  .opt{min-height:60px;}
+  .daybar button{padding:11px 3px;}
+  .tabs button{padding:12px 8px;}
+  /* iOS 对字号小于 16px 的输入框会自动放大整页，必须提到 16px */
+  textarea,input[type=text],input[type=number],select{font-size:16px;}
+  /* 手指点按给更明显的回馈 */
+  .task-card:active{transform:scale(.982);}
+  .btn:active{transform:scale(.94);}
+  /* 列表项松一点，减少误触 */
+  .task-card{padding:13px 13px;}
+  .setrow{padding:12px 0;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="storage-warn" id="storageWarn">
+    <b>⚠️ 这个浏览器把本地存储关掉了</b>
+    用「文件」App 打开、或者地址栏是 <code>file://</code> 开头时，iPadOS 会禁止网页保存数据——
+    点卯记录、军功、武将图鉴都存不下来，关掉页面就全部消失。<br>
+    请改用 <b>网址</b> 打开（在 Safari 里打开链接后点「分享 → 添加到主屏幕」，就能全屏使用，和 App 一样）。
+  </div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="seal-logo">主公</span>
+      <div>
+        <h1>少年主公</h1>
+        <div class="sub" id="seasonLabel">第 1 赛季</div>
+      </div>
+    </div>
+    <div class="wallet">
+      <div class="coin mg"><span>⭐</span><b id="meritCount">0</b></div>
+      <div class="coin lg"><span>🎟️</span><b id="orderCount">0</b></div>
+      <button class="btn" id="btnDraw">招贤</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-view="today" class="active">今日</button>
+    <button data-view="week">一周</button>
+    <button data-view="heroes">武将</button>
+    <button data-view="stats">数据</button>
+    <button data-view="report">军报</button>
+    <button data-view="settings">设置</button>
+  </nav>
+  <main id="main"></main>
+  <div class="footnote">数据全部存在本机浏览器 · 换设备请到「设置」导出备份</div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   少年主公 · 学习军令台
+   把学习任务翻译成治国安邦：点卯得军功，军功招名将，名将录图鉴
+   ===================================================================== */
+
+/* ---------------------- 常量 ---------------------- */
+const KEY = "shaozhu_v1";
+// 软件版本（显示给用户看，也用于命名 service worker 缓存）
+const APP_VERSION = "2.0.2";
+// 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
+const SCHEMA = 8;
+// 最近几天（含今天）的账还没冻结，可以补录点卯。
+// 更早的日子一经结算就只读 —— 否则改任务会一直改写历史。
+const BACKFILL_DAYS = 3;
+
+const SUBJECTS = {
+  cn:    { name:"语文", icon:"📜", place:"军师营", color:"#3F8F72", role:"谋略出于见识" },
+  math:  { name:"数学", icon:"🌾", place:"粮草营", color:"#C08A1E", role:"兵马未动，粮草先行" },
+  en:    { name:"英语", icon:"🌏", place:"鸿胪寺", color:"#41639E", role:"出使四方，通译往来" },
+  other: { name:"其他", icon:"🏹", place:"演武场", color:"#B4453C", role:"习武修身，各成一艺" }
+};
+const SUBJ_ORDER = ["cn","math","en","other"];
+
+const WD  = ["周日","周一","周二","周三","周四","周五","周六"];
+const WDX = ["日","一","二","三","四","五","六"];
+const WD_VIEW = [1,2,3,4,5,6,0];
+
+// 七位劲敌，按星期轮换。周一是最先遇到的，周日是收官之战。
+const BOSSES = [
+  { d:0, name:"曹操",   place:"官渡",   emoji:"🏯", desc:"治世之能臣，乱世之奸雄。一周的收官之战。" },
+  { d:1, name:"华雄",   place:"汜水关", emoji:"🍶", desc:"关公温酒斩华雄——酒还温着，仗已经打完了。" },
+  { d:2, name:"颜良",   place:"白马坡", emoji:"🔱", desc:"河北名将，连斩曹军数将，声震天下。" },
+  { d:3, name:"文丑",   place:"延津渡", emoji:"🪓", desc:"与颜良齐名的河北上将，勇冠三军。" },
+  { d:4, name:"张郃",   place:"瓦口关", emoji:"🏹", desc:"善用巧变，连诸葛亮都忌惮他三分。" },
+  { d:5, name:"夏侯渊", place:"定军山", emoji:"🛡️", desc:"虎步关右，老将黄忠在此一战成名。" },
+  { d:6, name:"吕布",   place:"虎牢关", emoji:"⚔️", desc:"人中吕布，马中赤兔。周末的硬骨头。" }
+];
+
+// 九级官职，按累计军功授予
+const RANKS = [
+  { s:0,    n:"布衣",   e:"🧵" },
+  { s:50,   n:"什长",   e:"🔰" },
+  { s:150,  n:"队率",   e:"🎗️" },
+  { s:300,  n:"军侯",   e:"🏵️" },
+  { s:500,  n:"校尉",   e:"🎖️" },
+  { s:800,  n:"中郎将", e:"⚔️" },
+  { s:1200, n:"前将军", e:"🛡️" },
+  { s:2000, n:"大将军", e:"🏆" },
+  { s:3500, n:"汉中王", e:"👑" }
+];
+
+// 成就徽章，取自三国典故
+const BADGE_DEF = [
+  { id:"first_win",     n:"桃园结义",   e:"🍑", d:"完成第一次点卯" },
+  { id:"first_boss",    n:"温酒斩华雄", e:"🍶", d:"击败第一位劲敌" },
+  { id:"streak3",       n:"三顾茅庐",   e:"🏠", d:"连续 3 天点卯" },
+  { id:"half_hero",     n:"草船借箭",   e:"🏹", d:"累计 20 次苦战 · 箭是借来的，努力是自己的" },
+  { id:"streak7",       n:"千里走单骑", e:"🐎", d:"连续 7 天点卯" },
+  { id:"perfect_week",  n:"七擒孟获",   e:"🤝", d:"一整周军令 100% 达成" },
+  { id:"cn50",          n:"舌战群儒",   e:"📜", d:"军师营累计点卯 50 次" },
+  { id:"full_day",      n:"单刀赴会",   e:"🗡️", d:"一天之内全部完胜" },
+  { id:"boss_hunter",   n:"百战之卒",   e:"🎖️", d:"累计击败 10 位劲敌" },
+  { id:"merit500",      n:"汉室栋梁",   e:"🏛️", d:"累计军功达到 500" }
+];
+
+const TIERS = {
+  common: { name:"普通锦囊", cls:"t-normal", weight:70 },
+  rare:   { name:"稀有锦囊", cls:"t-rare",   weight:24 },
+  legend: { name:"传说锦囊", cls:"t-legend", weight:6  }
+};
+
+/* 武将库：160 位，对应《怀沙三国英雄之旅 · 武将卡核对表》
+   数据源 .workbuddy/ref/heroes.json —— 别手改下面那段数组，
+   改完 heroes.json 后跑：node .workbuddy/tools/buildheroes.js */
+/* BUILD:HERO_DATA:START */
+const HERO_DATA = [
+  ["吕布","汉","SS","⚔️","虎牢关前独战诸侯 · 人中吕布","吕"],
+  ["文丑","汉","S","🪓","河北名将，延津渡口被诛","文"],
+  ["颜良","汉","S","🗡️","河北名将，白马坡前授首","颜"],
+  ["高顺","汉","A","🛡️","陷阵营统领，每战必克","高"],
+  ["公孙瓒","汉","A","🐎","白马义从，威震塞外","公孙"],
+  ["华雄","汉","A","💪","汜水关前连斩数将","华"],
+  ["麴义","汉","A","🏹","界桥一战，破白马义从","麴"],
+  ["蹋顿","汉","A","🐺","乌桓单于，白狼山被斩","蹋"],
+  ["袁谭","汉","A","🎖️","袁绍长子，与弟相争","袁"],
+  ["纪灵","汉","A+","🔱","袁术上将，与关羽战三十合","纪"],
+  ["王允","汉","B+","🎭","司徒，连环计除董卓","王"],
+  ["龚都","汉","B+","🏴","黄巾余部，归顺刘备","龚"],
+  ["刘辟","汉","B+","🌾","黄巾余部，助刘备守汝南","刘"],
+  ["袁尚","汉","B+","👘","袁绍三子，兄弟阋墙","袁"],
+  ["皇甫嵩","汉","B+","📕","平黄巾的三名将之一","皇甫"],
+  ["吕旷","汉","B+","🔨","袁尚部将，后降曹操","吕"],
+  ["吕翔","汉","B+","🔧","袁尚部将，后降曹操","吕"],
+  ["董卓","汉","B","🐗","挟天子迁都长安","董"],
+  ["袁绍","汉","B","🏰","四世三公，官渡败北","袁"],
+  ["刘表","汉","B-","🍵","荆州牧，坐谈之客","刘"],
+  ["陶谦","汉","B-","🏺","徐州牧，三让徐州","陶"],
+  ["卢植","汉","B-","📖","海内大儒，刘备之师","卢"],
+  ["蔡瑁","汉","B","⛵","荆州水军都督","蔡"],
+  ["张角","汉","B","🌀","黄巾起义，天公将军","张"],
+  ["张宝","汉","B","🌪️","黄巾渠帅，地公将军","张"],
+  ["张梁","汉","B","🌊","黄巾渠帅，人公将军","张"],
+  ["张绣","汉","B","🏹","宛城反曹，杀典韦曹昂","张"],
+  ["貂蝉","汉","B-","🌸","王允歌伎，连环计的主角","貂"],
+  ["陈宫","汉","B","🎋","捉放曹，后佐吕布，白门楼就刑","陈"],
+  ["马腾","汉","B","🐴","西凉太守，衣带诏同谋","马"],
+  ["韩遂","汉","B","🏔️","西凉军阀，与马超结义","韩"],
+  ["张鲁","汉","B-","⛩️","五斗米道，割据汉中","张"],
+  ["刘璋","汉","B-","🕊️","益州牧，引狼入室","刘"],
+  ["刘焉","汉","B-","📜","益州牧，刘璋之父","刘"],
+  ["袁术","汉","B-","💎","得玉玺僭号称帝","袁"],
+  ["李傕","汉","B","🐍","董卓部将，与郭汜乱长安","李"],
+  ["郭汜","汉","B","🦂","董卓部将，与李傕乱长安","郭"],
+  ["丁原","汉","B","🐎","并州刺史，吕布义父","丁"],
+  ["沮授","汉","B-","🧭","献策早图曹操，袁绍不从","沮"],
+  ["田丰","汉","B-","📐","力劝袁绍袭许都，下狱","田"],
+  ["审配","汉","B-","🔒","袁绍谋士，死守邺城","审"],
+  ["荀正","汉","B","🔪","袁术部将，被关羽所斩","荀"],
+  ["武安国","汉","B","🔨","孔融部将，虎牢关战吕布","武"],
+  ["徐荣","汉","B","🪝","董卓部将，曾败曹操孙坚","徐"],
+  ["朱儁","汉","B","📗","平黄巾的三名将之一","朱"],
+  ["邹靖","汉","B","🧵","幽州校尉，引刘备见刘焉","邹"],
+  ["蔡夫人","汉","B-","🪞","刘表继室，蔡瑁之姊","蔡"],
+  ["穆顺","汉","B-","📨","汉献帝的宦官 · 藏密信于发髻送伏完","穆"],
+  ["潘凤","汉","B-","🪓","上将潘凤，出战华雄","潘"],
+  ["张闿","汉","B-","🗡️","黄巾余党，杀曹嵩全家","张"],
+  ["侯成","汉","B","🐎","吕布部将，盗赤兔降曹","侯"],
+  ["魏续","汉","B-","🪢","吕布部将，白门楼缚吕布","魏"],
+  ["宋宪","汉","B-","🪢","吕布部将，白门楼缚吕布","宋"],
+  ["孙乾","汉","B-","🗣️","刘备幕僚，往来游说","孙"],
+  ["曹性","汉","B","🎯","吕布部将，射伤夏侯惇一目","曹"],
+  ["李肃","汉","B-","🐴","说吕布杀丁原","李"],
+  ["郭图","汉","B-","🖋️","袁绍谋士，谮沮授","郭"],
+  ["逢纪","汉","B-","🖊️","袁绍谋士，献计取冀州","逢"],
+  ["韩馥","汉","B-","🏚️","冀州牧，让州于袁绍","韩"],
+  ["刘岱","汉","B","🏕️","兖州刺史","刘"],
+  ["许贡","汉","B-","🕯️","吴郡太守，门客刺孙策","许"],
+  ["许攸","汉","B-","🔥","袁绍谋士，投曹献乌巢之计","许"],
+  ["蒯良","汉","B-","📘","刘表谋士，荆州名士","蒯"],
+  ["董承","汉","B-","📃","衣带诏主谋","董"],
+  ["刘琮","汉","B-","🪑","刘表次子，举州降曹","刘"],
+  ["公孙越","汉","B-","🐎","公孙瓒之弟，死于流矢","公孙"],
+  ["韩猛","汉","B","🐴","袁绍部将，押运粮草","韩"],
+  ["淳于琼","汉","B","🍶","守乌巢，饮酒误事","淳于"],
+  ["鲍信","汉","B","🤝","迎曹操领兖州，战死","鲍"],
+  ["胡车儿","汉","B","🌙","张绣部将，盗典韦双戟","胡"],
+  ["胡轸","汉","B","🛖","董卓部将，汜水关都督","胡"],
+  ["程远志","汉","B","🟡","黄巾渠帅，首战被关羽所斩","程"],
+  ["邓茂","汉","B","🟡","黄巾副将，被张飞刺死","邓"],
+  ["高干","汉","B","🏯","袁绍外甥，并州刺史","高"],
+  ["袁熙","汉","B","👘","袁绍次子，出奔辽东","袁"],
+  ["于糜","汉","B-","🪤","刘繇部将，被孙策活捉挟死","于"],
+  ["樊能","汉","B-","😱","刘繇部将，被孙策一声喝落马下","樊"],
+  ["严纲","汉","B","🏳️","公孙瓒部将，界桥战死","严"],
+  ["裴元绍","汉","B","🟡","黄巾余部，欲夺赵云之马","裴"],
+  ["方悦","汉","B-","🪶","河内名将，五合被吕布刺死","方"],
+  ["俞涉","汉","B-","🪶","袁术部将，三合被华雄斩","俞"],
+  ["卞喜","汉","B","🏮","汜水关镇国寺设伏，被关羽所杀","卞"],
+  ["司马徽","汉","B-","🎐","水镜先生，荐卧龙凤雏","司马"],
+  ["华佗","汉","B-","⚕️","神医，为关羽刮骨疗毒","华"],
+  ["关羽","蜀","S","🗡️","美髯公 · 千里走单骑","关"],
+  ["张飞","蜀","S","🪓","当阳桥断喝，万军辟易","张"],
+  ["马超","蜀","S","🐎","锦马超 · 西凉铁骑","马"],
+  ["赵云","蜀","S+","🐉","长坂坡单骑救主","赵"],
+  ["关平","蜀","A+","🗡️","关羽义子，随父征战","关"],
+  ["刘封","蜀","A+","🛡️","刘备义子，勇力过人","刘"],
+  ["周仓","蜀","A","🪣","关羽身旁的扛刀人","周"],
+  ["刘备","蜀","A","👑","织席贩履，终成帝业","刘"],
+  ["诸葛亮","蜀","B-","🪶","卧龙 · 隆中对三分天下","诸葛"],
+  ["徐庶","蜀","B-","🎋","元直走马荐诸葛","徐"],
+  ["简雍","蜀","B-","🎤","刘备同乡，善滑稽","简"],
+  ["廖化","蜀","B+","🧭","蜀中无大将，廖化作先锋","廖"],
+  ["糜芳","蜀","B","📦","南郡太守，后降东吴","糜"],
+  ["糜竺","蜀","B-","💰","资助刘备起家","糜"],
+  ["糜夫人","蜀","B-","🌸","长坂坡投井托孤","糜"],
+  ["甘夫人","蜀","B-","🌷","刘备夫人，阿斗生母","甘"],
+  ["刘禅","蜀","B-","🛋️","后主 · 乐不思蜀","刘"],
+  ["诸葛均","蜀","B-","🏡","诸葛亮之弟，躬耕南阳","诸葛"],
+  ["曹操","魏","A","👑","治世能臣，乱世奸雄","曹"],
+  ["典韦","魏","S","🪓","古之恶来 · 濮阳救主","典"],
+  ["许褚","魏","S","🐯","虎痴 · 裸衣斗马超","许"],
+  ["夏侯惇","魏","S","👁️","拔矢啖睛 —— 父精母血，不可弃也","夏侯"],
+  ["夏侯渊","魏","S","🏹","虎步关右，定军山阵亡","夏侯"],
+  ["张辽","魏","S","🛡️","威震逍遥津","张"],
+  ["张郃","魏","S","🐎","街亭断水，破马谡","张"],
+  ["徐晃","魏","S","🪓","长驱直入，解樊城之围","徐"],
+  ["曹仁","魏","A","🏰","天人将军，死守樊城","曹"],
+  ["曹洪","魏","A","🐴","舍命献马，救主荥阳","曹"],
+  ["乐进","魏","A","🎯","先登陷阵，五子良将","乐"],
+  ["于禁","魏","A","⚖️","治军严整，五子良将","于"],
+  ["李典","魏","A","📘","儒将之风，共守合肥","李"],
+  ["臧霸","魏","A","⛰️","泰山群雄，镇守青徐","臧"],
+  ["高览","魏","A+","🪓","河北四庭柱之一","高"],
+  ["韩浩","魏","B+","🌾","曹操部将，倡办屯田","韩"],
+  ["朱灵","魏","B+","🚩","曹操部将，屡从征伐","朱"],
+  ["程昱","魏","B-","🧮","曹操谋士，多有筹策","程"],
+  ["郭嘉","魏","B-","🍷","鬼才 · 遗计定辽东","郭"],
+  ["贾诩","魏","B-","♟️","毒士 · 算无遗策","贾"],
+  ["司马懿","魏","B-","🐺","鹰视狼顾 · 隐忍半生","司马"],
+  ["刘晔","魏","B-","🔭","汉室宗亲，曹操谋士","刘"],
+  ["荀彧","魏","B-","🕯️","王佐之才 —— 吾之子房","荀"],
+  ["荀攸","魏","B-","🎓","曹操的谋主，算无遗策","荀"],
+  ["曹安民","魏","B-","🕯️","曹操之侄，死于宛城","曹"],
+  ["曹昂","魏","B-","🕯️","曹操长子，宛城死难","曹"],
+  ["车胄","魏","B","🏯","徐州刺史，被关羽所斩","车"],
+  ["路招","魏","B","🛠️","曹操部将","路"],
+  ["史涣","魏","B","🔥","曹操部将，与徐晃烧敌粮","史"],
+  ["王忠","魏","B","🪖","曹操部将，被关羽所擒","王"],
+  ["夏侯兰","魏","B","⚖️","赵云同乡，被擒后任军正","夏侯"],
+  ["孙策","吴","S","🦁","小霸王 · 江东基业","孙"],
+  ["太史慈","吴","S","🎯","箭无虚发，信义笃烈","太史"],
+  ["甘宁","吴","S","🔔","锦帆贼 · 百骑劫营","甘"],
+  ["孙权","吴","A","👑","碧眼儿 · 坐领江东","孙"],
+  ["孙坚","吴","A","🐎","讨董先锋，江东基业的开端","孙"],
+  ["程普","吴","A","🍷","江东元老，历仕三朝","程"],
+  ["黄盖","吴","A","🔥","苦肉计 · 赤壁纵火","黄"],
+  ["韩当","吴","A","🐴","历仕三朝的老将","韩"],
+  ["蒋钦","吴","A","🏮","江表之虎臣","蒋"],
+  ["陈武","吴","A","🛡️","江东虎臣，合肥死战","陈"],
+  ["丁奉","吴","A","❄️","雪中奋短兵","丁"],
+  ["徐盛","吴","A","🏹","疑城退敌，以少胜多","徐"],
+  ["潘璋","吴","A","🪢","麦城擒关羽父子","潘"],
+  ["凌统","吴","A+","🦅","江东虎臣，与甘宁释怨","凌"],
+  ["周泰","吴","A+","🩹","身被数创，护主江东","周"],
+  ["董袭","吴","B+","🌊","江东虎臣，濡须战死","董"],
+  ["凌操","吴","B+","⛵","凌统之父，征黄祖战死","凌"],
+  ["祖茂","吴","B+","🪖","换盔救主，孙坚的护卫","祖"],
+  ["顾雍","吴","B+","🕊️","东吴丞相，沉默寡言","顾"],
+  ["吕蒙","吴","B+","⚓","白衣渡江，擒关羽","吕"],
+  ["周瑜","吴","B","🔥","赤壁火起，雄姿英发","周"],
+  ["陆逊","吴","B","🌿","书生拜将 · 火烧连营","陆"],
+  ["张昭","吴","B-","📚","内事不决问张昭","张"],
+  ["张纮","吴","B-","📔","江东二张之一","张"],
+  ["诸葛瑾","吴","B-","🤝","诸葛亮之兄，东吴重臣","诸葛"],
+  ["阚泽","吴","B-","✉️","密献诈降书","阚"],
+  ["大乔","吴","B-","🌸","孙策夫人","大"]
+];
+/* BUILD:HERO_DATA:END */
+
+// 等级 → 抽卡档位（等级是「武将强弱」，见实体卡核对表）
+const GRADE_TIER = { "SS":"legend","S+":"legend","S":"legend","A+":"rare","A":"rare","B+":"common","B":"common","B-":"common" };
+const GRADE_ORDER = ["SS","S+","S","A+","A","B+","B","B-"];
+const GRADE_TIER_NAME = { legend:"神将", rare:"名将", common:"良将" };
+const HERO_TIER_NAME = GRADE_TIER_NAME;
+const HERO_TIER_CLS  = { legend:"t-legend", rare:"t-rare", common:"t-common" };
+// 结果框（弹窗里的那块）用的是 t-normal，跟卡片不一样，别混
+const HERO_TIER_BOX  = { legend:"t-legend", rare:"t-rare", common:"t-normal" };
+const HERO_ORDER = ["legend","rare","common"];
+// 单张卡的基础权重（160 位里良将占 112，所以权重按「单卡稀有度」而不是「档位总量」调）
+const HERO_W = { legend:10, rare:16, common:18 };
+// 重复抽到折算的军功
+const DUP_MERIT = { legend:80, rare:25, common:6 };
+// 未获得的武将权重加成 —— 160 张比 36 张大得多，加成相应调高
+const HERO_NEW_BOOST = 3.5;
+// 移出图鉴的旧武将，按持有数量补军功（见 migrate）
+const REMOVED_HERO_MERIT = 60;
+// 阵营：与实体卡一致（群雄并入「汉」）
+const FACTION_ORDER = ["汉","魏","蜀","吴"];
+// 阵营 → 纹章配色类
+const HERO_FACTION_CLS = { "汉":"b-han", "魏":"b-wei", "蜀":"b-shu", "吴":"b-wu" };
+const HEROES = { legend:[], rare:[], common:[] };
+const HEROES_ALL = [];
+const HERO_BY_NAME = {};
+for(const row of HERO_DATA){
+  const o = { n:row[0], f:row[1], g:row[2], e:row[3], d:row[4], s:row[5]||row[0].slice(0,1), tier:GRADE_TIER[row[2]] };
+  HEROES[o.tier].push(o);
+  HEROES_ALL.push(o);
+  HERO_BY_NAME[o.n] = o;
+}
+// 图鉴按阵营分组，组内按等级从高到低
+const HEROES_BY_FACTION = {};
+for(const f of FACTION_ORDER) HEROES_BY_FACTION[f] = [];
+for(const h of HEROES_ALL) (HEROES_BY_FACTION[h.f] = HEROES_BY_FACTION[h.f] || []).push(h);
+for(const f in HEROES_BY_FACTION)
+  HEROES_BY_FACTION[f].sort((a,b)=>GRADE_ORDER.indexOf(a.g)-GRADE_ORDER.indexOf(b.g));
+
+// 抽卡：78% 出武将，22% 出锦囊
+const P_HERO = 78;
+// 保底：累计揭榜多少次未出神将，则下一次必出
+const PITY = 20;
+// 连击倍率：连续 N 天军令齐备
+const STREAK_TIERS = [ {n:7,m:2,name:"势如破竹"},{n:5,m:1.5,name:"连战连捷"},{n:3,m:1.2,name:"渐入佳境"} ];
+// 连续多少个完整周 100% 达成，则视为养成，自动毕业
+const GRADUATE_WEEKS = 4;
+
+/* ---------------------- 主线书目（固定三国演义，不再支持换书） ---------------------- */
+const SANGUO_BOOK_NAME = "三国演义";
+const SANGUO = ["宴桃园豪杰三结义 斩黄巾英雄首立功","张翼德怒鞭督邮 何国舅谋诛宦竖","议温明董卓叱丁原 馈金珠李肃说吕布","废汉帝陈留践位 谋董贼孟德献刀","发矫诏诸镇应曹公 破关兵三英战吕布","焚金阙董卓行凶 匿玉玺孙坚背约","袁绍磐河战公孙 孙坚跨江击刘表","王司徒巧使连环计 董太师大闹凤仪亭","除暴徒吕布助司徒 犯长安李傕听贾诩","勤王室马腾举义 报父仇曹操兴师","刘皇叔北海救孔融 吕温侯濮阳破曹操","陶恭祖三让徐州 曹孟德大战吕布","李傕郭汜大交兵 杨奉董承双救驾","曹孟德移驾幸许都 吕奉先乘夜袭徐郡","太史慈酣斗小霸王 孙伯符大战严白虎","吕奉先射戟辕门 曹孟德败师淯水","袁公路大起七军 曹孟德会合三将","贾文和料敌决胜 夏侯惇拔矢啖睛","下邳城曹操鏖兵 白门楼吕布殒命","曹阿瞒许田打围 董国舅内阁受诏","曹操煮酒论英雄 关公赚城斩车胄","袁曹各起马步三军 关张共擒王刘二将","祢正平裸衣骂贼 吉太医下毒遭刑","国贼行凶杀贵妃 皇叔败走投袁绍","屯土山关公约三事 救白马曹操解重围","袁本初败兵折将 关云长挂印封金","美髯公千里走单骑 汉寿侯五关斩六将","斩蔡阳兄弟释疑 会古城主臣聚义","小霸王怒斩于吉 碧眼儿坐领江东","战官渡本初败绩 劫乌巢孟德烧粮","曹操仓亭破本初 玄德荆州依刘表","夺冀州袁尚争锋 决漳河许攸献计","曹丕乘乱纳甄氏 郭嘉遗计定辽东","蔡夫人隔屏听密语 刘皇叔跃马过檀溪","玄德南漳逢隐沦 单福新野遇英主","玄德用计袭樊城 元直走马荐诸葛","司马徽再荐名士 刘玄德三顾草庐","定三分隆中决策 战长江孙氏报仇","荆州城公子三求计 博望坡军师初用兵","蔡夫人议献荆州 诸葛亮火烧新野","刘玄德携民渡江 赵子龙单骑救主","张翼德大闹长阪桥 刘豫州败走汉津口","诸葛亮舌战群儒 鲁子敬力排众议","孔明用智激周瑜 孙权决计破曹操","三江口曹操折兵 群英会蒋干中计","用奇谋孔明借箭 献密计黄盖受刑","阚泽密献诈降书 庞统巧授连环计","宴长江曹操赋诗 锁战船北军用武","七星坛诸葛祭风 三江口周瑜纵火","诸葛亮智算华容 关云长义释曹操","曹仁大战东吴兵 孔明一气周公瑾","诸葛亮智辞鲁肃 赵子龙计取桂阳","关云长义释黄汉升 孙仲谋大战张文远","吴国太佛寺看新郎 刘皇叔洞房续佳偶","玄德智激孙夫人 孔明二气周公瑾","曹操大宴铜雀台 孔明三气周公瑾","柴桑口卧龙吊丧 耒阳县凤雏理事","马孟起兴兵雪恨 曹阿瞒割须弃袍","许褚裸衣斗马超 曹操抹书间韩遂","张永年反难杨修 庞士元议取西蜀","赵云截江夺阿斗 孙权遗书退老瞒","取涪关杨高授首 攻雒城黄魏争功","诸葛亮痛哭庞统 张翼德义释严颜","孔明定计捉张任 杨阜借兵破马超","马超大战葭萌关 刘备自领益州牧","关云长单刀赴会 伏皇后为国捐生","曹操平定汉中地 张辽威震逍遥津","甘宁百骑劫魏营 左慈掷杯戏曹操","卜周易管辂知机 讨汉贼五臣死节","猛张飞智取瓦口隘 老黄忠计夺天荡山","占对山黄忠逸待劳 据汉水赵云寡胜众","诸葛亮智取汉中 曹阿瞒兵退斜谷","玄德进位汉中王 云长攻拔襄阳郡","庞令明抬榇决死战 关云长放水渰七军","关云长刮骨疗毒 吕子明白衣渡江","徐公明大战沔水 关云长败走麦城","玉泉山关公显圣 洛阳城曹操感神","治风疾神医身死 传遗命奸雄数终","兄逼弟曹植赋诗 侄陷叔刘封伏法","曹丕废帝篡炎刘 汉王正位继大统","急兄仇张飞遇害 雪弟恨先主兴兵","孙权降魏受九锡 先主征吴赏六军","战猇亭先主得仇人 守江口书生拜大将","陆逊营烧七百里 孔明巧布八阵图","刘先主遗诏托孤儿 诸葛亮安居平五路","难张温秦宓逞天辩 破曹丕徐盛用火攻","征南寇丞相大兴师 抗天兵蛮王初受执","渡泸水再缚番王 识诈降三擒孟获","武乡侯四番用计 南蛮王五次遭擒","驱巨兽六破蛮兵 烧藤甲七擒孟获","祭泸水汉相班师 伐中原武侯上表","赵子龙力斩五将 诸葛亮智取三城","姜伯约归降孔明 武乡侯骂死王朗","诸葛亮乘雪破羌兵 司马懿克日擒孟达","马谡拒谏失街亭 武侯弹琴退仲达","孔明挥泪斩马谡 周鲂断发赚曹休","讨魏国武侯再上表 破曹兵姜维诈献书","追汉军王双受诛 袭陈仓武侯取胜","诸葛亮大破魏兵 司马懿入寇西蜀","汉兵劫寨破曹真 武侯斗阵辱仲达","出陇上诸葛妆神 奔剑阁张郃中计","司马懿占北原渭桥 诸葛亮造木牛流马","上方谷司马受困 五丈原诸葛禳星","陨大星汉丞相归天 见木像魏都督丧胆","武侯预伏锦囊计 魏主拆取承露盘","公孙渊兵败死襄平 司马懿诈病赚曹爽","魏主政归司马氏 姜维兵败牛头山","丁奉雪中奋短兵 孙峻席间施密计","困司马汉将奇谋 废曹芳魏家果报","文鸯单骑退雄兵 姜维背水破大敌","邓士载智取姜伯约 诸葛诞义讨司马昭","救寿春于诠死节 取长城伯约鏖兵","丁奉定计斩孙綝 姜维斗阵破邓艾","曹髦驱车死南阙 姜维弃粮胜魏兵","诏班师后主信谗 托屯田姜维避祸","钟会分兵汉中道 武侯显圣定军山","邓士载偷渡阴平 诸葛瞻战死绵竹","哭祖庙一王死孝 入西川二士争功","假投降巧计成虚话 再受禅依样画葫芦","荐杜预老将献新谋 降孙皓三分归一统"];
+
+/* ---------------------- 小工具 ---------------------- */
+const $  = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+const pad = n => String(n).padStart(2,"0");
+const ds  = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const TODAY = () => ds(new Date());
+function parseD(s){ const a=String(s).split("-").map(Number); return new Date(a[0],a[1]-1,a[2]); }
+function addD(s,n){ const d=parseD(s); d.setDate(d.getDate()+n); return ds(d); }
+function weekStart(s){ const d=parseD(s); const w=d.getDay(); d.setDate(d.getDate()+(w===0?-6:1-w)); return ds(d); }
+function weekDates(s){ const m=weekStart(s); return Array.from({length:7},(_,i)=>addD(m,i)); }
+function fmtMD(s){ const d=parseD(s); return (d.getMonth()+1)+"月"+d.getDate()+"日"; }
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function round1(n){ return Math.round(n*10)/10; }
+// 金额先转成有限数再运算，禁止字符串拼接、负金额与非数值进入余额。
+function moneyNumber(v){
+  if(typeof v!=="number" && !(typeof v==="string" && v.trim()!=="")) return NaN;
+  const n=Number(v);
+  return Number.isFinite(n) && n>=0 && n<=Number.MAX_SAFE_INTEGER/100 ? round1(n) : NaN;
+}
+function money(v){ const n=moneyNumber(v); return Number.isFinite(n)?n:0; }
+function recordLevel(v){ const n=Number(v); return n===1?1:n===0.5?0.5:0; }
+function validPrizeCost(v){ const n=moneyNumber(v); return Number.isFinite(n) && n>0; }
+function normalizeMoneyState(s){
+  const fix=(obj,key,optional)=>{
+    if(obj[key]==null && optional){ obj[key]=0; return; }
+    const n=moneyNumber(obj[key]);
+    if(!Number.isFinite(n)) throw new Error("存档金额异常："+key+"。原数据已保留，请先导出备份核查");
+    obj[key]=n;
+  };
+  fix(s,"bonusMerit",true); fix(s,"peakMerit",true);
+  if(s.meritSrc) for(const k of ["dup","collect","migrate"]) fix(s.meritSrc,k,true);
+  // 锦囊门槛坏了不能拖垮整个存档：标记后归零，既不扣费也不参与统计，
+  // 孩子只会看到这一张「门槛异常」，而不是整个 App 打不开。
+  for(const v of (s.vault||[])){
+    const n=moneyNumber(v.merit);
+    if(Number.isFinite(n) && n>0){ v.merit=n; delete v.meritInvalid; }
+    else { v.meritInvalid=v.merit==null?"":String(v.merit); v.merit=0; }
+    if(v.paidMerit!=null){
+      const p=moneyNumber(v.paidMerit);
+      v.paidMerit=Number.isFinite(p)?p:0;
+    }
+  }
+  for(const d of Object.keys(s.ledger||{})) fix(s.ledger[d],"merit",true);
+  if(s.draws!=null && (!Number.isSafeInteger(Number(s.draws)) || Number(s.draws)<0)) throw new Error("招贤令消费记录异常");
+  s.draws=Number(s.draws)||0;
+  return s;
+}
+function cnNum(n){
+  const a=["零","一","二","三","四","五","六","七","八","九"];
+  n = Math.floor(n);
+  if(n<=0) return "零";
+  if(n<10) return a[n];
+  if(n<20) return "十"+(n>10?a[n-10]:"");
+  if(n<100){
+    const t=Math.floor(n/10), o=n%10;
+    return a[t]+"十"+(o?a[o]:"");
+  }
+  if(n<1000){
+    const h=Math.floor(n/100), rest=n%100;
+    let s=a[h]+"百";
+    if(rest===0) return s;
+    if(rest<10) return s+"零"+a[rest];
+    if(rest<20) return s+"一十"+(rest>10?a[rest-10]:"");
+    const t2=Math.floor(rest/10), o2=rest%10;
+    return s+a[t2]+"十"+(o2?a[o2]:"");
+  }
+  return String(n);
+}
+
+function toast(msg,ms){
+  const old=$(".toast"); if(old) old.remove();
+  const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.transition="opacity .3s"; t.style.opacity="0"; setTimeout(()=>t.remove(),320); }, ms||2000);
+}
+
+function confetti(n){
+  const colors=["#B93A32","#D4A03C","#C9A227","#4A9E80","#8A5A3C","#E0C070"];
+  for(let i=0;i<(n||70);i++){
+    const el=document.createElement("div");
+    el.className="confetti";
+    el.style.left=(Math.random()*100)+"vw";
+    el.style.background=colors[i%colors.length];
+    el.style.animationDelay=(Math.random()*0.7)+"s";
+    el.style.width=(6+Math.random()*6)+"px";
+    el.style.height=(9+Math.random()*8)+"px";
+    if(Math.random()>.65) el.style.borderRadius="50%";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),3600);
+  }
+}
+
+/* ---------------------- 节日皮肤 ---------------------- */
+const LUNAR = {
+  spring:    ["2026-02-17","2027-02-06","2028-01-26","2029-02-13","2030-02-03","2025-01-29"],
+  dragon:    ["2026-06-19","2027-06-09","2028-05-28","2029-06-16","2030-06-05","2025-05-31"],
+  midautumn: ["2026-09-25","2027-09-15","2028-10-03","2029-09-22","2030-09-12","2025-10-06"]
+};
+function festivalOf(dateStr){
+  const d=parseD(dateStr), m=d.getMonth()+1, day=d.getDate();
+  for(const k of LUNAR.spring)    if(dateStr>=addD(k,-4) && dateStr<=addD(k,6)) return "spring";
+  for(const k of LUNAR.dragon)    if(dateStr>=addD(k,-1) && dateStr<=addD(k,2)) return "dragon";
+  for(const k of LUNAR.midautumn) if(dateStr>=addD(k,-1) && dateStr<=addD(k,2)) return "midautumn";
+  if(m===10 && day>=1 && day<=7) return "national";
+  if(m===6  && day===1)          return "kids";
+  return null;
+}
+const SKIN_NAME = {
+  spring:"春节 · 桃符新换", dragon:"端午 · 龙舟竞渡", midautumn:"中秋 · 月满西楼",
+  national:"国庆 · 家国同庆", kids:"六月 · 少年意气"
+};
+function applySkin(){
+  const f=festivalOf(TODAY());
+  if(f) document.documentElement.setAttribute("data-skin",f);
+  else document.documentElement.removeAttribute("data-skin");
+  return f;
+}
+
+/* =====================================================================
+   状态
+   ===================================================================== */
+function defaultTasks(){
+  const T=(o)=>Object.assign({id:uid(),archived:false,boss:false,emoji:"",planMin:15,weekTarget:5,weekdays:[1,2,3,4,5,6,0]},o);
+  return [
+    T({ name:"语文早读", subject:"cn",   type:"daily", emoji:"📜", timeSlot:"morning", planMin:15 }),
+    T({ name:"数学口算", subject:"math", type:"daily", emoji:"🧮", timeSlot:"morning", planMin:10 }),
+    T({ name:"练字一页", subject:"cn",   type:"daily", emoji:"🖌️", timeSlot:"evening", planMin:15 }),
+    T({ name:"英语磨耳朵",subject:"en",  type:"flex",  emoji:"🎧", timeSlot:"evening", planMin:20, weekTarget:5, boss:true }),
+    T({ name:"英文阅读", subject:"en",   type:"flex",  emoji:"📖", timeSlot:"any",     planMin:15, weekTarget:3 }),
+    T({ name:"单词打卡", subject:"en",   type:"flex",  emoji:"🔤", timeSlot:"any",     planMin:10, weekTarget:3 }),
+    T({ name:"奥数练习", subject:"math", type:"flex",  emoji:"📐", timeSlot:"evening", planMin:30, weekTarget:2, boss:true })
+  ];
+}
+function defaultPrizes(){
+  const P=(tier,name,emoji,merit,weight)=>Object.assign({id:uid(),tier,name,emoji,merit,weight:weight||10},{});
+  return [
+    P("common","一支新笔","✏️",40,12),
+    P("common","小零食一份","🍬",50,12),
+    P("common","30 分钟自由支配","⏳",60,12),
+    P("common","免一次课外作业","📜",80,10),
+    P("rare","心仪的书一本","📚",200,9),
+    P("rare","小玩意一件","🎁",300,8),
+    P("rare","周末半日自由安排","🎡",400,7),
+    P("legend","现金 100 元","💴",1000,3),
+    P("legend","外出旅行一次","✈️",1500,2),
+    P("legend","心愿一件（自己填）","🌟",1500,2)
+  ];
+}
+function defaultState(){
+  const t=TODAY();
+  return {
+    schema:SCHEMA,
+    appVersion:APP_VERSION,
+    childName:"主公",
+    tasks:defaultTasks(),
+    records:{},
+    bossDefeats:{},
+    prizes:defaultPrizes(),
+    vault:[],              // 锦囊匣：{uid,name,emoji,tier,merit,redeemed,gotAt,from,wish}
+    heroes:{},             // 武将图鉴：{ 名字: 获得日期 }
+    heroCount:{},          // 重复抽到的次数：{ 名字: n }
+    draws:0,
+    bonusMerit:0,          // 额外军功总额，历史余额不追溯重算
+    meritEvents:[],        // 本版起逐笔记录额外奖励（含幂等编号）
+    // 账本：历史每一天一经结算就冻结，之后改任务不再追溯改写
+    // { "YYYY-MM-DD": { tasks:[快照], done, total, complete, base, mult, merit, ticket, settled, rest } }
+    ledger:{},
+    peakMerit:0,           // 历史最高累计军功，官职只升不降
+    pity:{ sinceLegend:0 },// 距上次出神将已揭榜次数
+    graduated:{},          // 已养成的军令：{ taskId: {name,emoji,subject,at,weeks} }
+    lastOpen:"",
+    lastBackup:"",         // 最近一次导出备份的日期，用来提醒别把数据只留在一台机器上
+    // 兑现台：开锦囊时自动生成一张，等家长确认已兑现
+    // { id, name, emoji, tier, merit, openedAt, status:"pending"|"done", doneAt, note }
+    coupons:[],
+    // 休整期：{ id, from, to, reason }
+    breaks:[],
+    // 自愿开工的日子（休整期内说「今天想做一点」）：{ "YYYY-MM-DD": true }
+    extraDays:{},
+    // 主动性记录：{ date, kind:"extra"|"add_task"|"too_hard"|"wish", detail, at }
+    signals:[],
+    // 刚调整过的军令先观察一阵，别一直追着建议改
+    hintApplied:{},
+    story:{ book:SANGUO_BOOK_NAME, chapters:SANGUO.slice(), startDay:TODAY(), baseDays:0 },
+    season:{ name:"第 1 赛季", startDate:weekStart(t), endDate:addD(weekStart(t),119) },
+    reports:{},
+    achievements:{},
+    createdAt:t
+  };
+}
+// 按 schema 版本逐级升级老数据。以后加字段，只在这里补一条规则。
+function migrate(s){
+  if(!s || typeof s!=="object") return s;
+  if(typeof s.schema!=="number") s.schema = 1;   // 1.5.0 之前的数据没有这个字段
+  // 必须在迁移读取字段之前补齐；导入和启动走同一条链。
+  if(!s.heroes || typeof s.heroes!=="object") s.heroes={};
+  if(!s.heroCount || typeof s.heroCount!=="object") s.heroCount={};
+  if(!s.story || typeof s.story!=="object") s.story=defaultState().story;
+  if(!Array.isArray(s.vault)) s.vault=[];
+  if(!s.ledger || typeof s.ledger!=="object") s.ledger={};
+  normalizeMoneyState(s);
+
+  if(s.schema < 2){
+    // v1 → v2：新增兑现台、休整期、自愿开工、主动性记录
+    if(!Array.isArray(s.coupons)) s.coupons=[];
+    if(!Array.isArray(s.breaks)) s.breaks=[];
+    if(!s.extraDays || typeof s.extraDays!=="object") s.extraDays={};
+    if(!Array.isArray(s.signals)) s.signals=[];
+    s.schema = 2;
+  }
+  if(s.schema < 3){
+    // v2 → v3：引入补录窗口。把还落在窗口里的日子从账本里放开，
+    // 让「昨天忘了点卯」当场就能补，而更早的历史照旧冻着。
+    const floor = addD(TODAY(), -(BACKFILL_DAYS-1));
+    if(s.ledger && typeof s.ledger==="object"){
+      for(const d in s.ledger){ if(d >= floor) delete s.ledger[d]; }
+    }
+    s.schema = 3;
+  }
+  if(s.schema < 4){
+    // v3 → v4：武将库从 36 位换成「怀沙实体卡」160 位。
+    // 其中 27 位旧武将保留；另外 9 位（黄忠、姜维、魏延、庞统、张苞、马岱、王平、马良、严颜）
+    // 实体卡里没有，若已招募则折算成军功补偿 —— 不让孩子的收集凭空消失。
+    const removed=["黄忠","姜维","魏延","庞统","张苞","马岱","王平","马良","严颜"];
+    const gone = removed.filter(n=>!!s.heroes[n]);
+    if(gone.length){
+      addMerit(s, gone.length * REMOVED_HERO_MERIT, "migrate", "migrate:heroes160", gone.join("、"));
+      for(const n of gone) delete s.heroes[n];
+      for(const n of gone) delete s.heroCount[n];
+      s.heroMigrateNote = gone.length + " 位旧武将不在新图鉴里（" + gone.join("、") + "），已各补 ⭐" + REMOVED_HERO_MERIT + " 军功";
+    }
+    s.schema = 4;
+  }
+  if(s.schema < 5){
+    // v4 → v5：主线书目固定为《三国演义》，不再支持换书。
+    // 之前若家长选过别的书，这里归位（故事是装饰性的，不影响任何记录）。
+    if(s.story.book !== SANGUO_BOOK_NAME
+       || !Array.isArray(s.story.chapters)
+       || s.story.chapters.length !== SANGUO.length){
+      s.story.book = SANGUO_BOOK_NAME;
+      s.story.chapters = SANGUO.slice();
+    }
+    s.schema = 5;
+  }
+  if(s.schema < 6){
+    // v5 → v6：剧情从「按周自动推进」改成「靠努力推进」。
+    // 把旧系统已经推进到的回数折算成「已攒全勤天数」，不让进度倒退。
+    const total = Array.isArray(s.story.chapters) ? s.story.chapters.length : 0;
+    let oldChap = 0;
+    if(s.story.startWeek && total){
+      const wk = Math.max(0, Math.floor((parseD(weekStart(TODAY())) - parseD(s.story.startWeek)) / 604800000));
+      oldChap = wk % total;
+    }
+    s.story.baseDays = oldChap * CHAPTER_PER_DONE_DAYS;
+    s.story.startDay = TODAY();
+    delete s.story.startWeek;
+    s.schema = 6;
+  }
+  if(s.schema < 7){
+    // v6 → v7：新增集齐奖励。升级前就已经集满的阵营/全套在这里补记，
+    // 不弹提示（迁移时连弹好几条会让人以为出错了）。
+    checkCollection(s);
+    s.schema = 7;
+  }
+  if(s.schema < 8){
+    // v7 → v8：只补流水和实付快照，历史余额保持原值，不臆造旧流水。
+    if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
+    for(const v of s.vault) if(v.redeemed && v.paidMerit==null) v.paidMerit=money(v.merit);
+    s.schema=8;
+  }
+  if(!s.hintApplied || typeof s.hintApplied!=="object") s.hintApplied={};
+  if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
+
+  // 无论版本，这些字段的类型兜底都要保证
+  if(!s.heroes || typeof s.heroes!=="object") s.heroes={};
+  if(!s.heroCount || typeof s.heroCount!=="object") s.heroCount={};
+  if(typeof s.bonusMerit!=="number") s.bonusMerit=0;
+  if(!s.ledger || typeof s.ledger!=="object") s.ledger={};
+  if(typeof s.peakMerit!=="number") s.peakMerit=0;
+  if(!s.pity || typeof s.pity!=="object") s.pity={ sinceLegend:0 };
+  if(typeof s.pity.sinceLegend!=="number") s.pity.sinceLegend=0;
+  if(!s.graduated || typeof s.graduated!=="object") s.graduated={};
+  if(typeof s.lastOpen!=="string") s.lastOpen="";
+  if(!Array.isArray(s.tasks)||!s.tasks.length) s.tasks=defaultTasks();
+  if(!Array.isArray(s.prizes)||!s.prizes.length) s.prizes=defaultPrizes();
+  if(!Array.isArray(s.vault)) s.vault=[];
+  if(!s.records || typeof s.records!=="object") s.records={};
+  if(!s.bossDefeats || typeof s.bossDefeats!=="object") s.bossDefeats={};
+  if(!s.reports || typeof s.reports!=="object") s.reports={};
+  if(!s.achievements || typeof s.achievements!=="object") s.achievements={};
+  if(!s.season || typeof s.season!=="object") s.season=defaultState().season;
+  if(!s.story || typeof s.story!=="object") s.story=defaultState().story;
+  if(!Array.isArray(s.story.chapters)||!s.story.chapters.length) s.story.chapters=SANGUO.slice();
+  // 老数据里已经开掉的锦囊补一张「已兑现」的券，让兑现率算得准
+  backfillCoupons(s);
+  s.appVersion = APP_VERSION;
+  return s;
+}
+let ST = null;
+let STORAGE_LAST_RAW; // 最近一次读写的原文，防止旧窗口覆盖新账本
+let LOAD_ERROR="";
+// 持久化存储的申请结果："granted" / "denied" / "unsupported" / "unknown"
+let STORAGE_PERSIST = "unknown";
+// localStorage 在 file:// 协议下会被 WebKit 直接禁用（iPad/iPhone 尤其严格），
+// 这时整个应用会变成「用完即忘」，必须明确告诉用户，不能让它悄悄失败。
+function storageAvailable(){
+  try{
+    const k="__sz_probe__";
+    localStorage.setItem(k,"1");
+    localStorage.removeItem(k);
+    return true;
+  }catch(e){ return false; }
+}
+function checkStorage(){
+  const ok = storageAvailable();
+  const w=$("#storageWarn");
+  if(w) w.classList.toggle("show", !ok);
+  return ok;
+}
+/* ---- 存储保护 ----
+   iOS 上「添加到主屏幕」已经豁免了 Safari 的 7 天清理；
+   安卓 / 鸿蒙上还要再申请一次「持久化存储」—— 否则磁盘紧张时浏览器可能自动回收。 */
+function requestPersistentStorage(){
+  try{
+    if(!navigator.storage || !navigator.storage.persist){
+      STORAGE_PERSIST="unsupported"; return Promise.resolve("unsupported");
+    }
+    var done = function(v){ STORAGE_PERSIST = v; return v; };
+    return (navigator.storage.persisted
+      ? navigator.storage.persisted().then(function(already){
+          if(already) return done("granted");
+          return navigator.storage.persist().then(function(ok){ return done(ok?"granted":"denied"); });
+        })
+      : navigator.storage.persist().then(function(ok){ return done(ok?"granted":"denied"); })
+    ).catch(function(){ return done("unknown"); });
+  }catch(e){ STORAGE_PERSIST="unknown"; return Promise.resolve("unknown"); }
+}
+function save(){
+  try{
+    const raw=JSON.stringify(ST);
+    if(STORAGE_LAST_RAW!==undefined && localStorage.getItem(KEY)!==STORAGE_LAST_RAW) throw new Error("另一窗口已修改存档，请刷新后重试");
+    localStorage.setItem(KEY, raw);
+    STORAGE_LAST_RAW=raw;
+    return true;
+  }
+  catch(e){
+    const w=$("#storageWarn");
+    if(w) w.classList.add("show");
+    toast("数据没有保存，请勿继续操作："+(e.message||"本地存储不可用"),4200);
+    return false;
+  }
+}
+// 对抽卡和开启锦囊，保存成功才算完成；写入失败恢复操作前状态。
+function commitEconomy(action){
+  const before=JSON.stringify(ST);
+  try{
+    const result=action();
+    if(save()) return result;
+  }catch(e){ toast("本次操作未完成，星星未变："+e.message,4200); }
+  ST=JSON.parse(before);
+  return null;
+}
+function prepareState(o){
+  if(!o || typeof o!=="object" || Array.isArray(o) || !Array.isArray(o.tasks)) throw new Error("存档格式不对");
+  if(Number(o.schema)>SCHEMA) throw new Error("这是更新版本的存档，请先更新应用");
+  const d=defaultState();
+  const merged=Object.assign({},d,o);
+  // 不能用默认的最新schema覆盖「没有schema」的老存档，否则升级规则全部被跳过。
+  merged.schema=typeof o.schema==="number"?o.schema:1;
+  merged.story=Object.assign({},d.story,o.story||{});
+  merged.season=Object.assign({},d.season,o.season||{});
+  return migrate(merged);
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    STORAGE_LAST_RAW=raw;
+    LOAD_ERROR="";
+    if(!raw) return null;
+    const original=JSON.parse(raw), prepared=prepareState(original);
+    // 升级前先保留旧原文。写不下（配额满）时只警告，绝不因此让 App 起不来。
+    if(original.appVersion!==APP_VERSION || original.schema!==SCHEMA){
+      try{ localStorage.setItem(KEY+"_before_upgrade",raw); }
+      catch(e){ console.warn("升级前快照没存下（空间不足），继续使用新版本"); }
+    }
+    return prepared;
+  }catch(e){ LOAD_ERROR=e.message||"存档无法读取"; return null; }
+}
+
+/* =====================================================================
+   核心逻辑
+   ===================================================================== */
+function rec(dateStr,taskId){
+  const day=ST.records[dateStr];
+  return day ? day[taskId] : null;
+}
+function setRec(dateStr,taskId,level,type,minutes){
+  if(!ST.records[dateStr]) ST.records[dateStr]={};
+  if(level===null && type===null){
+    delete ST.records[dateStr][taskId];
+    if(!Object.keys(ST.records[dateStr]).length) delete ST.records[dateStr];
+    return;
+  }
+  ST.records[dateStr][taskId]={ level:recordLevel(level), type:type||"miss", minutes:Math.max(0,Number(minutes)||0), at:Date.now() };
+}
+function weekDone(taskId,dateStr){
+  let n=0;
+  for(const d of weekDates(dateStr)){ const r=rec(d,taskId); if(r && r.level>=0.5) n++; }
+  return n;
+}
+/* ---- 账目冻结与补录窗口 ----
+   规则只有一条：最近 BACKFILL_DAYS 天（含今天）是「活的」，可以补录点卯；
+   更早的日子一经结算就冻成石头，改任务、删军令都动不了它。 */
+function backfillFloor(){ return addD(TODAY(), -(BACKFILL_DAYS-1)); }
+function isFrozen(dateStr){ return dateStr < backfillFloor(); }
+function canBackfill(dateStr){ return !isFrozen(dateStr) && dateStr <= TODAY(); }
+
+/* ---- 休整期：生病、假期、考试周，工具要承认这些节律 ---- */
+function activeBreak(dateStr){
+  return (ST.breaks||[]).find(b => dateStr >= b.from && dateStr <= b.to) || null;
+}
+// 休整日 = 落在某个休整区间内，且孩子没有主动说「今天想做一点」
+function isRestDay(dateStr){
+  if((ST.extraDays||{})[dateStr]) return false;
+  return !!activeBreak(dateStr);
+}
+function restReason(dateStr){
+  const b=activeBreak(dateStr);
+  return b ? (b.reason||"休整") : "";
+}
+// 休整期内孩子自愿开工
+function markExtraDay(dateStr){
+  if(!ST.extraDays) ST.extraDays={};
+  ST.extraDays[dateStr]=true;
+  logSignal("extra", "休整期里主动做了一天");
+}
+
+// 某天应当出现的军令
+// 已经结算过的历史日子直接返回账本里冻结的快照，改任务不再影响它的样子
+function tasksForDate(dateStr){
+  const L=ST.ledger[dateStr];
+  if(isFrozen(dateStr) && L && L.settled) return (L.tasks||[]).slice();
+  if(isRestDay(dateStr)) return [];               // 休整日不派军令
+  const dow=parseD(dateStr).getDay();
+  const out=[];
+  for(const t of ST.tasks){
+    if(t.archived) continue;
+    if(t.type==="daily"){ out.push(t); continue; }
+    if(t.type==="fixed"){ if((t.weekdays||[]).includes(dow)) out.push(t); continue; }
+    const r=rec(dateStr,t.id);
+    if(r && r.type==="skip") continue;              // 挂了免战牌 → 顺延
+    if(r && r.level>0){ out.push(t); continue; }
+    const target=Math.max(1,t.weekTarget||1);
+    if(weekDone(t.id,dateStr)>=target) continue;     // 本周已达成 → 撤下
+    out.push(t);
+  }
+  return out;
+}
+function holidayTasks(dateStr){
+  const L=ST.ledger[dateStr];
+  if(isFrozen(dateStr) && L && L.settled) return [];   // 历史已冻结，不再补挂「休整」
+  if(isRestDay(dateStr)) return [];
+  return ST.tasks.filter(t=>{
+    if(t.archived||t.type!=="flex") return false;
+    if(rec(dateStr,t.id)) return false;
+    return weekDone(t.id,dateStr) >= Math.max(1,t.weekTarget||1);
+  });
+}
+function dayExpected(dateStr){ return tasksForDate(dateStr); }
+function dayIsComplete(dateStr){
+  const list=dayExpected(dateStr);
+  if(!list.length) return false;
+  return list.every(t=>{ const r=rec(dateStr,t.id); return r && r.level>=0.5; });
+}
+function dayRatio(dateStr){
+  const list=dayExpected(dateStr);
+  if(!list.length) return 1;
+  const done=list.filter(t=>{ const r=rec(dateStr,t.id); return r && r.level>=0.5; }).length;
+  return done/list.length;
+}
+function dayStars(dateStr){
+  const day=ST.records[dateStr]; if(!day) return 0;
+  let s=0; for(const k of Object.keys(day)) s+=recordLevel(day[k] && day[k].level); return round1(s);
+}
+function allDatesWithRecords(){
+  const set=new Set(Object.keys(ST.records));
+  set.add(TODAY());
+  return Array.from(set).sort();
+}
+// 军功 = 已冻结的历史账本 + 今天的实时 + 重复名将折算
+// 判断某天是否完成：已冻结的看账本，窗口内的实时算
+function isCompleteOn(dateStr){
+  const L=ST.ledger[dateStr];
+  if(isFrozen(dateStr) && L && L.settled) return !!L.complete;
+  return dayIsComplete(dateStr);
+}
+
+/* ---- 主线推进：靠努力换，不靠时间 ----
+   累计「军令齐备」的天数（休整日跳过），每满 CHAPTER_PER_DONE_DAYS 天推进一回。
+   只用累加，所以进度永远不会倒退。 */
+const CHAPTER_PER_DONE_DAYS = 3;
+function storyDoneDays(){
+  const st = ST.story || {};
+  let n = st.baseDays || 0;                       // 迁移时折算过来的旧进度
+  const from = st.startDay || ST.createdAt || TODAY();
+  let d = from, guard = 0;
+  while(d <= TODAY() && guard++ < 4000){
+    if(!isRestDay(d) && isCompleteOn(d)) n++;
+    d = addD(d, 1);
+  }
+  return Math.max(0, n);
+}
+function storyChapterRaw(){ return Math.floor(storyDoneDays() / CHAPTER_PER_DONE_DAYS); }
+// 再攒几天全勤能推进下一回
+function storyNextIn(){
+  const r = storyDoneDays() % CHAPTER_PER_DONE_DAYS;
+  return CHAPTER_PER_DONE_DAYS - r;
+}
+// 从 dateStr 往前数，连续多少天军令齐备
+// 休整日直接跳过：既不算一天，也不打断连击 —— 孩子病了三天回来，连击不该断
+function streakEndingAt(dateStr){
+  let n=0, d=dateStr, guard=0;
+  while(guard++<1200){
+    if(isRestDay(d)){ d=addD(d,-1); continue; }
+    if(!isCompleteOn(d)) break;
+    n++; d=addD(d,-1);
+  }
+  return n;
+}
+function streakMult(n){
+  for(const t of STREAK_TIERS) if(n>=t.n) return t.m;
+  return 1;
+}
+function streakName(n){
+  for(const t of STREAK_TIERS) if(n>=t.n) return t.name;
+  return "";
+}
+function currentStreak(){ return streakEndingAt(TODAY()); }
+
+// 结算一天的账：把当天的应做清单、完成情况、所得军功、发放的招贤令固定下来
+function buildDaySheet(dateStr){
+  const rest = isRestDay(dateStr);
+  const list=tasksForDate(dateStr);
+  const total=list.length;
+  const done=list.filter(t=>{ const r=rec(dateStr,t.id); return r && r.level>=0.5; }).length;
+  const base=dayStars(dateStr);
+  const st=total ? streakEndingAt(dateStr) : 0;
+  const mult=total ? streakMult(st) : 1;
+  const complete = total>0 && done>=total;
+  return {
+    // 存快照而不是 id：即使日后这项军令被改了名或删掉，历史照原样呈现
+    tasks:list.map(t=>({
+      id:t.id, name:t.name, emoji:t.emoji||"", subject:t.subject,
+      type:t.type, boss:!!t.boss, planMin:t.planMin||0,
+      timeSlot:t.timeSlot||"any", weekTarget:t.weekTarget||1
+    })),
+    done, total, complete, rest,
+    base:round1(base), mult, merit:round1(base*mult), streak:st,
+    ticket: complete?1:0, settled:true, at:Date.now()
+  };
+}
+// 把所有「已经过了补录窗口、尚未结算」的日子按时间顺序冻结。结算后永不再重算。
+// 注意：不能只遍历有打卡记录的日子 —— 那些「当天没打开、一个字没记」的日子
+// 同样要冻结，否则它的应做清单还是实时的，改周目标仍会改写历史。
+function settleLedger(){
+  const cutoff=backfillFloor();          // 补录窗口内的日子留活口
+  let start=cutoff;
+  if(ST.createdAt && ST.createdAt<cutoff) start=ST.createdAt;
+  for(const d of Object.keys(ST.records)) if(d<start) start=d;
+  if(start>=cutoff) return false;
+  let changed=false, d=start, guard=0;
+  while(d<cutoff && guard++<4000){
+    const L=ST.ledger[d];
+    if(!(L && L.settled)){ ST.ledger[d]=buildDaySheet(d); changed=true; }
+    d=addD(d,1);
+  }
+  return changed;
+}
+function ledgerMerit(){
+  let s=0; for(const d of Object.keys(ST.ledger)) if(d<=TODAY() && ST.ledger[d].settled) s+=money(ST.ledger[d].merit);
+  return round1(s);
+}
+// 某天的军功（冻结的走账本，窗口内的实时算，都含连击倍率）
+function dayMerit(dateStr){
+  const L=ST.ledger[dateStr];
+  if(L && L.settled) return money(L.merit);
+  return round1(dayStars(dateStr) * streakMult(streakEndingAt(dateStr)));
+}
+// 补录窗口里那些还没结算的日子，得实时算进来，不然刚补录的点卯不认账
+function liveWindowDates(){
+  const t=TODAY(), floor=backfillFloor();
+  const set=new Set(Object.keys(ST.records));
+  set.add(t);
+  return Array.from(set).filter(d => d>=floor && d<=t && !(ST.ledger[d] && ST.ledger[d].settled));
+}
+function earnedMerit(){
+  // 页面跨午夜一直开着时，也先结算刚离开补录窗口的那一天，不能让星星凭空消失。
+  settleLedger();
+  let s=ledgerMerit();
+  for(const d of liveWindowDates()) s += dayMerit(d);
+  return round1(s);
+}
+function totalMerit(){ return round1(earnedMerit() + money(ST.bonusMerit)); }
+function spentMerit(){ return round1(ST.vault.filter(v=>v.redeemed).reduce((a,b)=>a+money(b.paidMerit==null?b.merit:b.paidMerit),0)); }
+// 可用军功：不再用 Math.max(0,...) 把亏空悄悄吞掉
+function availMerit(){ return round1(totalMerit()-spentMerit()); }
+// 官职用历史最高军功，只升不降
+function rankMerit(){
+  const m=totalMerit();
+  if(m > (ST.peakMerit||0)) ST.peakMerit=m;
+  return Math.max(m, ST.peakMerit||0);
+}
+
+function ticketsEarned(){
+  let n=0;
+  const t=TODAY();
+  settleLedger();
+  for(const d of Object.keys(ST.ledger)){ if(d<=t && ST.ledger[d].settled) n += ST.ledger[d].ticket===1?1:0; }
+  // 补录窗口里还没结算的日子实时算，别让刚补的点卯白点
+  for(const d of liveWindowDates()) if(dayIsComplete(d)) n += 1;
+  n += 2*Object.keys(ST.bossDefeats).length;
+  return n;
+}
+function ticketsAvail(){ return Math.max(0, ticketsEarned()-ST.draws); }
+function bossBeaten(dateStr){ return !!ST.bossDefeats[dateStr]; }
+
+/* ---- 主动性记录 ----
+   这套系统真正的成功指标不是完成率，是「孩子自己想做」。
+   完成率可以靠推，主动推不出来，所以必须单独记一笔。 */
+const SIGNAL_NAME = {
+  extra:    "休整期自愿开工",
+  add_task: "自己要求加了一项",
+  too_hard: "主动说某项太难",
+  wish:     "标记了最想要的奖励"
+};
+function logSignal(kind, detail){
+  if(!Array.isArray(ST.signals)) ST.signals=[];
+  ST.signals.push({ date:TODAY(), kind, detail:detail||"", at:Date.now() });
+  if(ST.signals.length>600) ST.signals=ST.signals.slice(-600);
+}
+function signalsBetween(from,to){
+  return (ST.signals||[]).filter(s => s.date>=from && s.date<=to);
+}
+function signalsThisWeek(){
+  const w=weekDates(TODAY());
+  return signalsBetween(w[0], w[6]);
+}
+
+/* ---- 兑现台 ----
+   军功换来的东西如果没人兑现，整套激励的信用就崩了。
+   开锦囊时发一张券，家长点了「已兑现」才算闭环。 */
+function couponFor(vaultItem){
+  if(!Array.isArray(ST.coupons)) ST.coupons=[];
+  const c={
+    id:uid(), name:vaultItem.name, emoji:vaultItem.emoji||"🎁",
+    tier:vaultItem.tier, merit:vaultItem.merit||0,
+    openedAt:TODAY(), status:"pending", doneAt:"", note:""
+  };
+  ST.coupons.push(c);
+  return c;
+}
+function couponDays(c){
+  if(!c || !c.openedAt) return 0;
+  return Math.max(0, Math.round((parseD(TODAY()) - parseD(c.openedAt))/86400000));
+}
+function couponsPending(){ return (ST.coupons||[]).filter(c=>c.status!=="done"); }
+function couponsDone(){ return (ST.coupons||[]).filter(c=>c.status==="done"); }
+function couponOverdue(days){ return couponsPending().filter(c=>couponDays(c) >= (days||7)); }
+// 兑现率：给家长看的一面镜子
+function couponRate(){
+  const all=(ST.coupons||[]);
+  if(!all.length) return null;
+  return Math.round(all.filter(c=>c.status==="done").length / all.length * 100);
+}
+function settleCoupon(id, note){
+  const c=(ST.coupons||[]).find(x=>x.id===id); if(!c) return;
+  c.status="done"; c.doneAt=TODAY(); c.note=note||"";
+  save(); render(); confetti(70);
+  toast("兑现完成 ✓ 这份承诺算数了",2600);
+}
+// 有些锦囊在兑现台功能上线之前就已经开掉了，迁移时补一张「已兑现」的券，不然兑现率对不上
+function backfillCoupons(s){
+  s = s || ST;
+  if(!Array.isArray(s.coupons)) s.coupons=[];
+  const have=new Set(s.coupons.map(c=>c.name+"|"+c.openedAt));
+  for(const v of (s.vault||[])){
+    if(!v.redeemed) continue;
+    const at=v.redeemedAt||v.gotAt||TODAY();
+    if(have.has(v.name+"|"+at)) continue;
+    s.coupons.push({ id:uid(), name:v.name, emoji:v.emoji||"🎁", tier:v.tier,
+      merit:v.merit||0, openedAt:at, status:"done", doneAt:at, note:"", migrated:true });
+    have.add(v.name+"|"+at);
+  }
+  return s;
+}
+
+/* ---- 难度下调建议 ----
+   只有「推」没有「退」，孩子就会一直在失败里泡着。 */
+function taskWeekStat(task, weekMonday){
+  const days=weekDates(weekMonday);
+  if(days[6] >= TODAY()) return null;              // 只有整周过去的才算
+  if(isRestDay(days[0]) && days.every(isRestDay)) return null;  // 整周都在休整
+  let target=0, done=0, full=0, half=0;
+  if(task.type==="flex"){
+    target=Math.max(1,task.weekTarget||1);
+    for(const d of days){ const r=rec(d,task.id); if(r&&r.level>=0.5){ done++; if(r.type==="full") full++; else half++; } }
+  }else{
+    for(const d of days){
+      if(isRestDay(d)) continue;
+      const appear = task.type==="daily" || (task.weekdays||[]).includes(parseD(d).getDay());
+      if(!appear) continue;
+      target++;
+      const r=rec(d,task.id);
+      if(r&&r.level>=0.5){ done++; if(r.type==="full") full++; else half++; }
+    }
+  }
+  if(!target) return null;
+  return { pct:Math.min(1, done/target), target, done, full, half };
+}
+function difficultyHints(){
+  const out=[];
+  const thisMon=weekStart(TODAY());
+  for(const t of ST.tasks){
+    if(t.archived) continue;
+    if(hintCooling(t.id)) continue;                 // 刚改过的先观察，别追着改
+    const s1=taskWeekStat(t, addD(thisMon,-7));
+    const s2=taskWeekStat(t, addD(thisMon,-14));
+    const ps=[s1,s2].filter(Boolean);
+    if(!ps.length) continue;
+    const avg=ps.reduce((a,b)=>a+b.pct,0)/ps.length;
+    const pctTxt=Math.round(avg*100)+"%";
+
+    // 连续两周都做不完 → 任务本身有问题，不是孩子有问题
+    if(avg < 0.4){
+      if(t.type==="flex" && (t.weekTarget||1) > 1){
+        out.push({ taskId:t.id, kind:"lower", tone:"warn",
+          title:t.name+" 连续两周只有 "+pctTxt,
+          body:"周目标可能定高了。降到 "+(t.weekTarget-1)+" 次试试，先把节奏跑起来。",
+          action:"降到 "+(t.weekTarget-1)+" 次" });
+      }else{
+        out.push({ taskId:t.id, kind:"switch", tone:"warn",
+          title:t.name+" 连续两周只有 "+pctTxt,
+          body:"这项可能和当前的时间安排冲突。换个时间段，或者先暂停两周。",
+          action:"先暂停这项" });
+      }
+      continue;
+    }
+    // 每次都做完，但大半是半星 → 在赶时间，不是不用心
+    const halfAll=ps.reduce((a,b)=>a+b.half,0), doneAll=ps.reduce((a,b)=>a+b.done,0);
+    if(avg >= 1 && doneAll >= 4 && halfAll/doneAll > 0.7){
+      out.push({ taskId:t.id, kind:"retime", tone:"info",
+        title:t.name+" 都做完了，但多半是苦战/惨胜",
+        body:"说明是在赶时间。把计划用时从 "+t.planMin+" 分钟放宽一点，或者换个更从容的时间段。",
+        action:"放宽到 "+(t.planMin+10)+" 分钟" });
+    }
+  }
+  return out;
+}
+// 刚调整过就再提建议，会变成唠叨。给一个观察期。
+const HINT_COOLDOWN_DAYS = 14;
+function hintCooling(taskId){
+  const at=(ST.hintApplied||{})[taskId];
+  if(!at) return false;
+  return Math.round((parseD(TODAY()) - parseD(at))/86400000) < HINT_COOLDOWN_DAYS;
+}
+function applyHint(taskId, kind){
+  const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
+  settleLedger();                       // 改配置前先冻结历史
+  if(kind==="lower") t.weekTarget=Math.max(1,(t.weekTarget||1)-1);
+  else if(kind==="retime") t.planMin=(t.planMin||15)+10;
+  else if(kind==="switch") t.archived=true;
+  if(!ST.hintApplied) ST.hintApplied={};
+  ST.hintApplied[taskId]=TODAY();
+  save(); render();
+  toast("已调整：「"+t.name+"」按新节奏走，两周后如果还不合适再谈");
+}
+
+/* ---- 武将图鉴 ---- */
+function heroOwned(name){ return !!ST.heroes[name]; }
+function heroTotal(){ return HEROES_ALL.length; }
+function heroOwnedCount(){ return Object.keys(ST.heroes).filter(n=>!!HERO_BY_NAME[n]).length; }
+/* ---- 军功来源记账 ----
+   bonusMerit 有三个来源（旧将重逢 / 集齐奖励 / 升级补偿），
+   以前全显示成「旧将重逢」，家长看不出异常是哪来的。现在分开记。 */
+function addMerit(st, n, src, eventId, detail){
+  st = st || ST;
+  n=moneyNumber(n);
+  if(!Number.isFinite(n) || n<=0 || !["dup","collect","migrate"].includes(src)) throw new Error("拒绝异常军功入账");
+  if(!Array.isArray(st.meritEvents)) st.meritEvents=[];
+  if(eventId && st.meritEvents.some(e=>e.id===eventId)) return money(st.bonusMerit);
+  st.bonusMerit = round1(money(st.bonusMerit) + n);
+  if(!st.meritSrc || typeof st.meritSrc!=="object") st.meritSrc={ dup:0, collect:0, migrate:0 };
+  st.meritSrc[src] = round1(money(st.meritSrc[src]) + n);
+  st.meritEvents.push({id:eventId||uid(),date:TODAY(),at:Date.now(),src,amount:n,detail:detail||MERIT_SRC_NAME[src]});
+  return st.bonusMerit;
+}
+const MERIT_SRC_NAME = { dup:"旧将重逢", collect:"集齐奖励", migrate:"升级补偿" };
+function meritSrcLine(){
+  const s=ST.meritSrc;
+  if(!s || typeof s!=="object") return (ST.bonusMerit?(" · 其他 "+round1(ST.bonusMerit)):"");
+  const parts=[];
+  for(const k of ["dup","collect","migrate"]){
+    const v=money(s[k]);
+    if(v>0) parts.push(MERIT_SRC_NAME[k]+" "+round1(v));
+  }
+  // 老数据没有分项记录时，把总额兜进去，别让数字凭空消失
+  const sum=round1(money(s.dup)+money(s.collect)+money(s.migrate));
+  const rest=round1((ST.bonusMerit||0)-sum);
+  if(rest>0.05) parts.push("其他 "+rest);
+  return parts.length ? (" · "+parts.join(" · ")) : "";
+}
+function openMeritBook(){
+  const earned=earnedMerit(), bonus=money(ST.bonusMerit), spent=spentMerit();
+  let h='<h3>星星明细</h3><div class="quote">点卯 '+earned+' + 额外奖励 '+bonus+' - 已用 '+spent+' = 可用 '+availMerit()+'</div>';
+  h+='<p style="font-size:12px;line-height:1.8">武将卡上的星级代表相遇次数，不是可花费的军功。锦囊上的数值是开启门槛，抽到锦囊不会增加星星。</p>';
+  const rows=[];
+  for(const d of Object.keys(ST.ledger||{})){
+    const l=ST.ledger[d];
+    if(d<=TODAY() && l.settled && money(l.merit)>0) rows.push({date:d,label:"点卯（已结算）",n:money(l.merit)});
+  }
+  for(const d of liveWindowDates()) if(dayMerit(d)>0) rows.push({date:d,label:"点卯（可补录）",n:dayMerit(d)});
+  const events=(ST.meritEvents||[]);
+  for(const e of events) rows.push({date:e.date,label:e.detail||MERIT_SRC_NAME[e.src]||"额外奖励",n:money(e.amount)});
+  const historical=round1(bonus-events.reduce((n,e)=>n+money(e.amount),0));
+  if(historical>0) h+='<div class="quote">历史额外奖励 '+historical+'：旧版本未逐笔记录，来源无法追溯；保留原额，不自动清零。</div>';
+  for(const v of ST.vault.filter(v=>v.redeemed)) rows.push({date:v.redeemedAt||v.gotAt||"",label:"开启锦囊："+v.name,n:-money(v.paidMerit==null?v.merit:v.paidMerit)});
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  for(const r of rows.slice(0,80)) h+='<div class="setrow"><span class="sn">'+esc(r.label)+'<small>'+esc(r.date)+'</small></span><b>'+(r.n>=0?"+":"")+r.n+'</b></div>';
+  h+='<p style="font-size:12px">显示最近80条；完整记录包含在导出备份中。</p><button class="btn ghost" onclick="closeSheet()">收起</button>';
+  openSheet(h);
+}
+function heroTierOf(name){ const h=HERO_BY_NAME[name]; return h ? h.tier : "common"; }
+
+/* ---- 集齐奖励 ----
+   集换式收集最基本的约定：集齐有奖。160 张的图鉴如果永远只有一根进度条，
+   孩子看不到终点。集满一个阵营给一次大庆功，集齐全套给称号。 */
+const FACTION_DONE_MERIT = 200;   // 集满一个阵营
+const ALL_DONE_MERIT = 1000;      // 集齐全套 160 位
+const ALL_DONE_TITLE = "天下归心";
+function factionOwned(f){ return (HEROES_BY_FACTION[f]||[]).filter(x=>heroOwned(x.n)).length; }
+function factionTotal(f){ return (HEROES_BY_FACTION[f]||[]).length; }
+function checkCollection(st){
+  st = st || ST;
+  const owned = Object.keys(st.heroes||{}).filter(n=>!!HERO_BY_NAME[n]).length;
+  const out=[];
+  if(!st.factionDone || typeof st.factionDone!=="object") st.factionDone={};
+  for(const f of FACTION_ORDER){
+    const tot=factionTotal(f);
+    if(!tot) continue;
+    const got=(HEROES_BY_FACTION[f]||[]).filter(x=>!!st.heroes[x.n]).length;
+    if(got>=tot && !st.factionDone[f]){
+      st.factionDone[f]=TODAY();
+      addMerit(st, FACTION_DONE_MERIT, "collect", "collect:"+f, f+"阵营集齐");
+      out.push({type:"faction", f, tot, merit:FACTION_DONE_MERIT});
+    }
+  }
+  if(HEROES_ALL.length>0 && owned>=HEROES_ALL.length && !st.allDone){
+    st.allDone=TODAY();
+    addMerit(st, ALL_DONE_MERIT, "collect", "collect:all160", "160位全图鉴集齐");
+    out.push({type:"all", merit:ALL_DONE_MERIT});
+  }
+  return out;
+}
+// 抽一位武将：未获得的加权，让集齐变得可能
+function pickHero(){
+  const pool=[];
+  for(const t of HERO_ORDER) for(const h of HEROES[t]){
+    let w=HERO_W[t];
+    if(!heroOwned(h.n)) w*=HERO_NEW_BOOST;
+    for(let i=0;i<Math.max(1,Math.round(w*10));i++) pool.push(h);
+  }
+  if(!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+// 抽一个锦囊
+function pickPrize(){
+  // 旧模板若有非法门槛或权重，先排除，不让坏模板生成无法开启的锦囊。
+  const pool=ST.prizes.filter(p=>validPrizeCost(p.merit) && Number.isFinite(Number(p.weight)) && Number(p.weight)>0);
+  if(!pool.length) return null;
+  const tierW={common:0,rare:0,legend:0};
+  for(const p of pool) tierW[p.tier]=(tierW[p.tier]||0)+Number(p.weight);
+  const avail=Object.keys(tierW).filter(t=>tierW[t]>0);
+  if(!avail.length) return pool[Math.floor(Math.random()*pool.length)];
+  const total=avail.reduce((a,b)=>a+tierW[b],0);
+  let x=Math.random()*total, tier=avail[0];
+  for(const t of avail){ x-=tierW[t]; if(x<=0){ tier=t; break; } }
+  const cand=pool.filter(p=>p.tier===tier);
+  return cand[Math.floor(Math.random()*cand.length)];
+}
+// 保底时优先从神将里挑，且优先挑未获得的
+function pickLegend(){
+  const pool=[];
+  for(const h of HEROES.legend){
+    let w = heroOwned(h.n) ? 3 : 10;
+    for(let i=0;i<w;i++) pool.push(h);
+  }
+  if(!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+// 还差几次触发保底
+function pityLeft(){ return Math.max(0, PITY - (ST.pity.sinceLegend||0)); }
+// 正式抽卡入口：扣令、奖励、集齐和存档必须一并成功，动画只展示结果。
+function drawOnce(){
+  if(ticketsAvail()<1){ toast("招贤令不够了"); return null; }
+  return commitEconomy(()=>{
+    ST.draws++;
+    const res=rollDraw();
+    res.collection=checkCollection();
+    return res;
+  });
+}
+// 随机结果计算器，正式入口只能通过 drawOnce 调用
+function rollDraw(){
+  const force = pityLeft() <= 0;
+  const bump = () => { ST.pity.sinceLegend = (Number(ST.pity.sinceLegend)||0)+1; };
+  if(!force && Math.random()*100 >= P_HERO){
+    const p=pickPrize();
+    if(p){
+      bump();
+      ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:moneyNumber(p.merit), redeemed:false, gotAt:TODAY(), from:"draw" });
+      return { kind:"prize", prize:p };
+    }
+    // 所有锦囊被删除/禁用时，改发武将也必须真正入图鉴或按重复计奖。
+  }
+  const h=force?pickLegend():pickHero();
+  if(!h) throw new Error("招贤榜暂无可用奖励，本次不扣令");
+  if(h.tier==="legend") ST.pity.sinceLegend=0; else bump();
+  if(heroOwned(h.n)){
+    const m=DUP_MERIT[h.tier]||6;
+    ST.heroCount[h.n]=Math.max(1,Math.floor(Number(ST.heroCount[h.n])||1))+1;
+    addMerit(ST, m, "dup", "dup:"+h.n+":"+ST.heroCount[h.n], h.n+"第"+ST.heroCount[h.n]+"次相遇");
+    return {kind:"dup",hero:h,merit:m,forced:force};
+  }
+  ST.heroes[h.n]=TODAY();
+  return {kind:"hero",hero:h,forced:force};
+}
+
+/* ---- 毕业：连续若干完整周 100% 达成 → 视为已养成 ---- */
+// 某项军令在某个完整周内的达成率；本周未结束返回 null
+function taskWeekPct(task, weekMonday){
+  const days=weekDates(weekMonday);
+  const last=days[6];
+  if(last >= TODAY()) return null;          // 只有整周过去的才算
+  if(task.type==="flex"){
+    const target=Math.max(1,task.weekTarget||1);
+    let dn=0;
+    for(const d of days){ const r=rec(d,task.id); if(r&&r.level>=0.5) dn++; }
+    return Math.min(1, dn/target);
+  }
+  let tot=0, dn=0;
+  for(const d of days){
+    const appear = task.type==="daily" || (task.weekdays||[]).includes(parseD(d).getDay());
+    if(!appear) continue;
+    tot++; if((rec(d,task.id)||{level:0}).level>=0.5) dn++;
+  }
+  return tot ? dn/tot : null;
+}
+// 找出连续 GRADUATE_WEEKS 个完整周都 100% 达成的军令
+function checkGraduation(){
+  const out=[];
+  const thisMon=weekStart(TODAY());
+  for(const t of ST.tasks){
+    if(t.archived) continue;
+    if(t.type==="flex" && Math.max(1,t.weekTarget||1) < 2) continue;  // 周目标只有 1 次的不算习惯
+    let ok=true;
+    for(let i=1;i<=GRADUATE_WEEKS;i++){
+      const mon=addD(thisMon,-7*i);
+      const p=taskWeekPct(t,mon);
+      if(p===null || p<1){ ok=false; break; }
+    }
+    if(ok) out.push(t);
+  }
+  return out;
+}
+// 执行毕业：移出日常清单，进荣誉墙
+function graduateTask(t){
+  ST.graduated[t.id]={ name:t.name, emoji:t.emoji||"", subject:t.subject, at:TODAY(), weeks:GRADUATE_WEEKS };
+  t.archived=true;
+}
+function ungraduate(taskId){
+  const g=ST.graduated[taskId]; if(!g) return;
+  const t=ST.tasks.find(x=>x.id===taskId);
+  if(t) t.archived=false;
+  delete ST.graduated[taskId];
+}
+
+/* ---- 成就 ---- */
+function calcAchievements(){
+  const got={};
+  if(earnedMerit()>0) got.first_win=1;
+  if(Object.keys(ST.bossDefeats).length>=1) got.first_boss=1;
+  if(Object.keys(ST.bossDefeats).length>=10) got.boss_hunter=1;
+  if(totalMerit()>=500) got.merit500=1;
+  let half=0, cnCnt=0;
+  for(const k in ST.records){
+    const d=ST.records[k];
+    for(const id in d){
+      if(d[id].type==="half"||d[id].type==="poor") half++;
+      if(d[id].level>=0.5){
+        const t=ST.tasks.find(x=>x.id===id);
+        if(t && t.subject==="cn") cnCnt++;
+      }
+    }
+  }
+  if(half>=20) got.half_hero=1;
+  if(cnCnt>=50) got.cn50=1;
+  const all=allDatesWithRecords();
+  let best=0,cur=0;
+  for(let i=0;i<all.length;i++){
+    const d=all[i];
+    const has=ST.records[d]&&Object.keys(ST.records[d]).length;
+    if(has){
+      if(i>0 && addD(all[i-1],1)===d) cur++; else cur=1;
+      if(cur>best) best=cur;
+    } else cur=0;
+  }
+  // 连击徽章也认「军令齐备」的连击
+  const cs=currentStreak();
+  if(cs>best) best=cs;
+  if(best>=3) got.streak3=1;
+  if(best>=7) got.streak7=1;
+  // 完美一周 / 满分一天：历史走账本，未结算的实时算
+  const weeks=new Set(allDatesWithRecords().map(weekStart));
+  for(const w of weeks){
+    let tot=0,done=0,any=false;
+    for(const d of weekDates(w)){
+      if(d>TODAY()) continue;
+      const L=ST.ledger[d];
+      if(isFrozen(d) && L && L.settled){ tot+=L.total; done+=L.done; any=any||L.total>0; continue; }
+      const list=dayExpected(d);
+      tot+=list.length; any=any||list.length>0;
+      done+=list.filter(t=>{ const r=rec(d,t.id); return r&&r.level>=0.5; }).length;
+    }
+    if(any&&tot>0&&done>=tot){ got.perfect_week=1; break; }
+  }
+  for(const d of allDatesWithRecords()){
+    const list=dayExpected(d);
+    if(!list.length) continue;
+    if(list.every(t=>{ const r=rec(d,t.id); return r&&r.type==="full"; })){ got.full_day=1; break; }
+  }
+  let changed=false;
+  const today=TODAY();
+  for(const k in got){ if(!ST.achievements[k]){ ST.achievements[k]=today; changed=true; } }
+  return changed;
+}
+function rankOf(merit){
+  let r=RANKS[0],next=null;
+  for(let i=0;i<RANKS.length;i++) if(merit>=RANKS[i].s){ r=RANKS[i]; next=RANKS[i+1]||null; }
+  return {cur:r,next:next};
+}
+// 当前官职（用历史最高军功，只升不降）
+function myRank(){ return rankOf(rankMerit()); }
+
+/* ---- 下一步提示：把「再做什么能得什么」说清楚 ---- */
+function nextStepHint(){
+  const t=TODAY();
+  const br=activeBreak(t);
+  const list=tasksForDate(t);
+  const undone=list.filter(x=>{ const r=rec(t,x.id); return !(r&&r.level>=0.5); });
+  const complete=dayIsComplete(t);
+  const beaten=bossBeaten(t);
+  const B=BOSSES[parseD(t).getDay()];
+  const rk=myRank();
+  const cs=currentStreak();
+  const co=couponOverdue(7).length;
+
+  if(br) return {
+    icon:"🍵", tone:"calm",
+    text:"休整中 · 到 "+fmtMD(br.to),
+    sub:(br.reason||"休整")+"期间不派军令，连战天数已冻结不会断",
+    rest:true
+  };
+  if(list.length===0) return { icon:"🍵", text:"今日无军令，好生歇息", sub:"顺手把上周军报补一补？", tone:"calm" };
+  if(!complete) return {
+    icon: B.emoji,
+    text: "再做 "+undone.length+" 项军令即可破敌",
+    sub: beaten ? "今日劲敌已破" : ("胜可得 🎟️×2 + 战利品 · "+B.name+"在"+B.place+"等着"),
+    tone:"push"
+  };
+  if(!beaten) return {
+    icon:"⚔️",
+    text: "军令已齐，"+B.name+"就在"+B.place+"！",
+    sub:"此时出战可再得 🎟️×2 和一个锦囊",
+    tone:"hot"
+  };
+  if(co>0) return {
+    icon:"🎫",
+    text: "有 "+co+" 张兑现券还没兑现",
+    sub: "今日已定 · 提醒大人开兑现台看看",
+    tone:"calm"
+  };
+  if(rk.next) return {
+    icon: rk.next.e,
+    text: "再攒 "+(rk.next.s - rankMerit())+" 军功升「"+rk.next.n+"」",
+    sub: cs>=3 ? ("已连战 "+cs+" 天 · "+streakName(cs)) : "今日已定，明日继续",
+    tone:"calm"
+  };
+  return { icon:"👑", text:"已是汉中王，三分天下有其一", sub:"今日已定", tone:"calm" };
+}
+
+/* =====================================================================
+   UI 状态
+   ===================================================================== */
+let VIEW="today";
+let VIEW_DATE=TODAY();
+
+function refreshTop(){
+  $("#meritCount").textContent = Math.max(0, Math.round(availMerit()*10)/10);
+  const tk=ticketsAvail();
+  $("#orderCount").textContent = tk;
+  const btn=$("#btnDraw");
+  btn.disabled = tk<1;
+  btn.style.opacity = tk<1 ? .5 : 1;
+  const se=ST.season;
+  const end=parseD(se.endDate);
+  const days=isNaN(end.getTime()) ? -1 : Math.max(0,Math.round((end-parseD(TODAY()))/86400000));
+  const rk=myRank();
+  const f=festivalOf(TODAY());
+  const owned=heroOwnedCount();
+  const cs=currentStreak();
+  $("#seasonLabel").textContent =
+    se.name + " · " + rk.cur.e + rk.cur.n + " · 名将 " + owned + "/" + heroTotal()
+    + (cs>=3 ? " · 🔥连战 "+cs+" 天" : "")
+    + (days>0 ? " · 还剩 "+days+" 天" : (days===0 ? " · 今日收官" : ""))
+    + (f ? " · "+SKIN_NAME[f] : "");
+}
+
+/* =====================================================================
+   视图：今日
+   ===================================================================== */
+function viewToday(){
+  const d=VIEW_DATE;
+  const isToday = d===TODAY();
+  const days=weekDates(d);
+  const wd=parseD(d).getDay();
+
+  let bar='<div class="daybar">';
+  for(const dd of days){
+    const dw=parseD(dd).getDay();
+    const done=dayIsComplete(dd);
+    const hasRec=!!ST.records[dd] && Object.keys(ST.records[dd]).length>0;
+    const cls=[ dd===d?"active":"", dd===TODAY()?"today":"", dd>TODAY()?"future":"" ].join(" ").trim();
+    bar+='<button class="'+cls+'" onclick="gotoDate(\''+dd+'\')">'
+       + '<div class="dw">'+WDX[dw]+'</div>'
+       + '<div class="dd">'+parseD(dd).getDate()+'</div>'
+       + '<div class="mark">'+(done?"✅":(hasRec?"◐":"&nbsp;"))+'</div>'
+       + '</button>';
+  }
+  bar+='</div>';
+
+  let html=bar;
+  html+='<div class="card-head" style="padding:0 4px 8px;">'
+      + '<h3 style="font-size:16px;font-family:var(--serif);letter-spacing:1.5px;">'+WD[wd]+' · '+fmtMD(d)+'</h3>'
+      + (isToday?'<span class="hint">今日</span>':'<button class="btn ghost sm" onclick="gotoDate(\''+TODAY()+'\')">回到今日</button>')
+      + '</div>';
+  // 忘了点卯的那天，趁还在窗口里补上
+  if(!isToday && canBackfill(d) && d<TODAY()){
+    const undoneBack=tasksForDate(d).filter(t=>{ const r=rec(d,t.id); return !(r&&r.level>=0.5); });
+    if(undoneBack.length){
+      html+='<div class="holiday-row" style="background:#FDF7EC;border-color:#EEDFC0;color:#8A6710;">'
+          + '✍️ 这一天还可以补录 —— 还有 '+undoneBack.length+' 项没点卯</div>';
+    }
+  }
+
+  // ===== 下一步（只在看今天时显示，永远告诉孩子「再做什么能得什么」）=====
+  if(isToday){
+    const hint=nextStepHint();
+    const cs=currentStreak();
+    const m=streakMult(cs);
+    html+='<div class="nextbar '+hint.tone+'">'
+        + '<span class="ni">'+hint.icon+'</span>'
+        + '<span class="nt"><span class="n1">'+esc(hint.text)+'</span>'
+        + '<span class="n2">'+esc(hint.sub)+'</span></span>'
+        + (cs>=3 ? '<span class="nstreak">🔥 连战 '+cs+' 天 ×'+m+'</span>' : '')
+        + '</div>';
+    // 休整期里留一个自愿的出口 —— 这个动作本身就是最干净的主动性信号
+    if(hint.rest){
+      html+='<div class="card" style="text-align:center;padding:18px 16px;">'
+          + '<div style="font-size:12.5px;color:var(--ink-3);font-weight:600;line-height:1.8;margin-bottom:13px;">'
+          + '休整就是休整，不用做任何事。<br>但如果今天特别想做一点，也可以。</div>'
+          + '<button class="btn jade" onclick="openExtraDay()">✋ 今天想做一点</button></div>';
+    }
+  }
+
+  // ===== 主线剧情（靠全勤天数推进，不随时间自动走）=====
+  const st=ST.story;
+  const chapters=st.chapters||[];
+  const chapTotal=chapters.length;
+  const raw=storyChapterRaw();
+  const finished = chapTotal>0 && raw>=chapTotal;
+  const chapRaw = chapTotal ? Math.min(raw, chapTotal-1) : 0;
+  const noText = chapTotal ? ("第 "+cnNum(chapRaw+1)+" 回") : "";
+  const chapTitle = chapters[chapRaw] || "—";
+  const shown = chapTotal ? Math.min(raw, chapTotal) : 0;
+  html+='<div class="story-card">'
+      + '<div class="chap-no">'+(chapRaw+1)+'</div>'
+      + '<div class="sc-top">📜 主线 · 《'+esc(st.book||"—")+'》</div>'
+      + '<div class="sc-no">'+noText+'</div>'
+      + '<div class="sc-title">'+esc(chapTitle)+'</div>'
+      + '<div class="sc-bar"><i style="width:'+(chapTotal?Math.round(shown/chapTotal*100):0)+'%"></i></div>'
+      + '<div class="sc-foot"><span>已推进 '+shown+' / '+chapTotal+' 回</span>'
+      + '<span>'+(finished ? "全书已读完 🎉" : "再攒 "+storyNextIn()+" 天全勤")+'</span></div>'
+      + '</div>';
+
+  // ===== 四军营地 =====
+  html+='<div class="card"><div class="card-head"><h3>四军营地</h3><span class="hint">'+WD[wd]+'</span></div><div class="zones">';
+  for(const sk of SUBJ_ORDER){
+    const S=SUBJECTS[sk];
+    const todayN=tasksForDate(d).filter(t=>t.subject===sk).length;
+    let tot=0, done=0;
+    for(const t of ST.tasks){
+      if(t.archived||t.subject!==sk) continue;
+      if(t.type==="flex"){
+        const target=Math.max(1,t.weekTarget||1);
+        tot+=target; done+=Math.min(weekDone(t.id,d),target);
+      }
+    }
+    for(const x of weekDates(d)){
+      if(x>TODAY()) continue;
+      for(const t of ST.tasks){
+        if(t.archived||t.subject!==sk) continue;
+        const appear = t.type==="daily" || (t.type==="fixed"&&(t.weekdays||[]).includes(parseD(x).getDay()));
+        if(!appear) continue;
+        tot++; if((rec(x,t.id)||{level:0}).level>=0.5) done++;
+      }
+    }
+    const pct = tot? Math.round(done/tot*100):0;
+    html+='<div class="zone">'
+        + '<div class="zt"><span>'+S.icon+'</span><span class="zz">'+S.place+'</span><span class="zv">'+(tot?done+"/"+tot:"—")+'</span></div>'
+        + '<div class="zbar"><i style="width:'+pct+'%;background:'+S.color+'"></i></div>'
+        + '<div class="zv" style="font-weight:600;">'+(tot?(todayN?("今日 "+todayN+" 项 · "+S.role):"今日无事 · "+S.role):"本营暂无军令")+'</div>'
+        + '</div>';
+  }
+  html+='</div></div>';
+
+  // ===== 今日军令 =====
+  const list=tasksForDate(d);
+  const doneN=list.filter(t=>{const r=rec(d,t.id);return r&&r.level>=0.5;}).length;
+  html+='<div class="card"><div class="card-head"><h3>今日军令</h3>'
+      + '<span class="hint">'+(list.length?doneN+"/"+list.length+" 已点卯":"—")+'</span></div>';
+
+  if(!list.length){
+    if(isRestDay(d)){
+      html+='<div class="empty"><span class="ee">🍵</span>休整中 · '+(restReason(d))+'<br>'
+          + '<span style="font-size:12px;">这段时间不派军令，连战天数已冻结</span></div>';
+    }else{
+      html+='<div class="empty"><span class="ee">🍵</span>今日无军令，好生歇息</div>';
+    }
+  }else{
+    const slots=[["morning","🌅 晨间"],["noon","☀️ 日间"],["evening","🌙 晚间"],["any","🕯️ 自定"]];
+    let anyShown=false;
+    for(const [key,label] of slots){
+      const sub=list.filter(t=>(t.timeSlot||"any")===key);
+      if(!sub.length) continue;
+      anyShown=true;
+      html+='<div style="font-size:12px;font-weight:700;color:var(--ink-3);margin:10px 2px 7px;letter-spacing:1px;">'+label+'</div>';
+      for(const t of sub) html+=taskCardHTML(t,d);
+    }
+    if(!anyShown) for(const t of list) html+=taskCardHTML(t,d);
+    // 孩子的口子：自己想加就加，不用等批
+    if(isToday){
+      html+='<button class="addrow" onclick="openKidAdd()">'
+          + '<span style="font-size:17px;">➕</span> 再给我加一项</button>';
+    }
+  }
+  const hol=holidayTasks(d);
+  if(hol.length){
+    html+='<div class="divider"></div>';
+    for(const t of hol) html+='<div class="holiday-row">✓ '+esc(t.name)+' 本周军令已达成，余日休整</div>';
+  }
+  html+='</div>';
+
+  // ===== 破敌 =====
+  const B=BOSSES[wd];
+  const ratio=dayRatio(d);
+  const hp=Math.round((1-ratio)*100);
+  const beaten=bossBeaten(d);
+  const canHit = dayIsComplete(d);
+  const total=list.length;
+  // 休整日不出现劲敌，也不谈结算
+  if(!isRestDay(d)){
+  html+='<div class="boss-card'+(beaten?" beaten":"")+'">'
+      + '<div class="boss-top">'
+      + '<div class="boss-face'+(beaten?" dead":"")+'">'+(beaten?"🏳️":B.emoji)+'</div>'
+      + '<div class="boss-info"><div class="boss-name">'+esc(B.name)+(beaten?" · 已破":"")+'</div>'
+      + '<div class="boss-place">📍 '+esc(B.place)+(beaten?"":" · "+WD[wd])+'</div>'
+      + '<div class="boss-sub">'+(beaten?"今日劲敌已破，战利品入库。":(total?("尚余 "+(total-doneN)+" 项军令未了。 "+esc(B.desc)):"今日无军令，劲敌不至。"))+'</div></div>'
+      + '</div>';
+  if(!beaten && total){
+    html+='<div class="hp-wrap"><i style="width:'+hp+'%"></i><b>气势 '+hp+'%</b></div>'
+        + '<div class="boss-foot">'
+        + '<button class="btn '+(canHit?"gold":"ghost")+'" '+(canHit?"":"disabled")+' onclick="attackBoss()">'+(canHit?"⚔️ 出战":"军令未了，不可出战")+'</button>'
+        + '<span style="font-size:11.5px;opacity:.78;font-weight:600;">胜可得 🎟️×2 + 战利品</span>'
+        + '</div>';
+  }
+  html+='</div>';
+  }   // 休整日结束：破敌区块不显示
+
+  // ===== 今日结算 =====
+  const cs = (d===TODAY()) ? currentStreak() : 0;
+  if(isRestDay(d)){
+    html+='<div class="card" style="text-align:center;">'
+        + '<div style="font-size:13px;font-weight:700;margin-bottom:5px;">🍵 今日休整</div>'
+        + '<div style="font-size:12px;color:var(--ink-3);font-weight:600;line-height:1.75;">'
+        + '休整期间不结算完成度，连战天数也冻结着。<br>'
+        + (cs>0 ? ('已连战 '+cs+' 天，等你回来接着数。') : '等你回来再接着数。')+'</div>'
+        + '</div>';
+    return html;
+  }
+  const complete=dayIsComplete(d);
+  const mult = complete ? streakMult(cs) : 1;
+  html+='<div class="card"><div class="card-head"><h3>今日结算</h3>'
+      + '<span class="hint">'+(complete?"军令齐备，已得招贤令 🎟️":"军令齐备可得招贤令 🎟️")+'</span></div>'
+      + '<div class="prog"><i style="width:'+Math.round(ratio*100)+'%"></i></div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)">'
+      + '<span>完成度 '+Math.round(ratio*100)+'%</span><span>今日军功 ⭐'+dayMerit(d)+'</span></div>'
+      + (mult>1 ? '<div style="font-size:12px;font-weight:700;color:var(--zhu);margin-top:6px;">🔥 连战 '+cs+' 天 · 今日军功 ×'+mult+'（'+streakName(cs)+'）</div>' : '')
+      + (cs>0 && cs<3 && d===TODAY() ? '<div style="font-size:12px;font-weight:600;color:var(--ink-3);margin-top:6px;">连战 '+cs+' 天 · 再连 '+(3-cs)+' 天起享军功加成</div>' : '')
+      + '</div>';
+
+  return html;
+}
+
+function taskCardHTML(t,d){
+  const r=rec(d,t.id);
+  const S=SUBJECTS[t.subject]||SUBJECTS.other;
+  const done = r && r.level>=0.5;
+  const cls=["task-card","s-"+t.subject];
+  if(done) cls.push("done");
+  if(t.boss) cls.push("boss");
+  let meta='<span>⏱ 计划 '+t.planMin+' 分钟</span>';
+  if(t.type==="flex"){
+    const target=Math.max(1,t.weekTarget||1);
+    const doneW=weekDone(t.id,d);
+    const left=Math.max(0,target-doneW);
+    meta+='<span>本周 '+doneW+'/'+target+'</span>';
+    if(!done && left>0) meta+='<span class="rem">尚需 '+left+' 次</span>';
+  }
+  if(r && r.minutes) meta+='<span>实际 '+r.minutes+' 分钟</span>';
+  let badge;
+  if(!r) badge='<span class="dot-empty"></span>';
+  else if(r.type==="full") badge='<span class="star-badge">⭐ 完胜</span>';
+  else if(r.type==="half") badge='<span class="star-badge half">◑ 苦战</span>';
+  else if(r.type==="poor") badge='<span class="star-badge poor">◑ 惨胜</span>';
+  else if(r.type==="skip") badge='<span class="star-badge zero">⏭ 免战</span>';
+  else badge='<span class="star-badge zero">✖ 未战</span>';
+  return '<div class="'+cls.join(" ")+'" onclick="openCheck(\''+t.id+'\',\''+d+'\')">'
+    + '<div class="tc-emoji">'+(t.emoji||S.icon)+'</div>'
+    + '<div class="tc-body"><div class="tc-title">'+esc(t.name)
+    + '<span class="tag">'+S.place+'</span>'
+    + (t.boss?'<span class="tag boss">⚔ 硬仗</span>':'')
+    + '</div><div class="tc-meta">'+meta+'</div></div>'
+    + '<div class="tc-right">'+badge+'</div>'
+    + '</div>';
+}
+
+function gotoDate(d){ VIEW_DATE=d; VIEW="today"; setTab(); render(); }
+
+/* =====================================================================
+   点卯弹窗
+   ===================================================================== */
+function openCheck(taskId,dateStr){
+  const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
+  const S=SUBJECTS[t.subject]||SUBJECTS.other;
+  const r=rec(dateStr,taskId)||{};
+  const isFlex = t.type==="flex";
+  // 已经结算入账的历史日子只读；最近 BACKFILL_DAYS 天还开着，忘了点可以补
+  const L=ST.ledger[dateStr];
+  const locked = isFrozen(dateStr) && L && L.settled;
+  const TYPE_NAME={full:"完胜",half:"苦战",poor:"惨胜",miss:"未战",skip:"免战"};
+  if(locked){
+    let h='<h3>'+esc(t.name)+'</h3><div class="sh-sub">'+S.icon+' '+S.place+' · '+fmtMD(dateStr)+'（'+WD[parseD(dateStr).getDay()]+'）</div>';
+    h+='<div class="result-box '+(r.type==="full"?"t-legend":(r.type==="half"||r.type==="poor")?"t-rare":"t-normal")+'">'
+      + '<div class="re">'+(r.type==="full"?"⭐":(r.type==="half"||r.type==="poor")?"◑":"✖")+'</div>'
+      + '<div class="rn">'+(TYPE_NAME[r.type]||"未记录")+'</div>'
+      + '<div class="rt">'+(r.minutes?("实际用时 "+r.minutes+" 分钟"):"未填实际用时")+'</div></div>';
+    h+='<div class="quote" style="margin-top:13px;">这一天的账已经结算入账了，不能再改动 —— 「不追究前日之失」，也不能回头改写前日之功。<br>（只能是最近 '+BACKFILL_DAYS+' 天内补录）</div>';
+    h+='<button class="btn ghost" style="width:100%;margin-top:13px;" onclick="closeSheet()">知道了</button>';
+    openSheet(h);
+    return;
+  }
+  const opts=[
+    { k:"full", e:"⭐", tt:"完胜", dd:"完整高质量完成 · 得 1 军功", st:"1.0" },
+    { k:"half", e:"◑",  tt:"苦战", dd:"拼尽了力但没做完 · 得 0.5 军功", st:"0.5" },
+    { k:"poor", e:"◐",  tt:"惨胜", dd:"做完了，但质量打了折扣 · 得 0.5 军功", st:"0.5" },
+    { k:"miss", e:"✕",  tt:"未战", dd:"今天确实没动手 · 不计军功", st:"—" }
+  ];
+  let h='<h3>'+esc(t.name)+'</h3><div class="sh-sub">'+S.icon+' '+S.place+' · '+fmtMD(dateStr)+'（'+WD[parseD(dateStr).getDay()]+'）</div>';
+  for(const o of opts){
+    const sel = (r.type===o.k) ? " sel" : "";
+    h+='<button class="opt'+sel+'" data-k="'+o.k+'"><span class="oe">'+o.e+'</span>'
+      + '<span class="ob"><span class="ot">'+o.tt+'</span><span class="od">'+o.dd+'</span></span>'
+      + '<span class="os">'+(o.st==="—"?"—":"⭐ "+o.st)+'</span></button>';
+  }
+  if(isFlex){
+    h+='<button class="opt'+(r.type==="skip"?" sel":"")+'" data-k="skip"><span class="oe">🏳️</span>'
+      + '<span class="ob"><span class="ot">高挂免战牌</span>'
+      + '<span class="od">今日不与，顺延到本周之后，不记作欠债</span></span></button>';
+  }
+  h+='<div class="divider"></div>'
+   + '<div class="field"><label>实际用时（分钟，可留空）</label>'
+   + '<input type="number" id="actMin" min="0" max="600" placeholder="计划 '+t.planMin+' 分钟" value="'+(r.minutes||"")+'"></div>'
+   + '<div class="grid2"><button class="btn ghost" onclick="closeSheet()">取消</button>'
+   + (r.type&&r.type!=="skip" ? '<button class="btn danger" onclick="clearRec(\''+taskId+'\',\''+dateStr+'\')">撤销点卯</button>' : '<button class="btn" id="okBtn">确定</button>')
+   + '</div>';
+  if(r.type&&r.type!=="skip") h+='<button class="btn" id="okBtn" style="margin-top:9px;width:100%">更新点卯</button>';
+  // 孩子的口子：觉得这项太难，可以直接说出来
+  h+='<button class="addrow" style="margin-top:9px;" onclick="markTooHard(\''+taskId+'\')">🤔 这项对我来说太难了</button>';
+
+  openSheet(h,(sheet)=>{
+    let picked = r.type||null;
+    $$(".opt",sheet).forEach(b=>b.onclick=()=>{
+      picked=b.dataset.k;
+      $$(".opt",sheet).forEach(x=>x.classList.remove("sel"));
+      b.classList.add("sel");
+    });
+    const ok=$("#okBtn",sheet);
+    const commit=()=>{
+      if(!picked){ toast("先选一下今日战况"); return; }
+      const mins=parseInt(($("#actMin",sheet)||{}).value||"0",10)||0;
+      const before=dayIsComplete(dateStr);
+      const storyBefore=storyChapterRaw();
+      const meritBefore=totalMerit();
+      const level = picked==="full"?1 : (picked==="half"||picked==="poor")?0.5 : 0;
+      if(!commitEconomy(()=>{ setRec(dateStr,taskId,level,picked,mins); return {ok:true}; })) return;
+      const after=dayIsComplete(dateStr);
+      const storyAfter=storyChapterRaw();
+      const beatenBefore=bossBeaten(dateStr);
+      // 飘字：从被点的那个选项位置飞出来，让反馈有实体
+      const anchor=$$(".opt",sheet).filter(b=>b.classList.contains("sel"))[0]||sheet;
+      const meritDelta=round1(totalMerit()-meritBefore);
+      if(meritDelta!==0) floatFromEl(anchor,"军功 "+(meritDelta>0?"+":"")+meritDelta,true);
+      else if(picked==="skip") floatFromEl(anchor,"🏳️",false);
+      else floatFromEl(anchor,"已记录 · 军功未变",false);
+      calcAchievements(); save(); closeSheet(); refreshTop(); render();
+      if(picked==="half") toast("苦战也算数，这份力没有白费 ◑");
+      else if(picked==="poor") toast("惨胜也是胜，先把旗子插上 ◐");
+      else if(picked==="full") toast("好，完胜一场 ⭐");
+      else if(picked==="skip") toast("免战牌已挂，顺延到本周之后 🏳️");
+      if(!before && after && !beatenBefore){
+        confetti(60);
+        const csNow=currentStreak();
+        toast(csNow>=3
+          ? ("🎉 军令齐备，招贤令 +1！连战 "+csNow+" 天 · "+streakName(csNow)+" ×"+streakMult(csNow))
+          : "🎉 军令齐备，招贤令 +1！",2800);
+      }
+      // 攒够全勤天数，主线往前推一回 —— 晚一点弹，别把上一条盖掉
+      if(storyAfter>storyBefore){
+        const chaps=ST.story.chapters||[];
+        const idx=Math.min(storyAfter, chaps.length)-1;
+        if(idx>=0) setTimeout(()=>{
+          confetti(90);
+          toast("📜 主线推进 · 第 "+cnNum(idx+1)+" 回\n「"+(chaps[idx]||"")+"」",3600);
+        }, before&&after ? 600 : 2900);
+      }
+    };
+    if(ok) ok.onclick=commit;
+  });
+}
+function clearRec(taskId,dateStr){
+  const L=ST.ledger[dateStr];
+  if(isFrozen(dateStr) && L && L.settled){
+    closeSheet(); toast("这一天的账已结算入账，不能再改动（只能补录最近 "+BACKFILL_DAYS+" 天）");
+    return;
+  }
+  if(!commitEconomy(()=>{ setRec(dateStr,taskId,null,null); return {ok:true}; })) return;
+  closeSheet(); refreshTop(); render(); toast("已撤销这天的点卯");
+}
+
+/* =====================================================================
+   孩子的口子：三个按钮，零审批，点了就生效
+   ===================================================================== */
+// 休整期里说「今天想做一点」
+function openExtraDay(){
+  const br=activeBreak(TODAY());
+  openSheet(
+    '<div class="ceremony-hero"><span class="ce">✋</span><div class="cn">今天想做一点</div></div>'
+    + '<div class="sh-sub" style="text-align:center;margin-top:8px;">'
+    + '休整期本来是让你歇着的。<br>如果你今天自己想做，那就把军令请出来。</div>'
+    + '<div class="quote" style="margin-top:12px;text-align:center;">这一条会被记进军报，大人看得到 —— 「休整期里主动开工」。'
+    + '</div>'
+    + '<div class="grid2" style="margin-top:14px;">'
+    + '<button class="btn ghost" onclick="closeSheet()">还是歇着吧</button>'
+    + '<button class="btn jade" id="exOk">请出军令</button></div>',
+    (sheet)=>{
+      $("#exOk",sheet).onclick=()=>{
+        markExtraDay(TODAY());
+        save(); closeSheet(); render();
+        toast("军令已请出 —— 这一条记你主动 ✋",2800);
+      };
+    }
+  );
+}
+// 自己想加一项
+function openKidAdd(){
+  let h='<h3>再给我加一项</h3><div class="sh-sub">你自己加的任务，会直接出现在今日军令里。<br>大人会在军报上看到是你加的。</div>';
+  h+='<div class="field"><label>想加什么？</label><input type="text" id="kName" placeholder="例：多读一章三国演义" maxlength="16"></div>';
+  h+='<div class="field"><label>属于哪个营地</label><div class="chipsel" id="kSubj">';
+  for(const k of SUBJ_ORDER) h+='<button data-v="'+k+'" class="'+(k==="cn"?"on":"")+'">'+SUBJECTS[k].icon+' '+SUBJECTS[k].place+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>打算每周做几次</label><div class="chipsel" id="kTimes">';
+  [1,2,3,5,7].forEach((n,i)=>h+='<button data-v="'+n+'" class="'+(i===2?"on":"")+'">'+n+' 次</button>');
+  h+='</div></div>';
+  h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">算了</button><button class="btn" id="kOk">加上</button></div>';
+  openSheet(h,(sheet)=>{
+    $$("#kSubj button",sheet).forEach(b=>b.onclick=()=>{ $$("#kSubj button",sheet).forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+    $$("#kTimes button",sheet).forEach(b=>b.onclick=()=>{ $$("#kTimes button",sheet).forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+    $("#kOk",sheet).onclick=()=>{
+      const name=$("#kName",sheet).value.trim();
+      if(!name){ toast("先想想要加什么"); return; }
+      const subj=$("#kSubj button.on",sheet).dataset.v;
+      const times=parseInt($("#kTimes button.on",sheet).dataset.v,10)||3;
+      settleLedger();
+      const t={ id:uid(), name, subject:subj, type:"flex", emoji:SUBJECTS[subj].icon,
+        timeSlot:"any", planMin:15, weekTarget:times, weekdays:[0,1,2,3,4,5,6],
+        boss:false, archived:false, fromKid:true };
+      ST.tasks.push(t);
+      logSignal("add_task", name);
+      save(); closeSheet(); refreshTop(); render();
+      confetti(70);
+      toast("「"+name+"」已加入今日军令 ✓",2800);
+    };
+  });
+}
+// 说「这项太难了」
+function markTooHard(taskId){
+  const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
+  logSignal("too_hard", t.name);
+  save(); closeSheet(); render();
+  toast("记下了 —— 大人会在军报上看到「"+t.name+"太难」",3000);
+}
+// 标记「最想要这个」
+function markWish(uidv){
+  const v=ST.vault.find(x=>x.uid===uidv); if(!v) return;
+  const off = !!v.wish;
+  v.wish = !off;
+  if(!off){
+    logSignal("wish", v.name);
+    toast("已标记「最想要这个」——大人看得到 ♡",2600);
+  }
+  save(); render();
+}
+
+/* =====================================================================
+   兑现台
+   ===================================================================== */
+function openCouponSettle(id){
+  const c=(ST.coupons||[]).find(x=>x.id===id); if(!c) return;
+  const d=couponDays(c);
+  let h='<div class="ceremony-hero"><span class="ce">'+c.emoji+'</span>'
+      + '<div class="cn">'+esc(c.name)+'</div></div>'
+      + '<div class="sh-sub" style="text-align:center;margin-top:8px;">'
+      + '兑现券 No.'+String(c.id).slice(-4).toUpperCase()+' · 开启于 '+c.openedAt
+      + (d>0 ? ('（已经等了 '+d+' 天）') : '（今天开的）') + '</div>';
+  h+='<div class="quote" style="margin-top:12px;">孩子攒了很久的军功，换成了这一张券。<br>点下面的按钮，就是大人给这份努力结账。</div>';
+  h+='<div class="field" style="margin-top:14px;"><label>留一句话（可留空）</label>'
+   + '<input type="text" id="cpNote" placeholder="例：周日下午去了游乐场" maxlength="30"></div>';
+  h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">还没兑现</button>'
+   + '<button class="btn jade" id="cpOk">家长确认已兑现</button></div>';
+  openSheet(h,(sheet)=>{
+    $("#cpOk",sheet).onclick=()=>{
+      settleCoupon(id, ($("#cpNote",sheet).value||"").trim());
+      closeSheet();
+    };
+  });
+}
+function couponDaysText(c){
+  const d=couponDays(c);
+  if(c.status==="done") return "已于 "+c.doneAt+" 兑现"+(c.note?(" · "+esc(c.note)):"");
+  if(d<=0) return "今天刚开 · 找大人约个时间";
+  if(d>=7) return '<span class="late">已经等了 '+d+' 天</span> · 记得提醒大人';
+  return "已经等了 "+d+" 天";
+}
+
+/* =====================================================================
+   休整期
+   ===================================================================== */
+function openBreakEdit(id){
+  const b = id ? (ST.breaks||[]).find(x=>x.id===id) : { id:uid(), from:TODAY(), to:addD(TODAY(),6), reason:"生病" };
+  const isNew=!id;
+  let h='<h3>'+(isNew?"新增休整期":"编辑休整期")+'</h3><div class="sh-sub">休整期间不派军令，连战天数冻结，不会断。</div>';
+  h+='<div class="grid2"><div class="field"><label>从</label><input type="text" id="bFrom" value="'+esc(b.from)+'" placeholder="2026-10-12"></div>'
+   + '<div class="field"><label>到</label><input type="text" id="bTo" value="'+esc(b.to)+'" placeholder="2026-10-18"></div></div>';
+  h+='<div class="field"><label>原因</label><div class="chipsel" id="bReason">';
+  for(const r of ["生病","寒暑假","期末考试","出门旅行","其他"])
+    h+='<button data-v="'+r+'" class="'+(b.reason===r?"on":"")+'">'+r+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>常用长度</label><div class="chipsel" id="bLen">';
+  for(const [n,l] of [[3,"3 天"],[7,"1 周"],[14,"2 周"],[30,"1 个月"],[60,"暑假 2 个月"]])
+    h+='<button data-v="'+n+'">'+l+'</button>';
+  h+='</div></div>';
+  h+='<div class="grid2">';
+  if(!isNew) h+='<button class="btn danger" onclick="delBreak(\''+b.id+'\')">删除</button>';
+  h+='<button class="btn" id="bOk">'+(isNew?"开始休整":"保存")+'</button></div>';
+  openSheet(h,(sheet)=>{
+    $$("#bReason button",sheet).forEach(x=>x.onclick=()=>{ $$("#bReason button",sheet).forEach(y=>y.classList.remove("on")); x.classList.add("on"); });
+    $$("#bLen button",sheet).forEach(x=>x.onclick=()=>{
+      const n=parseInt(x.dataset.v,10);
+      $("#bFrom",sheet).value=TODAY();
+      $("#bTo",sheet).value=addD(TODAY(),n-1);
+      $$("#bLen button",sheet).forEach(y=>y.classList.remove("on")); x.classList.add("on");
+    });
+    $("#bOk",sheet).onclick=()=>{
+      const from=$("#bFrom",sheet).value.trim(), to=$("#bTo",sheet).value.trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)){ toast("日期格式要对，例 2026-10-12"); return; }
+      if(to < from){ toast("结束日不能早于开始日"); return; }
+      const reason=$("#bReason button.on",sheet).dataset.v;
+      settleLedger();
+      if(isNew) ST.breaks.push({ id:uid(), from, to, reason });
+      else Object.assign(ST.breaks.find(x=>x.id===id), { from, to, reason });
+      save(); closeSheet(); refreshTop(); render();
+      toast(isNew ? ("已进入休整 · 到 "+fmtMD(to)) : "已保存");
+    };
+  });
+}
+function delBreak(id){
+  const b=(ST.breaks||[]).find(x=>x.id===id); if(!b) return;
+  if(!confirm("删除这段休整期（"+b.from+" ~ "+b.to+"）？")) return;
+  ST.breaks=ST.breaks.filter(x=>x.id!==id);
+  for(const d in ST.ledger){ if(ST.ledger[d].rest) delete ST.ledger[d]; }   // 让这段重新结算
+  settleLedger();
+  save(); closeSheet(); refreshTop(); render();
+  toast("已删除");
+}
+
+
+/* =====================================================================
+   破敌
+   ===================================================================== */
+function attackBoss(){
+  const d=TODAY();
+  if(!dayIsComplete(d)){ toast("军令未了，不可出战！"); return; }
+  if(bossBeaten(d)){ toast("今日劲敌已破"); return; }
+  const result=commitEconomy(()=>{
+    ST.bossDefeats[d]=true;
+    const p=pickPrize();
+    if(p) ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:p.merit, redeemed:false, gotAt:TODAY(), from:"boss" });
+    return {prize:p};
+  });
+  if(!result) return;
+  const p=result.prize, B=BOSSES[parseD(d).getDay()];
+  calcAchievements(); save(); refreshTop();
+  confetti(110);
+  let h='<div class="draw-stage"><div class="draw-roll opened" style="animation:none">🏳️</div></div>'
+    + '<h3 style="text-align:center;margin-top:8px;">破了 '+esc(B.name)+'！</h3>'
+    + '<div class="sh-sub" style="text-align:center;">'+esc(B.place)+' 一战，' + esc(B.name) + ' 已退</div>';
+  h+='<div class="result-box t-legend"><div class="re">🎟️🎟️</div><div class="rn">招贤令 ×2</div><div class="rt">战利品已入锦囊匣</div>'
+    + (p?('<div class="rc">'+p.emoji+' '+esc(p.name)+'</div>'):'')
+    + '</div>';
+  h+='<button class="btn" style="width:100%;margin-top:14px;" onclick="closeSheet();render();">收下战利品</button>';
+  openSheet(h);
+}
+
+/* =====================================================================
+   招贤榜（抽卡）
+   ===================================================================== */
+function openDraw(){
+  if(ticketsAvail()<1){ toast("还没有招贤令——今日军令齐备就能得一枚 🎟️"); return; }
+  const owned=heroOwnedCount(), tot=heroTotal();
+  const left=pityLeft();
+  let h='<h3>招贤榜</h3><div class="sh-sub">耗 🎟️ × 1 · 榜上名将 ' + owned + ' / ' + tot + ' 已入麾下<br>有缘者得名将卡，余者得锦囊</div>';
+  h+='<div class="pity" style="margin-bottom:12px;">'
+   + '<div class="pt"><span class="pl">'+(left<=0?"🎉 这一榜必出神将！":"再揭 "+left+" 次必出神将")+'</span>'
+   + '<span style="color:var(--ink-3)">'+(PITY-left)+' / '+PITY+'</span></div>'
+   + '<div class="prog mini"><i style="width:'+Math.round((PITY-left)/PITY*100)+'%"></i></div></div>';
+  h+='<div class="draw-stage" id="ds"><div class="draw-roll" id="dr">📜</div></div>'
+      + '<button class="btn gold" style="width:100%;margin-top:6px;" id="drawBtn">✨ 揭榜</button>'
+      + '<div id="drawResult"></div>';
+  openSheet(h,(sheet)=>{
+    let opened=false;
+    $("#drawBtn",sheet).onclick=()=>{
+      if(opened) return;
+      const res=drawOnce();
+      if(!res) return;
+      opened=true;
+      const dr=$("#dr",sheet);
+      dr.classList.add("opened");
+      const db=$("#drawBtn",sheet);
+      db.disabled=true; db.textContent="揭榜中…";
+      setTimeout(()=>{
+        calcAchievements(); save(); refreshTop();
+        let box='', extra='';
+        if(res.kind==="hero"){
+          const hh=res.hero, T=HERO_TIER_NAME[hh.tier];
+          const cls = HERO_TIER_BOX[hh.tier];
+          confetti(hh.tier==="legend"?150:hh.tier==="rare"?100:60);
+          box='<div class="result-box '+cls+'">'
+            + '<div class="re"><span class="hero-badge '+(HERO_FACTION_CLS[hh.f]||'b-han')+'" style="width:56px;height:56px;font-size:28px;border-radius:14px;">'+esc(hh.s)+'</span></div>'
+            + '<div class="rn">'+esc(hh.n)+'</div>'
+            + '<div class="rt">'+hh.f+' · '+T+' · 等级 '+hh.g+'</div>'
+            + '<div class="rc">已录入武将图鉴</div></div>';
+          extra='<div class="quote" style="margin-top:12px;">'+esc(hh.d)+'</div>';
+          if(res.forced) extra+='<div class="quote" style="margin-top:9px;">🎯 保底触发！连揭 '+PITY+' 榜未遇神将，此番必得。</div>';
+        }else if(res.kind==="dup"){
+          confetti(res.forced?150:40);
+          const isL = res.hero.tier==="legend";
+          const seen = ST.heroCount[res.hero.n]||2;
+          const starTxt = '★'.repeat(Math.min(seen,5)) + (seen>5?' ×'+seen:'');
+          box='<div class="result-box '+(isL?"t-legend":"t-normal")+'">'
+            + '<div class="re"><span class="hero-badge '+(HERO_FACTION_CLS[res.hero.f]||'b-han')+'" style="width:56px;height:56px;font-size:28px;border-radius:14px;">'+esc(res.hero.s)+'</span></div>'
+            + '<div class="rn">'+esc(res.hero.n)+'</div>'
+            + '<div class="rt">'+res.hero.f+' · 等级 '+res.hero.g+' · 已在麾下</div>'
+            + (seen>=2?('<div class="rc" style="color:#B8860B;font-weight:800;letter-spacing:2px;">'+starTxt+'</div>'):'')
+            + '<div class="rc">折算为 ⭐'+res.merit+' 军功</div></div>';
+          extra = seen>=5
+            ? '<div class="quote" style="margin-top:12px;">满星了 —— '+esc(res.hero.n)+' 与你格外有缘。这 '+res.merit+' 军功也是实打实的。</div>'
+            : '<div class="quote" style="margin-top:12px;">旧将重逢，也是缘分 —— '+esc(res.hero.n)+' 升至 '+starTxt+'。军功已入账。</div>';
+          if(res.forced) extra = '<div class="quote" style="margin-top:12px;">🎯 保底触发！虽是旧将重逢，但这 '+res.merit+' 军功是实打实的。</div>' + extra;
+        }else{
+          const p=res.prize;
+          const T=TIERS[p.tier]||TIERS.common;
+          confetti(p&&p.tier==="legend"?130:70);
+          box='<div class="result-box '+T.cls+'">'
+            + '<div class="re">'+(p?p.emoji:"🎁")+'</div>'
+            + '<div class="rn">'+(p?esc(p.name):"空榜")+'</div>'
+            + '<div class="rt">'+(p?T.name:"再来一次吧")+'</div>'
+            + (p?'<div class="rc">存入锦囊匣 · 攒够 ⭐'+p.merit+' 军功可开</div>':'')+'</div>';
+        }
+        $("#drawResult",sheet).innerHTML = box + extra
+          + '<div class="grid2" style="margin-top:12px;">'
+          + '<button class="btn ghost" onclick="closeSheet();">收好</button>'
+          + '<button class="btn" onclick="closeSheet();openDraw();">再揭一次 🎟️'+(ticketsAvail())+'</button>'
+          + '</div>';
+        // 集齐奖励：攒满一个阵营 / 集齐全套，当场给反馈
+        const done=res.collection||[];
+        if(done.length){
+          save();
+          done.forEach((d,i)=>{
+            setTimeout(()=>{
+              confetti(d.type==="all"?220:150);
+              if(d.type==="faction"){
+                toast("🏁 「"+d.f+"」名将 "+d.tot+" 位尽入麾下！军功 +"+d.merit, 4200);
+              }else{
+                toast("👑 160 位名将尽入麾下 · 获称号「"+ALL_DONE_TITLE+"」！军功 +"+d.merit, 5200);
+              }
+            }, 3600 + i*1200);
+          });
+        }
+        db.style.display="none";
+        $("#ds",sheet).style.display="none";
+        render();
+      },800);
+    };
+  });
+}
+
+/* =====================================================================
+   视图：一周
+   ===================================================================== */
+function viewWeek(){
+  const base=weekStart(VIEW_DATE);
+  const days=weekDates(base);
+  let h='<div class="card">';
+  h+='<div class="card-head"><h3>一周军令</h3><span class="hint">'+fmtMD(days[0])+' — '+fmtMD(days[6])+'</span></div>';
+  h+='<div class="weeknav">'
+   + '<button class="btn ghost sm" onclick="shiftWeek(-1)">← 上一周</button>'
+   + '<span class="wk">'+(base===weekStart(TODAY())?"本周":fmtMD(days[0])+" 那周")+'</span>'
+   + '<button class="btn ghost sm" onclick="shiftWeek(1)">下一周 →</button>'
+   + '</div>';
+  h+='<div class="scroll-x"><div class="wgrid">';
+  for(const d of days){
+    const wd=parseD(d).getDay();
+    const list=dayExpected(d);
+    h+='<div class="wcol'+(d===TODAY()?" today":"")+'">'
+     + '<div class="wh">'+WDX[wd]+'<br><span style="font-size:10px;color:var(--ink-3);font-weight:600">'+parseD(d).getDate()+'</span></div>';
+    if(!list.length){
+      h+='<div class="wrest">🍵 休整</div>';
+    }else{
+      for(const t of list){
+        const r=rec(d,t.id);
+        const S=SUBJECTS[t.subject]||SUBJECTS.other;
+        const done=r&&r.level>=0.5;
+        const lc = !r?"·":(r.type==="full"?"⭐":(r.type==="skip"?"🏳️":"◑"));
+        h+='<div class="wchip'+(done?" done":"")+'" style="border-left-color:'+S.color+'" onclick="openCheck(\''+t.id+'\',\''+d+'\')" title="'+esc(t.name)+'">'
+         + esc(t.name.slice(0,4))+'<span class="lc"> '+lc+'</span></div>';
+      }
+      for(const t of holidayTasks(d)) h+='<div class="wchip done" style="border-left-color:#B7D8C4;opacity:.75;">'+esc(t.name.slice(0,4))+'<span class="lc"> ✓</span></div>';
+    }
+    h+='</div>';
+  }
+  h+='</div></div>';
+  let tot=0,done=0;
+  for(const d of days){
+    if(d>TODAY()) continue;
+    const list=dayExpected(d); tot+=list.length;
+    done+=list.filter(t=>{const r=rec(d,t.id);return r&&r.level>=0.5;}).length;
+  }
+  const pct=tot?Math.round(done/tot*100):0;
+  h+='<div class="divider"></div>'
+   + '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:7px;">'
+   + '<span>本周军令达成</span><span>'+pct+'%</span></div>'
+   + '<div class="prog"><i style="width:'+pct+'%"></i></div>'
+   + '<button class="btn jade" style="width:100%;margin-top:14px;" onclick="goReport()">去看本周军报 →</button>';
+  h+='</div>';
+  return h;
+}
+function shiftWeek(n){ VIEW_DATE=addD(weekStart(VIEW_DATE),n*7); render(); }
+function goReport(){ VIEW="report"; VIEW_DATE=TODAY(); render(); }
+
+/* =====================================================================
+   视图：武将（图鉴 + 锦囊匣）
+   ===================================================================== */
+function viewHeroes(){
+  const owned=heroOwnedCount(), tot=heroTotal();
+  const av=availMerit(), tk=ticketsAvail();
+
+  let h='<div class="card">';
+  h+='<div class="card-head"><h3>招贤榜</h3><span class="hint">名将 '+owned+' / '+tot+'</span></div>';
+  h+='<div class="prog"><i style="width:'+Math.round(owned/tot*100)+'%"></i></div>';
+  h+='<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)">'
+   + '<span>图鉴收集度 '+Math.round(owned/tot*100)+'%</span>'
+   + '<span>招贤令 🎟️ '+tk+'</span></div>';
+  h+='<button class="btn gold" style="width:100%;margin-top:13px;" '+(tk<1?"disabled":"")+' onclick="openDraw()">'
+   + (tk<1?"尚无招贤令":"✨ 揭榜招贤（🎟️ × 1）")+'</button>';
+  // 保底进度：把「抽不到」变成「快到了」
+  (function(){
+    const left=pityLeft();
+    const done=PITY-left;
+    h+='<div class="pity">'
+     + '<div class="pt"><span class="pl">'+(left<=0?"🎉 下一榜必出神将":"再揭 "+left+" 次必出神将")+'</span>'
+     + '<span style="color:var(--ink-3)">'+done+' / '+PITY+'</span></div>'
+     + '<div class="prog mini"><i style="width:'+Math.round(done/PITY*100)+'%"></i></div></div>';
+  })();
+  h+='<div class="quote" style="margin-top:12px;">揭榜有名将卡与锦囊两种。名将卡直接入图鉴永久收藏；锦囊是实打实的奖励，需攒够军功才能开启。重复抽到的名将会折算成军功，不亏。</div>';
+  h+='</div>';
+
+  // 锦囊匣
+  h+='<div class="card"><div class="card-head"><h3>锦囊匣</h3><span class="hint">可用军功 ⭐'+av+'</span></div>';
+  const un=ST.vault.filter(v=>!v.redeemed);
+  const re=ST.vault.filter(v=>v.redeemed);
+  if(!un.length){
+    h+='<div class="empty"><span class="ee">🎁</span>匣中空空<br>揭榜或破敌可得锦囊</div>';
+  }else{
+    for(const v of un){
+      const T=TIERS[v.tier]||TIERS.common;
+      const bad=!validPrizeCost(v.merit);          // 旧数据门槛坏了：只禁用这一张，不影响整匣
+      const can = !bad && av>=v.merit;
+      h+='<div class="opt" style="cursor:default;">'
+       + '<span class="oe">'+v.emoji+'</span>'
+       + '<span class="ob"><span class="ot">'+esc(v.name)+'</span>'
+       + '<span class="od">'+T.name+' · '+(v.from==="boss"?"破敌所得":(v.from==="prize"?"破敌所得":"招贤所得"))+' · '+v.gotAt+'</span></span>'
+       + '<span style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
+       + '<span class="os">'+(bad?"门槛异常":"⭐"+v.merit)+'</span>'
+       + '<button class="btn '+(can?"gold":"ghost")+' sm" '+(can?'onclick="redeem(\''+v.uid+'\')"':"disabled")+'>'+(bad?"需核查":(can?"开启":"还差 "+(v.merit-av)))+'</button>'
+       + '</span>'
+       + '<button class="wishbtn'+(v.wish?" on":"")+'" title="最想要这个" onclick="markWish(\''+v.uid+'\')">'+(v.wish?"❤️":"🤍")+'</button>'
+       + '</div>';
+    }
+    if(un.length>1){
+      h+='<button class="btn ghost" style="width:100%;margin-top:6px;" onclick="openSwap()">🔁 同等军功的锦囊可互换</button>';
+    }
+  }
+  if(re.length){
+    h+='<div class="divider"></div><div style="font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:8px;">已开启 '+re.length+' 件</div>';
+    for(const v of re) h+='<div class="prize-row" style="opacity:.5;"><span class="pe">'+v.emoji+'</span><span class="pn">'+esc(v.name)+'</span><span class="pc">已开启</span></div>';
+  }
+  h+='</div>';
+
+  // ===== 兑现台：开了锦囊不等于拿到手 =====
+  const pend=couponsPending(), doneC=couponsDone(), rate=couponRate();
+  h+='<div class="card"><div class="card-head"><h3>兑现台</h3>'
+   + '<span class="hint">'+(pend.length?pend.length+" 张待兑现":"都兑现了")+'</span></div>';
+  if(rate!==null){
+    const tone = rate>=90 ? "var(--ok)" : (rate>=60 ? "var(--gold)" : "var(--zhu)");
+    h+='<div class="ratebar"><span class="rv" style="color:'+tone+'">'+rate+'%</span>'
+     + '<span class="rt">兑现率 · 已兑现 '+doneC.length+' / 共 '+(ST.coupons||[]).length+' 张<br>'
+     + (rate>=90 ? "说到做到，这套系统的信用很稳"
+        : rate>=60 ? "多数兑现了，还有几张在等"
+        : "攒了很久的军功换来一句「下次吧」，孩子会算这笔账")+'</span></div>';
+  }
+  if(!(ST.coupons||[]).length){
+    h+='<div class="empty"><span class="ee">🎫</span>还没有兑现券<br>'
+     + '<span style="font-size:12px;">开启锦囊时会自动发一张，<br>大人点「已兑现」之后才算真的到手。</span></div>';
+  }else{
+    for(const c of pend){
+      const late=couponDays(c)>=7;
+      h+='<div class="coupon'+(late?" overdue":"")+'">'
+       + '<span class="no">No.'+String(c.id).slice(-4).toUpperCase()+'</span>'
+       + '<span class="ce">'+c.emoji+'</span>'
+       + '<span class="cb"><span class="ct">'+esc(c.name)+'</span>'
+       + '<span class="cd">'+couponDaysText(c)+'</span></span>'
+       + '<button class="btn jade sm" onclick="openCouponSettle(\''+c.id+'\')">已兑现</button>'
+       + '</div>';
+    }
+    for(const c of doneC.slice(-4).reverse()){
+      h+='<div class="coupon done">'
+       + '<span class="ce">'+c.emoji+'</span>'
+       + '<span class="cb"><span class="ct">'+esc(c.name)+'</span>'
+       + '<span class="cd">'+couponDaysText(c)+'</span></span>'
+       + '<span style="font-size:15px;color:var(--ok);font-weight:700;">✓</span>'
+       + '</div>';
+    }
+  }
+  h+='</div>';
+
+  // 武将图鉴
+  h+='<div class="card"><div class="card-head"><h3>武将图鉴</h3>'
+   + '<span class="hint">已招募 '+heroOwnedCount()+' / '+heroTotal()+(ST.allDone?(' · '+ALL_DONE_TITLE):'')+'</span></div>';
+  for(const fac of FACTION_ORDER){
+    const list=HEROES_BY_FACTION[fac]||[];
+    if(!list.length) continue;
+    const got=list.filter(x=>heroOwned(x.n)).length;
+    const full = got>=list.length;
+    h+='<div class="hero-tier-title">'+fac+'<span class="cnt"'
+     + (full?' style="color:var(--ok);font-weight:800;"':'')+'>'
+     + (full ? '✓ 尽入麾下' : (got+' / '+list.length))+'</span></div>';
+    h+='<div class="heroes">';
+    for(const x of list){
+      const on=heroOwned(x.n);
+      const seen=on?(ST.heroCount[x.n]||1):0;
+      const stars=seen>=2?('<span class="tag-stars">'+'★'.repeat(Math.min(seen,5))+'</span>'):'';
+      const cls="hero-card "+HERO_TIER_CLS[x.tier]+(on?"":" locked")+(seen>=5?" maxed":"");
+      const badge = on
+        ? '<div class="hero-badge '+(HERO_FACTION_CLS[x.f]||'b-han')+'">'+esc(x.s)+'</div>'
+        : '<div class="hero-badge b-locked">？</div>';
+      h+='<div class="'+cls+'" '+(on?'onclick="showHero(\''+esc(x.n).replace(/'/g,"")+'\')"':'')+'>'
+       + '<span class="tag-r">'+x.g+'</span>'+stars
+       + badge
+       + '<div class="hn">'+(on?esc(x.n):"未招募")+'</div>'
+       + '<div class="hd">'+(on?esc(x.d):"等级 "+x.g)+'</div>'
+       + '</div>';
+    }
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // 锦囊概率说明
+  h+='<div class="card"><div class="card-head"><h3>奖励一览</h3><span class="hint">抽中锦囊时的概率</span></div>';
+  for(const tk2 of ["common","rare","legend"]){
+    const list=ST.prizes.filter(p=>p.tier===tk2);
+    if(!list.length) continue;
+    const wsum=list.reduce((a,b)=>a+(b.weight||0),0);
+    h+='<div style="font-size:12.5px;font-weight:700;color:var(--ink-2);margin:10px 0 6px;">'+TIERS[tk2].name+'（权重合计 '+wsum+'）</div>';
+    for(const p of list) h+='<div class="prize-row"><span class="pe">'+(p.emoji||"🎁")+'</span><span class="pn">'+esc(p.name)+'</span><span class="pc">⭐'+p.merit+' · '+p.weight+'</span></div>';
+  }
+  h+='</div>';
+  return h;
+}
+function showHero(name){
+  const x=HERO_BY_NAME[name]; if(!x) return;
+  const got=ST.heroes[name]||"—";
+  const seen=ST.heroCount[name]||1;
+  const starRow = seen>=2
+    ? '<div class="rc" style="color:#B8860B;font-weight:800;letter-spacing:2px;">'
+      + '★'.repeat(Math.min(seen,5)) + (seen>5?' <span style="font-size:11px;letter-spacing:0;">×'+seen+'</span>':'')
+      + '</div>'
+    : '';
+  let h='<h3>'+esc(x.n)+'</h3><div class="sh-sub">'+x.f+' · '+esc(x.d)+'</div>';
+  const bigBadge='<div class="re"><span class="hero-badge '+(HERO_FACTION_CLS[x.f]||'b-han')+'" style="width:56px;height:56px;font-size:28px;border-radius:14px;">'+esc(x.s)+'</span></div>';
+  h+='<div class="result-box '+HERO_TIER_BOX[x.tier]+'">'
+   + bigBadge
+   + '<div class="rn">'+esc(x.n)+'</div>'
+   + '<div class="rt">'+HERO_TIER_NAME[x.tier]+' · 等级 '+x.g+'</div>'
+   + starRow
+   + '<div class="rc">入麾下于 '+got+(seen>1?' · 已相遇 '+seen+' 次':'')+'</div>'
+   + (seen>=5?'<div class="rc" style="color:#B8860B;">满星 · 这位老将与你格外有缘</div>':'')
+   + '</div>';
+  h+='<button class="btn ghost" style="width:100%;margin-top:13px;" onclick="closeSheet()">收起</button>';
+  openSheet(h);
+}
+function redeem(u){
+  const v=ST.vault.find(x=>x.uid===u); if(!v) return;
+  // 纵深防御：界面已经把「已开启」分到另一区了，这里再挡一道。
+  // 否则万一有别的路径调到这里，会重复扣军功、重复发兑现券。
+  if(v.redeemed){ toast("这个锦囊已经开启了"); return; }
+  if(!validPrizeCost(v.merit)){ toast("这个锦囊的军功门槛异常，未扣星星，请先核查奖励设置",4200); return; }
+  const cost=moneyNumber(v.merit), av=availMerit();
+  if(!Number.isFinite(av) || av<cost){ toast("还差 "+round1(cost-av)+" 军功"); return; }
+  const c=commitEconomy(()=>{
+    v.redeemed=true; v.redeemedAt=TODAY();
+    v.paidMerit=cost;                 // 记录当时实付，模板改价不能追溯改写支出
+    return couponFor(v);
+  });
+  if(!c) return;
+  refreshTop(); render(); confetti(90);
+  openSheet(
+    '<div class="ceremony-hero"><span class="ce">'+c.emoji+'</span>'
+    + '<div class="cn">'+esc(c.name)+'</div></div>'
+    + '<div class="sh-sub" style="text-align:center;margin-top:8px;">锦囊已开 · 兑现券 No.'+String(c.id).slice(-4).toUpperCase()+'</div>'
+    + '<div class="quote" style="margin-top:12px;text-align:center;">这张券还在等兑现。<br>找大人约个时间，兑现之后由大人点「已兑现」。</div>'
+    + '<button class="btn" style="width:100%;margin-top:14px;" onclick="closeSheet();">知道了</button>'
+  );
+}
+function openSwap(){
+  const un=ST.vault.filter(v=>!v.redeemed);
+  const costs=[...new Set(un.map(v=>v.merit))];
+  if(costs.length<2){ toast("目前锦囊都在同一档，无需互换"); return; }
+  let h='<h3>🔁 互换锦囊</h3><div class="sh-sub">只有相同军功门槛的锦囊之间可以互换</div>';
+  const groups={};
+  for(const v of un){ (groups[v.merit]=groups[v.merit]||[]).push(v); }
+  h+='<div class="field"><label>要换出去的</label><select id="swFrom">';
+  for(const c of costs) for(const v of groups[c]) h+='<option value="'+v.uid+'">'+v.emoji+' '+esc(v.name)+'（⭐'+c+'）</option>';
+  h+='</select></div>';
+  h+='<div class="field"><label>换成（同门槛）</label><select id="swTo"></select></div>';
+  h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn" id="swOk">确认互换</button></div>';
+  openSheet(h,(sheet)=>{
+    const from=$("#swFrom",sheet), to=$("#swTo",sheet);
+    const sync=()=>{
+      const v=ST.vault.find(x=>x.uid===from.value);
+      to.innerHTML = groups[v.merit].filter(x=>x.uid!==from.value)
+        .map(x=>'<option value="'+x.uid+'">'+x.emoji+' '+esc(x.name)+'</option>').join("") || '<option value="">（同门槛没有别的锦囊了）</option>';
+    };
+    from.onchange=sync; sync();
+    $("#swOk",sheet).onclick=()=>{
+      const a=ST.vault.find(x=>x.uid===from.value);
+      const b=ST.vault.find(x=>x.uid===to.value);
+      if(!a||!b){ toast("同门槛没有可换的锦囊"); return; }
+      const tmp={name:a.name,emoji:a.emoji,tier:a.tier,merit:a.merit,from:a.from};
+      a.name=b.name; a.emoji=b.emoji; a.tier=b.tier; a.merit=b.merit; a.from=b.from;
+      b.name=tmp.name; b.emoji=tmp.emoji; b.tier=tmp.tier; b.merit=tmp.merit; b.from=tmp.from;
+      save(); closeSheet(); render(); toast("已互换 ✓");
+    };
+  });
+}
+
+/* =====================================================================
+   视图：数据（点将台）
+   ===================================================================== */
+const SOLDIERS = (()=>{
+  const a=[];
+  // 后排 10 人（略小、偏上，做出纵深）
+  for(let i=0;i<10;i++) a.push({ x:46+i*12.0, y:158, sc:0.85, back:true });
+  // 前排 10 人
+  for(let i=0;i<10;i++) a.push({ x:40+i*13.3, y:170, sc:1.0,  back:false });
+  return a;
+})();
+function stageSVG(pct){
+  const n=Math.round(pct/100*SOLDIERS.length);
+  let sv='<svg class="stage-svg" viewBox="0 0 200 200" role="img">';
+  sv+='<title>点将台</title>';
+  sv+='<desc>本周军令达成率越高，台上列阵的将士越多，满员二十人。</desc>';
+  // 旗杆与旗
+  sv+='<line x1="100" y1="170" x2="100" y2="80" stroke="#8A7057" stroke-width="2.6" stroke-linecap="round"/>';
+  sv+='<path d="M100 82 L140 94 L100 108 Z" fill="#B93A32"/>';
+  // 台基（三层，越往下越宽）
+  sv+='<rect x="52" y="186" width="96" height="8" rx="2" fill="#A89878"/>';
+  sv+='<rect x="44" y="178" width="112" height="8" rx="2" fill="#B8A888"/>';
+  sv+='<rect x="36" y="170" width="128" height="8" rx="2" fill="#C7B998"/>';
+  // 后排落脚的地面线（暗示纵深）
+  sv+='<rect x="42" y="156" width="116" height="3" rx="1.5" fill="#D6C9AC"/>';
+  if(n===0){
+    sv+='<ellipse cx="100" cy="168" rx="46" ry="4.5" fill="rgba(120,100,70,.10)"/>';
+  }
+  for(let i=0;i<n;i++){
+    const p=SOLDIERS[i];
+    const c = p.back ? "#C97A66" : "#9E342C";
+    const sc = p.sc, x = p.x, y = p.y;
+    sv+='<circle cx="'+x+'" cy="'+(y-11*sc).toFixed(1)+'" r="'+(3.1*sc).toFixed(2)+'" fill="'+c+'"/>';
+    sv+='<path d="M'+(x-4*sc).toFixed(1)+' '+y
+      +' L'+(x-2.6*sc).toFixed(1)+' '+(y-9*sc).toFixed(1)
+      +' L'+(x+2.6*sc).toFixed(1)+' '+(y-9*sc).toFixed(1)
+      +' L'+(x+4*sc).toFixed(1)+' '+y+' Z" fill="'+c+'"/>';
+  }
+  sv+='</svg>';
+  return sv;
+}
+function viewStats(){
+  const base=weekStart(VIEW_DATE);
+  const days=weekDates(base);
+  let tot=0,done=0,full=0,half=0,poor=0,miss=0,weekMerit=0;
+  const perTask={};
+  for(const d of days){
+    if(d>TODAY()) continue;
+    const list=dayExpected(d);
+    tot+=list.length;
+    weekMerit+=dayMerit(d);
+    for(const t of list){
+      const r=rec(d,t.id);
+      if(r&&r.level>=0.5) done++;
+      if(r){
+        if(r.type==="full") full++;
+        else if(r.type==="half") half++;
+        else if(r.type==="poor") poor++;
+        else if(r.type==="miss") miss++;
+      }
+      const pp=perTask[t.id]=perTask[t.id]||{name:t.name,plan:0,act:0};
+      if(r&&r.minutes){ pp.plan+=t.planMin||0; pp.act+=r.minutes||0; }
+    }
+  }
+  const pct=tot?Math.round(done/tot*100):0;
+  const owned=heroOwnedCount(), heroTot=heroTotal();
+
+  let h='<div class="card"><div class="card-head"><h3>点将台</h3><span class="hint">'+fmtMD(days[0])+' — '+fmtMD(days[6])+'</span></div>';
+  h+='<div class="stage-wrap">'+stageSVG(pct)
+   + '<div style="flex:1;min-width:180px;">'
+   + '<div style="font-size:13px;font-weight:700;margin-bottom:5px;">本周军令达成 '+pct+'%</div>'
+   + '<div style="font-size:12px;color:var(--ink-3);font-weight:600;line-height:1.8;">'
+   + (pct>=100?"台上二十员将士列阵，威势已成 🎉":(pct>=60?"人马渐齐，再操练几日":(pct>0?"台上才站了 "+Math.round(pct/100*20)+" 人，还需操练":"点将台上空无一人，今日开始吧")))
+   + '<br>已完成 '+done+' / '+tot+' 项军令</div>'
+   + '<div class="prog" style="margin-top:11px;"><i style="width:'+pct+'%"></i></div>'
+   + '</div></div></div>';
+
+  h+='<div class="card"><div class="card-head"><h3>本周军功账</h3></div><div class="report-stat">';
+  h+='<div class="rs-box"><div class="v">'+round1(weekMerit)+'</div><div class="l">本周所得</div></div>';
+  for(const [v,l] of [[full,"完胜 ⭐"],[half,"苦战 ◑"],[poor,"惨胜 ◐"],[miss,"未战 ✕"]]){
+    h+='<div class="rs-box"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+  }
+  h+='</div>';
+  h+='<div style="font-size:12.5px;font-weight:600;color:var(--ink-2);line-height:1.95;">'
+   + '累计军功 ⭐'+totalMerit()+'（点卯所得 '+earnedMerit()+meritSrcLine()+'）<br>'
+   + '可用 ⭐'+availMerit()+' · 已开锦囊用去 ⭐'+spentMerit()
+   + '</div><button class="btn ghost sm" style="margin-top:10px" onclick="openMeritBook()">查看星星明细</button></div>';
+
+  const rows=Object.keys(perTask).filter(k=>perTask[k].act>0).map(k=>Object.assign({id:k},perTask[k]));
+  h+='<div class="card"><div class="card-head"><h3>计划用时 vs 实际用时</h3><span class="hint">本周</span></div>';
+  if(!rows.length){
+    h+='<div class="empty"><span class="ee">⏱</span>还没有记录实际用时<br>点卯时填一下就能看到对比</div>';
+  }else{
+    const max=Math.max(...rows.map(r=>Math.max(r.plan,r.act)),1);
+    h+='<div class="barcmp">';
+    for(const r of rows){
+      h+='<div class="row"><span class="nm" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
+       + '<span class="bars">'
+       + '<span class="b1" style="width:'+Math.max(3,Math.round(r.plan/max*100))+'%"></span>'
+       + '<span class="b2" style="width:'+Math.max(3,Math.round(r.act/max*100))+'%"></span>'
+       + '</span>'
+       + '<span class="vv">'+r.plan+'′ / '+r.act+'′</span></div>';
+    }
+    h+='</div>';
+    h+='<div class="legend"><span><i class="b1" style="background:#CFE0EE"></i>计划用时</span><span><i class="b2" style="background:var(--zhu-2)"></i>实际用时</span></div>';
+    const tp=rows.reduce((a,b)=>a+b.plan,0), ta=rows.reduce((a,b)=>a+b.act,0);
+    h+='<div style="font-size:12.5px;font-weight:600;color:var(--ink-2);margin-top:11px;">合计：计划 '+tp+' 分钟 · 实际 '+ta+' 分钟'+(ta>tp?'（超时 '+(ta-tp)+' 分钟）':(ta<tp?'（提前 '+(tp-ta)+' 分钟）':''))+'</div>';
+  }
+  h+='</div>';
+
+  const rk=myRank();
+  h+='<div class="card"><div class="card-head"><h3>官职</h3><span class="hint">'+esc(ST.season.name)+'</span></div>';
+  h+='<div style="font-size:16px;font-weight:700;margin-bottom:3px;font-family:var(--serif);letter-spacing:2px;">'+rk.cur.e+' '+rk.cur.n+'</div>';
+  if(rk.next){
+    h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-bottom:9px;">距「'+rk.next.e+' '+rk.next.n+'」尚差 '+(rk.next.s-totalMerit())+' 军功</div>';
+    h+='<div class="prog"><i style="width:'+Math.round((totalMerit()-rk.cur.s)/(rk.next.s-rk.cur.s)*100)+'%"></i></div>';
+  }else{
+    h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-bottom:9px;">已是汉中王，三分天下有其一 👑</div>';
+  }
+  h+='<div class="ranktrack" style="margin-top:12px;">';
+  for(const r of RANKS){
+    h+='<div class="rank'+(totalMerit()>=r.s?" on":"")+'"><div class="re">'+r.e+'</div><div class="rn">'+r.n+'</div><div class="rs">'+r.s+'⭐</div></div>';
+  }
+  h+='</div></div>';
+
+  h+='<div class="card"><div class="card-head"><h3>典故徽章</h3><span class="hint">'+Object.keys(ST.achievements).length+' / '+BADGE_DEF.length+'</span></div><div class="badges">';
+  for(const b of BADGE_DEF){
+    const on=!!ST.achievements[b.id];
+    h+='<div class="badge'+(on?" on":"")+'"><div class="bi">'+b.e+'</div><div class="bn">'+b.n+'</div><div class="bd">'+(on?(ST.achievements[b.id]+" 得"):b.d)+'</div></div>';
+  }
+  h+='</div></div>';
+
+  h+='<div class="card"><div class="card-head"><h3>名将收集</h3><span class="hint">'+owned+' / '+heroTot+'</span></div>';
+  for(const tier of HERO_ORDER){
+    const list=HEROES[tier];
+    const n=list.filter(x=>heroOwned(x.n)).length;
+    const p=Math.round(n/list.length*100);
+    h+='<div style="margin-bottom:11px;">'
+     + '<div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:5px;">'
+     + '<span>'+HERO_TIER_NAME[tier]+'</span><span style="color:'+(p>=100?"var(--ok)":"var(--ink-3)")+'">'+n+'/'+list.length+(p>=100?" ✓":"")+'</span></div>'
+     + '<div class="prog mini"><i style="width:'+p+'%"></i></div></div>';
+  }
+  h+='</div>';
+
+  // ===== 荣誉墙：已经养成、自动毕业的军令 =====
+  const gradIds=Object.keys(ST.graduated||{});
+  h+='<div class="card"><div class="card-head"><h3>已养成</h3><span class="hint">连续 '+GRADUATE_WEEKS+' 周满勤自动毕业</span></div>';
+  if(!gradIds.length){
+    h+='<div class="empty"><span class="ee">🌱</span>还没有军令毕业<br>'
+     + '<span style="font-size:12px;">任何一项军令连续 '+GRADUATE_WEEKS+' 个完整周 100% 达成，'
+     + '就会自动毕业、移出每日清单。<br>推着走的终点，是你自己走。</span></div>';
+  }else{
+    h+='<div class="honor">';
+    for(const id of gradIds){
+      const g=ST.graduated[id];
+      const S=SUBJECTS[g.subject]||SUBJECTS.other;
+      h+='<div class="honor-card"><span class="hc-badge">🎓</span>'
+       + '<div class="he">'+(g.emoji||S.icon)+'</div>'
+       + '<div class="hn">'+esc(g.name)+'</div>'
+       + '<div class="hd">'+g.at+' 养成</div>'
+       + '<div class="hb"><button class="btn ghost sm" onclick="ungraduateConfirm(\''+id+'\')">恢复</button></div>'
+       + '</div>';
+    }
+    h+='</div>';
+    h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-top:11px;line-height:1.7;text-align:center;">'
+     + '这 '+gradIds.length+' 项已经成为习惯了，不再需要每天推。</div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+/* =====================================================================
+   视图：军报
+   ===================================================================== */
+function viewReport(){
+  const base=weekStart(VIEW_DATE);
+  const days=weekDates(base);
+  let tot=0,done=0,full=0,half=0,poor=0,miss=0,minutes=0;
+  let restDays=0;
+  for(const d of days){
+    if(d>TODAY()) continue;
+    if(isRestDay(d)){ restDays++; continue; }      // 休整日不算进分母
+    const list=dayExpected(d); tot+=list.length;
+    for(const t of list){
+      const r=rec(d,t.id);
+      if(r&&r.level>=0.5) done++;
+      if(r){
+        if(r.type==="full") full++;
+        else if(r.type==="half") half++;
+        else if(r.type==="poor") poor++;
+        else if(r.type==="miss") miss++;
+        minutes+=r.minutes||0;
+      }
+    }
+  }
+  let ws=0; for(const d of days) ws+=dayMerit(d);
+  const pct=tot?Math.round(done/tot*100):0;
+
+  let h='<div class="card">';
+  h+='<div class="card-head"><h3>本周军报</h3><span class="hint">'+(base===weekStart(TODAY())?"本周":fmtMD(days[0]))+'</span></div>';
+  h+='<div class="weeknav">'
+   + '<button class="btn ghost sm" onclick="shiftWeek(-1)">← 上一周</button>'
+   + '<span class="wk">'+fmtMD(days[0])+' — '+fmtMD(days[6])+'</span>'
+   + '<button class="btn ghost sm" onclick="shiftWeek(1)">下一周 →</button></div>';
+  if(restDays) h+='<div class="holiday-row">🍵 本周有 '+restDays+' 天在休整，已从统计里剔除</div>';
+  h+='<div class="report-stat">'
+   + '<div class="rs-box"><div class="v">'+pct+'%</div><div class="l">军令达成</div></div>'
+   + '<div class="rs-box"><div class="v">'+round1(ws)+'</div><div class="l">所得军功</div></div>'
+   + '<div class="rs-box"><div class="v">'+full+'</div><div class="l">完胜</div></div>'
+   + '<div class="rs-box"><div class="v">'+(half+poor)+'</div><div class="l">苦战/惨胜</div></div>'
+   + '<div class="rs-box"><div class="v">'+minutes+'</div><div class="l">用功分钟</div></div>'
+   + '<div class="rs-box"><div class="v">'+done+'/'+tot+'</div><div class="l">完成/总项</div></div>'
+   + '</div>';
+
+  // ===== 主动性：这套系统真正该看的数字 =====
+  (function(){
+    const sig=signalsBetween(days[0], days[6]);
+    h+='<div class="divider"></div>';
+    h+='<div style="display:flex;align-items:baseline;gap:9px;margin-bottom:9px;">'
+     + '<span style="font-family:var(--serif);font-size:26px;font-weight:700;color:var(--ok);line-height:1;">'+sig.length+'</span>'
+     + '<span style="font-size:12.5px;font-weight:700;color:var(--ink-2);">本周孩子主动做的事</span></div>';
+    if(!sig.length){
+      h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;line-height:1.75;">'
+       + '这一周还没有。完成率可以靠推，主动推不出来 ——<br>'
+       + '所以这个数字比上面那个百分比更值得留意。</div>';
+    }else{
+      h+='<div class="actlist">';
+      for(const s of sig.slice(-12).reverse()){
+        const icon = s.kind==="extra" ? "✋" : s.kind==="add_task" ? "➕" : s.kind==="too_hard" ? "🤔" : "❤️";
+        h+='<div class="actrow"><span class="ae">'+icon+'</span>'
+         + '<span class="an">'+esc(SIGNAL_NAME[s.kind]||"主动")+(s.detail?('：'+esc(s.detail)):'')+'</span>'
+         + '<span class="ad">'+s.date.slice(5)+'</span></div>';
+      }
+      h+='</div>';
+    }
+  })();
+
+  // ===== 调整建议：只有「推」没有「退」，孩子会一直在失败里泡着 =====
+  if(base===weekStart(TODAY())){
+    const hints=difficultyHints();
+    if(hints.length){
+      h+='<div class="divider"></div>';
+      h+='<div style="font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:9px;">⚖️ 调整建议</div>';
+      for(const x of hints){
+        h+='<div class="hintcard '+x.tone+'">'
+         + '<span class="hi">'+(x.tone==="warn"?"⚠️":"⏱")+'</span>'
+         + '<span class="hb"><span class="ht">'+esc(x.title)+'</span>'
+         + '<span class="hd">'+esc(x.body)+'</span>'
+         + '<span class="ha"><button class="btn ghost sm" onclick="applyHint(\''+x.taskId+'\',\''+x.kind+'\')">'+esc(x.action)+'</button></span>'
+         + '</span></div>';
+      }
+      h+='<div style="font-size:11.5px;color:var(--ink-3);font-weight:600;line-height:1.7;margin-top:4px;">'
+       + '任务做不完，多数时候是任务的问题，不是孩子的问题。</div>';
+    }
+  }
+
+  const rows=[];
+  for(const t of ST.tasks){
+    if(t.archived) continue;
+    let target=0,dn=0;
+    if(t.type==="flex"){ target=Math.max(1,t.weekTarget||1); dn=Math.min(weekDone(t.id,base),target); }
+    else{
+      for(const d of days){
+        if(d>TODAY()) continue;
+        if(isRestDay(d)) continue;                     // 休整日不算
+        const appear = t.type==="daily" || (t.weekdays||[]).includes(parseD(d).getDay());
+        if(!appear) continue;
+        target++; if((rec(d,t.id)||{level:0}).level>=0.5) dn++;
+      }
+    }
+    if(!target) continue;
+    rows.push({name:t.name,emoji:t.emoji||SUBJECTS[t.subject].icon,target,dn,color:SUBJECTS[t.subject].color});
+  }
+  if(rows.length){
+    h+='<div class="divider"></div><div style="font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:9px;">各项军令达成情况</div>';
+    for(const r of rows){
+      const p=Math.round(r.dn/r.target*100);
+      const ok=p>=100;
+      h+='<div style="margin-bottom:10px;">'
+       + '<div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:4px;">'
+       + '<span>'+r.emoji+' '+esc(r.name)+'</span><span style="color:'+(ok?"var(--ok)":"var(--ink-3)")+'">'+r.dn+'/'+r.target+(ok?" ✓":"")+'</span></div>'
+       + '<div class="prog mini"><i style="width:'+p+'%;background:'+r.color+'"></i></div></div>';
+    }
+  }
+
+  const rep = ST.reports[base]||{good:"",improve:"",plan:""};
+  h+='<div class="divider"></div>';
+  h+='<div class="quote" style="margin-bottom:12px;">复盘之要，在少说教、多听孩子说。改进目标写一句他听得懂、够得着的短句就够了。</div>';
+  h+='<div class="field"><label>🏅 这周做得好的地方</label><textarea id="rGood" placeholder="例：英语阅读提前两天完成，自己发现的">'+esc(rep.good)+'</textarea></div>';
+  h+='<div class="field"><label>🔧 需要改进之处</label><textarea id="rImprove" placeholder="例：磨耳朵容易拖延">'+esc(rep.improve)+'</textarea></div>';
+  h+='<div class="field"><label>🎯 下周方略</label><textarea id="rPlan" placeholder="例：磨耳朵的功夫用在平时">'+esc(rep.plan)+'</textarea></div>';
+  h+='<button class="btn jade" style="width:100%;" onclick="saveReport(\''+base+'\')">存下这份军报</button>';
+  h+='</div>';
+
+  const keys=Object.keys(ST.reports).sort().reverse();
+  if(keys.length){
+    h+='<div class="card"><div class="card-head"><h3>往期军报</h3><span class="hint">'+keys.length+' 份</span></div>';
+    for(const k of keys.slice(0,26)){
+      const r=ST.reports[k];
+      h+='<div class="hist-item"><div class="hh"><span>'+fmtMD(k)+' 那周</span><span style="color:var(--ink-3);font-weight:600;">'+((r.pct!=null)?r.pct+"%":"")+'</span></div>';
+      if(r.good) h+='<div class="hl">🏅 '+esc(r.good)+'</div>';
+      if(r.improve) h+='<div class="hl">🔧 '+esc(r.improve)+'</div>';
+      if(r.plan) h+='<div class="hl">🎯 '+esc(r.plan)+'</div>';
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  return h;
+}
+function saveReport(base){
+  const g=$("#rGood").value.trim(), i=$("#rImprove").value.trim(), p=$("#rPlan").value.trim();
+  const days=weekDates(base);
+  let tot=0,done=0;
+  for(const d of days){
+    if(d>TODAY()) continue;
+    const list=dayExpected(d); tot+=list.length;
+    done+=list.filter(t=>{const r=rec(d,t.id);return r&&r.level>=0.5;}).length;
+  }
+  ST.reports[base]={good:g,improve:i,plan:p,savedAt:TODAY(),pct:tot?Math.round(done/tot*100):0};
+  calcAchievements(); save(); render(); toast("军报已存 ✓");
+}
+
+/* =====================================================================
+   视图：设置
+   ===================================================================== */
+function viewSettings(){
+  let h='<div class="card"><div class="card-head"><h3>基本设置</h3></div>';
+  h+='<div class="field"><label>主公的名字</label><input type="text" id="sChild" value="'+esc(ST.childName)+'" placeholder="主公"></div>';
+  h+='<div class="grid2">'
+   + '<div class="field"><label>赛季名称</label><input type="text" id="sSeason" value="'+esc(ST.season.name)+'"></div>'
+   + '<div class="field"><label>赛季结束日</label><input type="text" id="sSeasonEnd" value="'+esc(ST.season.endDate)+'" placeholder="2027-01-31"></div>'
+   + '</div>';
+  h+='<button class="btn" style="width:100%" onclick="saveBasic()">保存</button></div>';
+
+  
+  h+='<div class="card"><div class="card-head"><h3>军令管理</h3><button class="btn sm" onclick="openTaskEdit()">+ 新增</button></div>';
+  const act=ST.tasks.filter(t=>!t.archived);
+  if(!act.length) h+='<div class="empty"><span class="ee">📋</span>还没有军令，点右上角新增</div>';
+  for(const t of act){
+    const S=SUBJECTS[t.subject]||SUBJECTS.other;
+    const typ={daily:"每日必做",flex:"灵活安排（每周 "+(t.weekTarget||1)+" 次）",fixed:"固定日期（"+(t.weekdays||[]).map(x=>WDX[x]).join("")+"）"}[t.type];
+    h+='<div class="setrow"><span class="si">'+(t.emoji||S.icon)+'</span>'
+     + '<span class="sn">'+esc(t.name)+(t.boss?' <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;background:#FBE7E3;color:#A83A32;">硬仗</span>':'')
+     + '<small>'+S.place+' · '+typ+' · 计划 '+t.planMin+' 分钟</small></span>'
+     + '<button class="btn ghost sm" onclick="openTaskEdit(\''+t.id+'\')">改</button></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="card"><div class="card-head"><h3>锦囊设置</h3><button class="btn sm" onclick="openPrizeEdit()">+ 新增</button></div>';
+  h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-bottom:10px;">和孩子一起商量着填。权重越大越容易抽到。</div>';
+  for(const tk of ["common","rare","legend"]){
+    const list=ST.prizes.filter(p=>p.tier===tk);
+    if(!list.length) continue;
+    h+='<div style="font-size:12px;font-weight:700;color:var(--ink-2);margin:9px 0 6px;">'+TIERS[tk].name+'</div>';
+    for(const p of list){
+      h+='<div class="prize-row"><span class="pe">'+(p.emoji||"🎁")+'</span><span class="pn">'+esc(p.name)+'</span>'
+       + '<span class="pc">⭐'+p.merit+' · '+p.weight+'</span>'
+       + '<button class="btn ghost sm" onclick="openPrizeEdit(\''+p.id+'\')">改</button></div>';
+    }
+  }
+  h+='</div>';
+
+  // ===== 休整期：生病、放假、考试周，工具要承认这些节律 =====
+  h+='<div class="card"><div class="card-head"><h3>休整期</h3>'
+   + '<button class="btn sm" onclick="openBreakEdit()">+ 新增</button></div>';
+  h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-bottom:10px;line-height:1.7;">'
+   + '休整期间不派军令，<b>连战天数冻结不会断</b>，也不算进完成率。<br>'
+   + '生病、寒暑假、考试周都该歇着 —— 这个工具得承认这件事。</div>';
+  const brk=(ST.breaks||[]).slice().sort((a,b)=>a.from<b.from?1:-1);
+  if(!brk.length){
+    h+='<div class="empty" style="padding:16px;"><span class="ee">🍵</span>还没有休整期</div>';
+  }else{
+    for(const b of brk){
+      const on = TODAY()>=b.from && TODAY()<=b.to;
+      const past = b.to < TODAY();
+      const n=Math.max(1,Math.round((parseD(b.to)-parseD(b.from))/86400000)+1);
+      h+='<div class="breakrow'+(on?" on":"")+'">'
+       + '<span style="font-size:17px;">'+(on?"🍵":(past?"✓":"🕒"))+'</span>'
+       + '<span class="bn">'+esc(b.reason||"休整")+(on?' <span style="color:var(--ok);font-size:11px;">进行中</span>':"")
+       + '<small>'+b.from+' ~ '+b.to+' · 共 '+n+' 天</small></span>'
+       + '<button class="btn ghost sm" onclick="openBreakEdit(\''+b.id+'\')">改</button></div>';
+    }
+  }
+  h+='</div>';
+
+  h+='<div class="card"><div class="card-head"><h3>数据管理</h3></div>';
+  h+='<div class="setrow"><span class="si">📤</span><span class="sn">导出备份<small>下载一个 json 文件，换设备或换浏览器时用</small></span>'
+   + '<button class="btn ghost sm" onclick="exportData()">导出</button></div>';
+  h+='<div class="setrow"><span class="si">📥</span><span class="sn">导入备份<small>会覆盖当前全部数据，请谨慎</small></span>'
+   + '<button class="btn ghost sm" onclick="document.getElementById(\'impFile\').click()">选择文件</button>'
+   + '<input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)"></div>';
+  h+='<div class="quote">正式使用不再提供示例数据和调试补令入口，避免覆盖真实记录或反复退还已用招贤令。</div>';
+  // 备份提醒：iOS 上删掉主屏幕图标再重装，这个 Web App 的本地数据会一起没掉。
+  const bd=ST.lastBackup?Math.round((parseD(TODAY())-parseD(ST.lastBackup))/86400000):null;
+  h+='<div class="quote" style="'+(bd===null||bd>30?"border-color:#EFC8BC;background:#FCEBE6;":"")+'">'
+   + '最近备份：'+(bd===null?"<b>还没有导出过</b>":bd===0?"今天":bd+" 天前")
+   + '。<br>换手机、删掉主屏幕图标重装、清理浏览器数据，都会把记录一起带走 —— 动手之前先导出一份。</div>';
+  h+='<div class="setrow"><span class="si">🛡️</span><span class="sn">数据保护<small>'
+   + ({
+       granted:     "浏览器已承诺不自动清理这份数据 ✓",
+       denied:      "浏览器暂未授予持久化。数据仍在，但磁盘紧张时可能被回收 —— 记得定期导出备份",
+       unsupported: "这个浏览器不支持持久化申请（Safari 加到主屏幕后本身就受保护）",
+       unknown:     "尚未确认"
+     }[STORAGE_PERSIST] || "尚未确认")
+   + '</small></span>'
+   + '<button class="btn ghost sm" onclick="requestPersistentStorage().then(function(){render();})">检查</button></div>';
+  h+='<div class="setrow"><span class="si">🗑️</span><span class="sn">清空全部数据<small>恢复出厂设置，不可撤销</small></span>'
+   + '<button class="btn danger sm" onclick="resetAll()">清空</button></div>';
+  h+='</div>';
+
+  h+='<div class="card"><div class="card-head"><h3>玩法说明</h3></div>'
+   + '<div style="font-size:12.5px;line-height:2;color:var(--ink-2);font-weight:600;">'
+   + '· 每天完成<b>全部</b>军令 → 得 1 枚招贤令 🎟️<br>'
+   + '· 破了当日劲敌 → 再得 2 枚招贤令 + 一个锦囊<br>'
+   + '· <b>连战加成</b>：连续 3 天起军功 ×1.2，5 天 ×1.5，7 天 ×2<br>'
+   + '· <b>保底</b>：连揭 '+PITY+' 榜未遇神将，下一榜必出，进度在武将页可见<br>'
+   + '· 招贤榜有名将卡与锦囊两种，名将卡永久入图鉴<br>· <b>图鉴 160 位</b>，与「怀沙三国英雄之旅」实体武将卡一一对应，含阵营（汉/魏/蜀/吴）与等级（SS~B-）<br>'
+   + '· 重复抽到的名将折算为军功，不会白揭一张榜<br>'
+   + '· 灵活类军令没做完不会记「欠债」，只提示「尚需几次」<br>'
+   + '· 实在赶不及，可「高挂免战牌」，任务顺延不责<br>'
+   + '· 苦战、惨胜都算半个军功——拼过的力气不该被清零<br>'
+   + '· <b>毕业</b>：某项军令连续 '+GRADUATE_WEEKS+' 个完整周 100% 达成，自动移入「已养成」<br>'
+   + '· <b>兑现台</b>：开了锦囊不等于拿到手，大人点「已兑现」才算结账<br>'
+   + '· <b>休整期</b>：生病、假期、考试周可以停，连战天数冻结不会断<br>'
+   + '· <b>调整建议</b>：某项连续两周做不完，军报会主动建议降目标'
+   + '</div>'
+   + '<div class="quote" style="margin-top:12px;">「不追究前日之失，只论当下可用之兵。」</div>'
+   + '<div class="quote" style="margin-top:9px;">历史账目一经结算即冻结：改任务、删军令都不会动到已经发给孩子的军功和招贤令。'
+   + '最近 '+BACKFILL_DAYS+' 天（含今天）还没冻结，忘了点卯可以补上。</div>'
+   + '<div class="quote" style="margin-top:9px;">完成率可以靠推，主动推不出来。军报里那个「本周孩子主动做的事」才是这套系统真正该看的数字。</div>'
+   + '</div>';
+  h+='<div class="verline">少年主公 v'+APP_VERSION+' · 数据结构 v'+SCHEMA+' · 建于 '+esc(ST.createdAt||"—")+'</div>';
+  return h;
+}
+function saveBasic(){
+  ST.childName=$("#sChild").value.trim()||"主公";
+  ST.season.name=$("#sSeason").value.trim()||"第 1 赛季";
+  const e=$("#sSeasonEnd").value.trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(e)) ST.season.endDate=e;
+  save(); refreshTop(); render(); toast("已保存 ✓");
+}
+function openTaskEdit(id){
+  const t = id ? ST.tasks.find(x=>x.id===id) : {
+    id:uid(), name:"", subject:"cn", type:"flex", emoji:"", timeSlot:"any",
+    planMin:15, weekTarget:3, weekdays:[1,3,5], boss:false, archived:false
+  };
+  const isNew=!id;
+  let h='<h3>'+(isNew?"新增军令":"编辑军令")+'</h3><div class="sh-sub">名字短一点，孩子一眼能看懂</div>';
+  h+='<div class="field"><label>军令名</label><input type="text" id="tName" value="'+esc(t.name)+'" placeholder="例：英语磨耳朵"></div>';
+  h+='<div class="grid2"><div class="field"><label>图标 emoji</label><input type="text" id="tEmoji" value="'+esc(t.emoji||"")+'" placeholder="🎧"></div>'
+   + '<div class="field"><label>计划用时（分钟）</label><input type="number" id="tMin" min="1" max="300" value="'+(t.planMin||15)+'"></div></div>';
+  h+='<div class="field"><label>所属营地</label><div class="chipsel" id="tSubj">';
+  for(const k of SUBJ_ORDER) h+='<button data-v="'+k+'" class="'+(t.subject===k?"on":"")+'">'+SUBJECTS[k].icon+' '+SUBJECTS[k].place+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>安排方式</label><div class="chipsel" id="tType">';
+  h+='<button data-v="daily" class="'+(t.type==="daily"?"on":"")+'">每日必做</button>';
+  h+='<button data-v="flex" class="'+(t.type==="flex"?"on":"")+'">灵活安排</button>';
+  h+='<button data-v="fixed" class="'+(t.type==="fixed"?"on":"")+'">固定日期</button>';
+  h+='</div></div>';
+  h+='<div class="field" id="wrapTarget" style="'+(t.type==="flex"?"":"display:none")+'"><label>每周目标次数</label><input type="number" id="tTarget" min="1" max="21" value="'+(t.weekTarget||3)+'"></div>';
+  h+='<div class="field" id="wrapDays" style="'+(t.type==="fixed"?"":"display:none")+'"><label>安排在星期</label><div class="chipsel" id="tDays">';
+  for(const dw of WD_VIEW) h+='<button data-v="'+dw+'" class="'+((t.weekdays||[]).includes(dw)?"on":"")+'">'+WDX[dw]+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>时间段</label><div class="chipsel" id="tSlot">';
+  for(const [k,l] of [["morning","🌅 晨间"],["noon","☀️ 日间"],["evening","🌙 晚间"],["any","🕯️ 自定"]])
+    h+='<button data-v="'+k+'" class="'+((t.timeSlot||"any")===k?"on":"")+'">'+l+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>是否当作硬仗？</label><div class="chipsel" id="tBoss">'
+   + '<button data-v="1" class="'+(t.boss?"on":"")+'">⚔ 是，当硬骨头啃</button>'
+   + '<button data-v="0" class="'+(!t.boss?"on":"")+'">普通军令</button></div></div>';
+  h+='<div class="grid2" style="margin-top:6px;">';
+  if(!isNew) h+='<button class="btn danger" onclick="delTask(\''+t.id+'\')">删除</button>';
+  h+='<button class="btn" id="tOk">'+(isNew?"创建":"保存")+'</button></div>';
+  openSheet(h,(sheet)=>{
+    const on=(sel,multi)=>{
+      $$(sel+" button",sheet).forEach(b=>b.onclick=()=>{
+        if(multi) b.classList.toggle("on");
+        else { $$(sel+" button",sheet).forEach(x=>x.classList.remove("on")); b.classList.add("on"); }
+      });
+    };
+    on("#tSubj",false); on("#tType",false); on("#tDays",true); on("#tSlot",false); on("#tBoss",false);
+    const syncType=()=>{
+      const v=$("#tType button.on",sheet).dataset.v;
+      $("#wrapTarget",sheet).style.display = v==="flex"?"":"none";
+      $("#wrapDays",sheet).style.display = v==="fixed"?"":"none";
+    };
+    $$("#tType button",sheet).forEach(b=>b.addEventListener("click",syncType));
+    $("#tOk",sheet).onclick=()=>{
+      const name=$("#tName",sheet).value.trim();
+      if(!name){ toast("先起个名吧"); return; }
+      const obj={
+        name, emoji:$("#tEmoji",sheet).value.trim(),
+        planMin:parseInt($("#tMin",sheet).value||"15",10)||15,
+        subject:$("#tSubj button.on",sheet).dataset.v,
+        type:$("#tType button.on",sheet).dataset.v,
+        timeSlot:$("#tSlot button.on",sheet).dataset.v,
+        weekTarget:parseInt(($("#tTarget",sheet)||{}).value||"3",10)||3,
+        weekdays:$$("#tDays button.on",sheet).map(b=>+b.dataset.v),
+        boss:$("#tBoss button.on",sheet).dataset.v==="1",
+        archived:false
+      };
+      if(obj.type==="fixed" && !obj.weekdays.length){ toast("固定日期至少要选一天"); return; }
+      // 改任务之前，先把历史账目冻住，避免追溯改写已发的奖励
+      settleLedger();
+      if(isNew) ST.tasks.push(Object.assign({id:uid()},obj));
+      else Object.assign(ST.tasks.find(x=>x.id===id),obj);
+      save(); closeSheet(); render(); toast(isNew?"军令已下 ✓":"已保存 ✓");
+    };
+  });
+}
+function delTask(id){
+  const t=ST.tasks.find(x=>x.id===id); if(!t) return;
+  if(!confirm("删除「"+t.name+"」？会同时清掉它的历史点卯记录（已结算的历史军功不受影响）。")) return;
+  settleLedger();   // 先冻结历史，已发的奖励不会被带走
+  ST.tasks=ST.tasks.filter(x=>x.id!==id);
+  for(const d in ST.records){ delete ST.records[d][id]; if(!Object.keys(ST.records[d]).length) delete ST.records[d]; }
+  save(); closeSheet(); refreshTop(); render(); toast("已删除");
+}
+function openPrizeEdit(id){
+  const p = id ? ST.prizes.find(x=>x.id===id) : { id:uid(), name:"", emoji:"🎁", tier:"common", merit:50, weight:10 };
+  const isNew=!id;
+  let h='<h3>'+(isNew?"新增锦囊":"编辑锦囊")+'</h3><div class="sh-sub">最好和孩子一起商量着填进去</div>';
+  h+='<div class="field"><label>奖励名</label><input type="text" id="pName" value="'+esc(p.name)+'" placeholder="例：心仪的书一本"></div>';
+  h+='<div class="grid2"><div class="field"><label>图标 emoji</label><input type="text" id="pEmoji" value="'+esc(p.emoji||"")+'"></div>'
+   + '<div class="field"><label>开启需军功</label><input type="number" id="pCost" min="1" value="'+(p.merit||50)+'"></div></div>';
+  h+='<div class="field"><label>档位</label><div class="chipsel" id="pTier">';
+  for(const k in TIERS) h+='<button data-v="'+k+'" class="'+(p.tier===k?"on":"")+'">'+TIERS[k].name+'</button>';
+  h+='</div></div>';
+  h+='<div class="field"><label>抽中权重（越大越容易抽到）</label><input type="number" id="pWeight" min="0" max="999" value="'+(p.weight||10)+'"></div>';
+  h+='<div class="grid2">';
+  if(!isNew) h+='<button class="btn danger" onclick="delPrize(\''+p.id+'\')">删除</button>';
+  h+='<button class="btn" id="pOk">'+(isNew?"创建":"保存")+'</button></div>';
+  openSheet(h,(sheet)=>{
+    $$("#pTier button",sheet).forEach(b=>b.onclick=()=>{ $$("#pTier button",sheet).forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+    $("#pOk",sheet).onclick=()=>{
+      const name=$("#pName",sheet).value.trim();
+      if(!name){ toast("先起个名吧"); return; }
+      const cost=moneyNumber($("#pCost",sheet).value);
+      const weight=Number($("#pWeight",sheet).value);
+      if(!validPrizeCost(cost)){ toast("开启门槛必须是大于0的有效军功数"); return; }
+      if(!Number.isInteger(weight) || weight<0 || weight>999){ toast("抽中权重需为0到999的整数"); return; }
+      const obj={ name, emoji:$("#pEmoji",sheet).value.trim()||"🎁",
+        tier:$("#pTier button.on",sheet).dataset.v,
+        merit:cost, weight };
+      if(isNew) ST.prizes.push(Object.assign({id:uid()},obj));
+      else Object.assign(ST.prizes.find(x=>x.id===id),obj);
+      save(); closeSheet(); render(); toast(isNew?"锦囊已入榜 🎁":"已保存 ✓");
+    };
+  });
+}
+function delPrize(id){
+  const p=ST.prizes.find(x=>x.id===id); if(!p) return;
+  if(!confirm("删除「"+p.name+"」？")) return;
+  ST.prizes=ST.prizes.filter(x=>x.id!==id);
+  save(); closeSheet(); render(); toast("已删除");
+}
+
+function exportRawBackup(){
+  const raw=localStorage.getItem(KEY);
+  if(!raw){ toast("没有原始存档可导出"); return; }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([raw],{type:"application/json"}));
+  a.download="少年主公原始存档_"+TODAY()+".json";
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(ST,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="少年主公备份_"+TODAY()+".json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  ST.lastBackup=TODAY(); save();
+  toast("已导出备份 📤");
+}
+function importData(input){
+  const f=input.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const o=JSON.parse(fr.result);
+      const next=prepareState(o); // 先在独立对象里校验并迁移，失败不动当前存档
+      if(!confirm("导入会覆盖当前全部数据，确定吗？会先保留当前本地快照。")) return;
+      const current=localStorage.getItem(KEY);
+      localStorage.setItem(KEY+"_before_import",current||JSON.stringify(ST));
+      const previous=ST, expected=STORAGE_LAST_RAW;
+      ST=next;
+      if(!save()){ ST=previous; STORAGE_LAST_RAW=expected; return; }
+      refreshTop(); render(); toast("导入成功 ✓");
+    }catch(e){ alert("导入失败：" + e.message); }
+    input.value="";
+  };
+  fr.readAsText(f);
+}
+// 保留旧函数名只为兼容旧页面事件；正式版绝不能修改记录或退还消费次数。
+function seedDemo(){ toast("正式使用已停用示例数据，真实记录不会被覆盖"); }
+function grantTickets(){ toast("正式使用已停用调试补令，已用招贤令不会退还"); }
+function resetAll(){
+  if(!confirm("清空全部数据并恢复出厂设置？此操作不可撤销！")) return;
+  if(!confirm("再确认一次：所有点卯记录、武将图鉴、锦囊、军报都会被删除。")) return;
+  localStorage.removeItem(KEY);
+  STORAGE_LAST_RAW=null;
+  ST=defaultState(); save(); refreshTop(); render(); toast("已恢复出厂设置");
+}
+
+/* =====================================================================
+   弹窗 & 渲染
+   ===================================================================== */
+function openSheet(html, after){
+  closeSheet();
+  const mask=document.createElement("div");
+  mask.className="mask";
+  mask.innerHTML='<div class="sheet">'+html+'</div>';
+  mask.addEventListener("click",e=>{ if(e.target===mask) closeSheet(); });
+  document.body.appendChild(mask);
+  document.body.style.overflow="hidden";
+  if(after) after($(".sheet",mask));
+}
+function closeSheet(){
+  const m=$(".mask"); if(m) m.remove();
+  document.body.style.overflow="";
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+
+/* ---- 点卯飘字：让反馈有实体感 ---- */
+function floatUp(text, x, y, gold){
+  try{
+    const el=document.createElement("div");
+    el.className="float-up"+(gold?" gold":"");
+    el.textContent=text;
+    el.style.left=(x||window.innerWidth/2)+"px";
+    el.style.top=(y||window.innerHeight*0.4)+"px";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1250);
+  }catch(e){}
+}
+// 从被点击的卡片位置飘出来
+function floatFromEl(el,text,gold){
+  if(!el) return floatUp(text,null,null,gold);
+  const r=el.getBoundingClientRect();
+  floatUp(text, r.left+r.width/2, r.top+Math.min(40,r.height/2), gold);
+}
+
+/* ---- 毕业：庆祝 + 恢复 ---- */
+function openGraduation(){
+  const list=checkGraduation();
+  if(!list.length) return false;
+  for(const t of list) graduateTask(t);
+  save();
+  const names=list.map(t=>t.name);
+  let html='<div class="ceremony-hero"><span class="ce">🎓</span>'
+    + '<div class="cn">军令毕业</div></div>'
+    + '<div class="sh-sub" style="text-align:center;margin-top:10px;">'
+    + '连续 '+GRADUATE_WEEKS+' 个完整周，这 '+list.length+' 项军令一次都没落下。<br>'
+    + '它们已经是习惯了，从今天起移出每日清单。</div>';
+  html+='<div class="ritual-list">';
+  for(const t of list){
+    const S=SUBJECTS[t.subject]||SUBJECTS.other;
+    html+='<div class="ritual-row"><span class="re">'+(t.emoji||S.icon)+'</span>'
+      + '<span class="rn">'+esc(t.name)+'</span>'
+      + '<span class="rp">'+S.place+' · 已养成</span></div>';
+  }
+  html+='</div>';
+  html+='<div class="quote" style="margin-top:12px;text-align:center;">'
+    + '推着走的终点，是自己走。<br>这 '+list.length+' 项，你已经不用人推了。</div>';
+  html+='<button class="btn jade" style="width:100%;margin-top:14px;" onclick="closeSheet();render();">收下</button>';
+  openSheet(html);
+  confetti(150);
+  return true;
+}
+function ungraduateConfirm(taskId){
+  const g=ST.graduated[taskId]; if(!g) return;
+  if(!confirm("把「"+g.name+"」放回每日军令清单？")) return;
+  ungraduate(taskId);
+  save(); closeSheet(); refreshTop(); render();
+  toast("已放回每日清单");
+}
+
+/* ---- 每日首次打开的仪式卡 ---- */
+function openRitual(){
+  const t=TODAY();
+  if(ST.lastOpen===t) return false;
+  ST.lastOpen=t; save();
+  const hint=nextStepHint();
+  const list=tasksForDate(t);
+  const cs=currentStreak();
+  let html='<div class="ceremony-hero"><span class="ce">'+hint.icon+'</span>'
+    + '<div class="cn">今日军令已下达</div></div>'
+    + '<div class="sh-sub" style="text-align:center;margin-top:8px;">'+fmtMD(t)+' · '+WD[parseD(t).getDay()]
+    + ' · 共 <b>'+list.length+'</b> 项</div>';
+  if(cs>=1){
+    html+='<div class="nextbar '+(cs>=3?"hot":"calm")+'" style="margin:12px 0 0;">'
+      + '<span class="ni">🔥</span><span class="nt">'
+      + '<span class="n1">已连战 '+cs+' 天'+(cs>=3?" · "+streakName(cs):"")+'</span>'
+      + '<span class="n2">'+(cs>=3 ? ("今日军功 ×"+streakMult(cs)+"，别断了") : ("再连 "+(3-cs)+" 天起享军功加成"))+'</span>'
+      + '</span></div>';
+  }
+  html+='<div class="ritual-list">';
+  if(!list.length){
+    html+='<div class="empty" style="padding:16px;"><span class="ee">🍵</span>今日无军令</div>';
+  }else{
+    for(const x of list){
+      const S=SUBJECTS[x.subject]||SUBJECTS.other;
+      html+='<div class="ritual-row"><span class="re">'+(x.emoji||S.icon)+'</span>'
+        + '<span class="rn">'+esc(x.name)+'</span>'
+        + '<span class="rp">'+S.place+' · '+(x.planMin||0)+'′</span></div>';
+    }
+  }
+  html+='</div>';
+  html+='<div style="font-size:12.5px;font-weight:700;color:var(--zhu);text-align:center;margin:6px 0 2px;">'+esc(hint.text)+'</div>';
+  html+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;text-align:center;line-height:1.6;">'+esc(hint.sub)+'</div>';
+  html+='<button class="btn" style="width:100%;margin-top:15px;" onclick="closeRitual()">开始点卯</button>';
+  openSheet(html);
+  return true;
+}
+function closeRitual(){ closeSheet(); render(); }
+
+function setTab(){
+  $$("#tabs button").forEach(b=>b.classList.toggle("active", b.dataset.view===VIEW));
+}
+function render(){
+  const m=$("#main");
+  let html="";
+  if(VIEW==="today")         html=viewToday();
+  else if(VIEW==="week")     html=viewWeek();
+  else if(VIEW==="heroes")   html=viewHeroes();
+  else if(VIEW==="stats")    html=viewStats();
+  else if(VIEW==="report")   html=viewReport();
+  else if(VIEW==="settings") html=viewSettings();
+  m.innerHTML=html;
+  setTab();
+  refreshTop();
+  window.scrollTo({top:0,behavior:"instant"});
+}
+
+/* =====================================================================
+   启动
+   ===================================================================== */
+(function init(){
+  ST=load();
+  if(!ST && LOAD_ERROR){
+    // 旧存档异常时不能默默恢复出厂并覆盖；留下载原文件的恢复出口。
+    $("#main").innerHTML='<div class="card"><h3>存档需要核查，已暂停写入</h3><p>'+esc(LOAD_ERROR)+'</p><p>原数据没有清空。请导出原始存档后再处理。</p><button class="btn" onclick="exportRawBackup()">导出原始存档</button></div>';
+    return;
+  }
+  if(!ST){ ST=defaultState(); save(); }
+  applySkin();
+  // 存不住的话，先把话说清楚
+  checkStorage();
+  // 图鉴升级的补偿提示，看过一次就不再提
+  if(ST.heroMigrateNote){ toast(ST.heroMigrateNote, 6000); delete ST.heroMigrateNote; save(); }
+  // 能申请就申请持久化存储，别让浏览器在磁盘紧张时把孩子的记录回收掉
+  requestPersistentStorage().then(function(){
+    if(VIEW==="settings") render();      // 设置页正开着的话，把结果刷出来
+  });
+  // 先把历史上还没结算的日子冻住，之后改任务都不会再改写它们
+  const settled=settleLedger();
+  if(calcAchievements()||settled) save();
+  VIEW_DATE=TODAY();
+  $("#tabs").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-view]"); if(!b) return;
+    VIEW=b.dataset.view;
+    if(VIEW==="week"||VIEW==="report"||VIEW==="stats") VIEW_DATE=TODAY();
+    render();
+  });
+  $("#btnDraw").addEventListener("click",openDraw);
+  render();
+  window.render=render; window.setTab=setTab; window.gotoDate=gotoDate;
+  window.openCheck=openCheck; window.clearRec=clearRec;
+  window.attackBoss=attackBoss; window.shiftWeek=shiftWeek; window.goReport=goReport;
+  window.openDraw=openDraw; window.showHero=showHero;
+  window.redeem=redeem; window.openSwap=openSwap; window.saveReport=saveReport;
+  window.saveBasic=saveBasic;
+  window.openTaskEdit=openTaskEdit; window.delTask=delTask;
+  window.openPrizeEdit=openPrizeEdit; window.delPrize=delPrize;
+  window.exportData=exportData; window.importData=importData;
+  window.seedDemo=seedDemo; window.resetAll=resetAll;
+  window.closeSheet=closeSheet; window.ungraduateConfirm=ungraduateConfirm;
+  window.closeRitual=closeRitual; window.grantTickets=grantTickets;
+  window.openRitual=openRitual; window.openGraduation=openGraduation;
+  window.requestPersistentStorage=requestPersistentStorage;
+  window.openExtraDay=openExtraDay; window.openKidAdd=openKidAdd;
+  window.markTooHard=markTooHard; window.markWish=markWish;
+  window.openCouponSettle=openCouponSettle; window.settleCoupon=settleCoupon;
+  window.openBreakEdit=openBreakEdit; window.delBreak=delBreak;
+  window.applyHint=applyHint;
+  // 离线：只有通过 http(s) 打开时才注册（file:// 不支持 service worker，静默跳过）
+  try{
+    if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    }
+  }catch(e){}
+  // 每日首次打开：先看有没有任务毕业，再给一张今日仪式卡
+  // 存不住的时候不弹，让告警条先被看见
+  setTimeout(()=>{
+    if(!storageAvailable()) return;
+    if(!openGraduation()) openRitual();
+  }, 260);
+})();
+</script>
+</body>
+</html>

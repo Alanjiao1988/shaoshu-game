@@ -21,6 +21,8 @@ try {
     .filter(n => n.startsWith("_profile_") || n.startsWith("_p_"))
     .forEach(n => { try { fs.rmSync(path.join(__dirname, n), { recursive: true, force: true }); } catch (e) {} });
 } catch (e) {}
+// 清理旧目录后预先创建本轮profile，减少子进程首次创建目录失败的可能。
+fs.mkdirSync(profile,{recursive:true});
 
 // 端口必须真的是空的。否则上一轮残留的 Chrome 可能还占着调试端口，
 // 新 Chrome 绑不上端口，CDP 会连到那个旧浏览器，表现为「找不到页面」。
@@ -86,7 +88,7 @@ class CDP {
 let pass=0, fail=0;
 function t(n,c,x){ if(c){pass++;console.log("  ✅ "+n);} else {fail++;console.log("  ❌ "+n+(x?"  → "+x:""));} }
 
-const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const chrome = process.env.SHAOZHU_TEST_BROWSER || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 let child;
 let chromeErr = "";
 let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅关掉 Chrome
@@ -97,8 +99,12 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     CHROME_PORT = await freePort(9300, 300);
     await new Promise(r => server.listen(PORT, "127.0.0.1", r));
     child = spawn(chrome, [
-      "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+      // 这台机器上 Chrome 155 的 headless 渲染器起不来（无头下 0 个 page target）。
+      // 设 SHAOZHU_TEST_HEADFUL=1 改用可见窗口跑，CDP 逻辑完全一致，跑完 Browser.close 自动关。
+      ...(process.env.SHAOZHU_TEST_HEADFUL==="1"?["--window-size=1200,1500"]:["--headless=new"]),
+      "--disable-gpu", "--no-first-run", "--no-default-browser-check",
       "--disable-extensions", "--mute-audio", "--hide-scrollbars",
+      // 仅允许显式指定测试浏览器，仍使用独立profile与原有隔离参数。
       "--disable-background-mode", "--disable-background-networking", "--disable-sync",
       "--user-data-dir=" + profile, "--remote-debugging-port=" + CHROME_PORT,
       `http://127.0.0.1:${PORT}/index.html?run=${RUN_ID}`
@@ -128,7 +134,8 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     if (!page) {
       console.log("  （启动 URL 未生效，改用 CDP 自己开页面）");
       const bc = await CDP.connect(ver.webSocketDebuggerUrl);
-      await bc.send("Target.createTarget", { url: `http://127.0.0.1:${PORT}/index.html?run=${RUN_ID}` });
+      const created=await bc.send("Target.createTarget", { url: `http://127.0.0.1:${PORT}/index.html?run=${RUN_ID}` });
+      if(created.error) throw new Error("浏览器创建页面失败："+JSON.stringify(created.error));
       await sleep(1500);
       try { bc.ws.close(); } catch (e) {}
       for (let i = 0; i < 30; i++) {
@@ -171,18 +178,29 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     await cdp.eval("try{closeSheet();}catch(e){} ST=defaultState(); ST.createdAt=addD(TODAY(),-30); ST.lastOpen=TODAY(); save(); VIEW='today'; VIEW_DATE=TODAY(); render();");
     await sleep(400);
     t("今日视图渲染出内容", (await cdp.eval(`document.querySelector("#main").innerHTML.length`)) > 800);
-    t("版本号显示为 2.0.1", /少年主公 v2\.0\.1/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
+    t("版本号显示为 2.1.0", /少年主公 v2\.1\.0/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
     for (const v of ["today","week","heroes","stats","report","settings"]) {
       const len = await cdp.eval(`(function(){ VIEW="${v}"; render(); return document.querySelector("#main").innerHTML.length; })()`);
       t("切换到「" + v + "」正常", len > 200, "长度 " + len);
     }
+
+    console.log("\n=== 2.5 星星生产界面回归 ===");
+    t("设置不再暴露调试补令与示例覆盖按钮", await cdp.eval(`(function(){VIEW="settings";render();return !document.querySelector('[onclick="grantTickets(3)"]') && !document.querySelector('[onclick="seedDemo()"]');})()`));
+    t("奖励表单拒绝负数门槛", await cdp.eval(`(function(){var n=ST.prizes.length;openPrizeEdit();document.querySelector("#pName").value="非法奖励";document.querySelector("#pCost").value="-1000";document.querySelector("#pOk").click();var ok=ST.prizes.length===n && !!document.querySelector("#pOk");closeSheet();return ok;})()`));
+    t("奖励表单拒绝无效门槛", await cdp.eval(`(function(){var n=ST.prizes.length;openPrizeEdit();document.querySelector("#pName").value="非法奖励";document.querySelector("#pCost").value="";document.querySelector("#pOk").click();var ok=ST.prizes.length===n;closeSheet();return ok;})()`));
+    t("揭榜按钮连续点击只消费一次，动画前已保存", await cdp.eval(`(function(){ST=defaultState();ST.tasks=[{id:"only",name:"测试任务",type:"daily",subject:"cn"}];setRec(TODAY(),"only",1,"full",10);save();openDraw();var b=document.querySelector("#drawBtn");for(var i=0;i<5;i++) b.click();var stored=JSON.parse(localStorage.getItem(KEY));return ST.draws===1 && stored.draws===1 && (Object.keys(stored.heroes).length+stored.vault.length)===1;})()`));
+    await sleep(1000);
+    t("已用完招贤令不能重复抽", await cdp.eval(`(function(){closeSheet();var before=ST.draws;var r=drawOnce();return r===null && ST.draws===before;})()`));
+    t("锦囊连续开启仅扣一次并保留实付", await cdp.eval(`(function(){ST=defaultState();ST.bonusMerit=100;ST.vault=[{uid:"ui-paid",name:"测试奖励",tier:"common",merit:40,redeemed:false}];save();redeem("ui-paid");redeem("ui-paid");var stored=JSON.parse(localStorage.getItem(KEY));closeSheet();return spentMerit()===40 && ST.coupons.length===1 && stored.vault[0].paidMerit===40;})()`));
+    t("星星明细解释历史来源，不把卡片星级当货币", await cdp.eval(`(function(){openMeritBook();var text=document.querySelector(".sheet").textContent;closeSheet();return text.includes("历史额外奖励 100") && text.includes("不是可花费的军功");})()`));
+    t("真实文件导入拒绝异常金额且不覆盖现存档", await cdp.eval(`new Promise(function(resolve){var before=localStorage.getItem(KEY);var oldAlert=window.alert;window.alert=function(){};var bad=JSON.stringify({tasks:[],bonusMerit:-1000});importData({files:[new File([bad],"bad.json",{type:"application/json"})],value:""});setTimeout(function(){window.alert=oldAlert;resolve(localStorage.getItem(KEY)===before && ST.bonusMerit===100);},150);})`));
 
     console.log("\n=== 3. Service Worker ===");
     const sw = JSON.parse(await cdp.eval(`navigator.serviceWorker.getRegistrations().then(function(rs){
       return JSON.stringify({ n: rs.length, state: rs[0] && rs[0].active ? rs[0].active.state : "none" }); })`));
     t("已注册并激活", sw.n > 0 && sw.state === "activated", JSON.stringify(sw));
     const caches = await cdp.eval(`caches.keys().then(function(k){ return JSON.stringify(k); })`);
-    t("缓存名为 shaozhu-v2.0.1", /shaozhu-v2\.0\.1/.test(caches), caches);
+    t("缓存名为 shaozhu-v2.1.0", /shaozhu-v2\.1\.0/.test(caches), caches);
     const cached = await cdp.eval(`caches.keys().then(function(k){
       return caches.open(k[0]).then(function(c){ return c.keys(); }).then(function(rs){
         return JSON.stringify(rs.map(function(r){ return r.url.split("/").pop() || "root"; })); }); })`);

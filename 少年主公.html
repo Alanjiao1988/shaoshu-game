@@ -308,6 +308,7 @@ h1,h2,h3,h4{margin:0;font-weight:700;}
   color:#C9922B;letter-spacing:0;line-height:1;text-shadow:0 0 3px rgba(255,235,180,.9);}
 .hero-card.locked .tag-stars{display:none;}
 .hero-card.maxed{border-color:#D9A93C;box-shadow:inset 0 0 0 1px #E8CE8E, 0 2px 10px rgba(200,160,60,.22);}
+.hero-card.met{border-style:dashed;background:#FBF8F1;}
 /* 阵营纹章：姓氏大字 + 阵营色。替代原来重复率极高的 emoji */
 .hero-badge{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
   font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:0;line-height:1;margin:1px auto 4px;}
@@ -634,9 +635,9 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.0.1";
+const APP_VERSION = "2.1.0";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
-const SCHEMA = 7;
+const SCHEMA = 8;
 // 最近几天（含今天）的账还没冻结，可以补录点卯。
 // 更早的日子一经结算就只读 —— 否则改任务会一直改写历史。
 const BACKFILL_DAYS = 3;
@@ -702,166 +703,166 @@ const TIERS = {
    改完 heroes.json 后跑：node .workbuddy/tools/buildheroes.js */
 /* BUILD:HERO_DATA:START */
 const HERO_DATA = [
-  ["吕布","汉","SS","⚔️","虎牢关前独战诸侯 · 人中吕布","吕"],
-  ["文丑","汉","S","🪓","河北名将，延津渡口被诛","文"],
-  ["颜良","汉","S","🗡️","河北名将，白马坡前授首","颜"],
-  ["高顺","汉","A","🛡️","陷阵营统领，每战必克","高"],
-  ["公孙瓒","汉","A","🐎","白马义从，威震塞外","公孙"],
-  ["华雄","汉","A","💪","汜水关前连斩数将","华"],
-  ["麴义","汉","A","🏹","界桥一战，破白马义从","麴"],
-  ["蹋顿","汉","A","🐺","乌桓单于，白狼山被斩","蹋"],
-  ["袁谭","汉","A","🎖️","袁绍长子，与弟相争","袁"],
-  ["纪灵","汉","A+","🔱","袁术上将，与关羽战三十合","纪"],
-  ["王允","汉","B+","🎭","司徒，连环计除董卓","王"],
-  ["龚都","汉","B+","🏴","黄巾余部，归顺刘备","龚"],
-  ["刘辟","汉","B+","🌾","黄巾余部，助刘备守汝南","刘"],
-  ["袁尚","汉","B+","👘","袁绍三子，兄弟阋墙","袁"],
-  ["皇甫嵩","汉","B+","📕","平黄巾的三名将之一","皇甫"],
-  ["吕旷","汉","B+","🔨","袁尚部将，后降曹操","吕"],
-  ["吕翔","汉","B+","🔧","袁尚部将，后降曹操","吕"],
-  ["董卓","汉","B","🐗","挟天子迁都长安","董"],
-  ["袁绍","汉","B","🏰","四世三公，官渡败北","袁"],
-  ["刘表","汉","B-","🍵","荆州牧，坐谈之客","刘"],
-  ["陶谦","汉","B-","🏺","徐州牧，三让徐州","陶"],
-  ["卢植","汉","B-","📖","海内大儒，刘备之师","卢"],
-  ["蔡瑁","汉","B","⛵","荆州水军都督","蔡"],
-  ["张角","汉","B","🌀","黄巾起义，天公将军","张"],
-  ["张宝","汉","B","🌪️","黄巾渠帅，地公将军","张"],
-  ["张梁","汉","B","🌊","黄巾渠帅，人公将军","张"],
-  ["张绣","汉","B","🏹","宛城反曹，杀典韦曹昂","张"],
-  ["貂蝉","汉","B-","🌸","王允歌伎，连环计的主角","貂"],
-  ["陈宫","汉","B","🎋","捉放曹，后佐吕布，白门楼就刑","陈"],
-  ["马腾","汉","B","🐴","西凉太守，衣带诏同谋","马"],
-  ["韩遂","汉","B","🏔️","西凉军阀，与马超结义","韩"],
-  ["张鲁","汉","B-","⛩️","五斗米道，割据汉中","张"],
-  ["刘璋","汉","B-","🕊️","益州牧，引狼入室","刘"],
-  ["刘焉","汉","B-","📜","益州牧，刘璋之父","刘"],
-  ["袁术","汉","B-","💎","得玉玺僭号称帝","袁"],
-  ["李傕","汉","B","🐍","董卓部将，与郭汜乱长安","李"],
-  ["郭汜","汉","B","🦂","董卓部将，与李傕乱长安","郭"],
-  ["丁原","汉","B","🐎","并州刺史，吕布义父","丁"],
-  ["沮授","汉","B-","🧭","献策早图曹操，袁绍不从","沮"],
-  ["田丰","汉","B-","📐","力劝袁绍袭许都，下狱","田"],
-  ["审配","汉","B-","🔒","袁绍谋士，死守邺城","审"],
-  ["荀正","汉","B","🔪","袁术部将，被关羽所斩","荀"],
-  ["武安国","汉","B","🔨","孔融部将，虎牢关战吕布","武"],
-  ["徐荣","汉","B","🪝","董卓部将，曾败曹操孙坚","徐"],
-  ["朱儁","汉","B","📗","平黄巾的三名将之一","朱"],
-  ["邹靖","汉","B","🧵","幽州校尉，引刘备见刘焉","邹"],
-  ["蔡夫人","汉","B-","🪞","刘表继室，蔡瑁之姊","蔡"],
-  ["穆顺","汉","B-","📨","汉献帝的宦官 · 藏密信于发髻送伏完","穆"],
-  ["潘凤","汉","B-","🪓","上将潘凤，出战华雄","潘"],
-  ["张闿","汉","B-","🗡️","黄巾余党，杀曹嵩全家","张"],
-  ["侯成","汉","B","🐎","吕布部将，盗赤兔降曹","侯"],
-  ["魏续","汉","B-","🪢","吕布部将，白门楼缚吕布","魏"],
-  ["宋宪","汉","B-","🪢","吕布部将，白门楼缚吕布","宋"],
-  ["孙乾","汉","B-","🗣️","刘备幕僚，往来游说","孙"],
-  ["曹性","汉","B","🎯","吕布部将，射伤夏侯惇一目","曹"],
-  ["李肃","汉","B-","🐴","说吕布杀丁原","李"],
-  ["郭图","汉","B-","🖋️","袁绍谋士，谮沮授","郭"],
-  ["逢纪","汉","B-","🖊️","袁绍谋士，献计取冀州","逢"],
-  ["韩馥","汉","B-","🏚️","冀州牧，让州于袁绍","韩"],
-  ["刘岱","汉","B","🏕️","兖州刺史","刘"],
-  ["许贡","汉","B-","🕯️","吴郡太守，门客刺孙策","许"],
-  ["许攸","汉","B-","🔥","袁绍谋士，投曹献乌巢之计","许"],
-  ["蒯良","汉","B-","📘","刘表谋士，荆州名士","蒯"],
-  ["董承","汉","B-","📃","衣带诏主谋","董"],
-  ["刘琮","汉","B-","🪑","刘表次子，举州降曹","刘"],
-  ["公孙越","汉","B-","🐎","公孙瓒之弟，死于流矢","公孙"],
-  ["韩猛","汉","B","🐴","袁绍部将，押运粮草","韩"],
-  ["淳于琼","汉","B","🍶","守乌巢，饮酒误事","淳于"],
-  ["鲍信","汉","B","🤝","迎曹操领兖州，战死","鲍"],
-  ["胡车儿","汉","B","🌙","张绣部将，盗典韦双戟","胡"],
-  ["胡轸","汉","B","🛖","董卓部将，汜水关都督","胡"],
-  ["程远志","汉","B","🟡","黄巾渠帅，首战被关羽所斩","程"],
-  ["邓茂","汉","B","🟡","黄巾副将，被张飞刺死","邓"],
-  ["高干","汉","B","🏯","袁绍外甥，并州刺史","高"],
-  ["袁熙","汉","B","👘","袁绍次子，出奔辽东","袁"],
-  ["于糜","汉","B-","🪤","刘繇部将，被孙策活捉挟死","于"],
-  ["樊能","汉","B-","😱","刘繇部将，被孙策一声喝落马下","樊"],
-  ["严纲","汉","B","🏳️","公孙瓒部将，界桥战死","严"],
-  ["裴元绍","汉","B","🟡","黄巾余部，欲夺赵云之马","裴"],
-  ["方悦","汉","B-","🪶","河内名将，五合被吕布刺死","方"],
-  ["俞涉","汉","B-","🪶","袁术部将，三合被华雄斩","俞"],
-  ["卞喜","汉","B","🏮","汜水关镇国寺设伏，被关羽所杀","卞"],
-  ["司马徽","汉","B-","🎐","水镜先生，荐卧龙凤雏","司马"],
-  ["华佗","汉","B-","⚕️","神医，为关羽刮骨疗毒","华"],
-  ["关羽","蜀","S","🗡️","美髯公 · 千里走单骑","关"],
-  ["张飞","蜀","S","🪓","当阳桥断喝，万军辟易","张"],
-  ["马超","蜀","S","🐎","锦马超 · 西凉铁骑","马"],
-  ["赵云","蜀","S+","🐉","长坂坡单骑救主","赵"],
-  ["关平","蜀","A+","🗡️","关羽义子，随父征战","关"],
-  ["刘封","蜀","A+","🛡️","刘备义子，勇力过人","刘"],
-  ["周仓","蜀","A","🪣","关羽身旁的扛刀人","周"],
-  ["刘备","蜀","A","👑","织席贩履，终成帝业","刘"],
-  ["诸葛亮","蜀","B-","🪶","卧龙 · 隆中对三分天下","诸葛"],
-  ["徐庶","蜀","B-","🎋","元直走马荐诸葛","徐"],
-  ["简雍","蜀","B-","🎤","刘备同乡，善滑稽","简"],
-  ["廖化","蜀","B+","🧭","蜀中无大将，廖化作先锋","廖"],
-  ["糜芳","蜀","B","📦","南郡太守，后降东吴","糜"],
-  ["糜竺","蜀","B-","💰","资助刘备起家","糜"],
-  ["糜夫人","蜀","B-","🌸","长坂坡投井托孤","糜"],
-  ["甘夫人","蜀","B-","🌷","刘备夫人，阿斗生母","甘"],
-  ["刘禅","蜀","B-","🛋️","后主 · 乐不思蜀","刘"],
-  ["诸葛均","蜀","B-","🏡","诸葛亮之弟，躬耕南阳","诸葛"],
-  ["曹操","魏","A","👑","治世能臣，乱世奸雄","曹"],
-  ["典韦","魏","S","🪓","古之恶来 · 濮阳救主","典"],
-  ["许褚","魏","S","🐯","虎痴 · 裸衣斗马超","许"],
-  ["夏侯惇","魏","S","👁️","拔矢啖睛 —— 父精母血，不可弃也","夏侯"],
-  ["夏侯渊","魏","S","🏹","虎步关右，定军山阵亡","夏侯"],
-  ["张辽","魏","S","🛡️","威震逍遥津","张"],
-  ["张郃","魏","S","🐎","街亭断水，破马谡","张"],
-  ["徐晃","魏","S","🪓","长驱直入，解樊城之围","徐"],
-  ["曹仁","魏","A","🏰","天人将军，死守樊城","曹"],
-  ["曹洪","魏","A","🐴","舍命献马，救主荥阳","曹"],
-  ["乐进","魏","A","🎯","先登陷阵，五子良将","乐"],
-  ["于禁","魏","A","⚖️","治军严整，五子良将","于"],
-  ["李典","魏","A","📘","儒将之风，共守合肥","李"],
-  ["臧霸","魏","A","⛰️","泰山群雄，镇守青徐","臧"],
-  ["高览","魏","A+","🪓","河北四庭柱之一","高"],
-  ["韩浩","魏","B+","🌾","曹操部将，倡办屯田","韩"],
-  ["朱灵","魏","B+","🚩","曹操部将，屡从征伐","朱"],
-  ["程昱","魏","B-","🧮","曹操谋士，多有筹策","程"],
-  ["郭嘉","魏","B-","🍷","鬼才 · 遗计定辽东","郭"],
-  ["贾诩","魏","B-","♟️","毒士 · 算无遗策","贾"],
-  ["司马懿","魏","B-","🐺","鹰视狼顾 · 隐忍半生","司马"],
-  ["刘晔","魏","B-","🔭","汉室宗亲，曹操谋士","刘"],
-  ["荀彧","魏","B-","🕯️","王佐之才 —— 吾之子房","荀"],
-  ["荀攸","魏","B-","🎓","曹操的谋主，算无遗策","荀"],
-  ["曹安民","魏","B-","🕯️","曹操之侄，死于宛城","曹"],
-  ["曹昂","魏","B-","🕯️","曹操长子，宛城死难","曹"],
-  ["车胄","魏","B","🏯","徐州刺史，被关羽所斩","车"],
-  ["路招","魏","B","🛠️","曹操部将","路"],
-  ["史涣","魏","B","🔥","曹操部将，与徐晃烧敌粮","史"],
-  ["王忠","魏","B","🪖","曹操部将，被关羽所擒","王"],
-  ["夏侯兰","魏","B","⚖️","赵云同乡，被擒后任军正","夏侯"],
-  ["孙策","吴","S","🦁","小霸王 · 江东基业","孙"],
-  ["太史慈","吴","S","🎯","箭无虚发，信义笃烈","太史"],
-  ["甘宁","吴","S","🔔","锦帆贼 · 百骑劫营","甘"],
-  ["孙权","吴","A","👑","碧眼儿 · 坐领江东","孙"],
-  ["孙坚","吴","A","🐎","讨董先锋，江东基业的开端","孙"],
-  ["程普","吴","A","🍷","江东元老，历仕三朝","程"],
-  ["黄盖","吴","A","🔥","苦肉计 · 赤壁纵火","黄"],
-  ["韩当","吴","A","🐴","历仕三朝的老将","韩"],
-  ["蒋钦","吴","A","🏮","江表之虎臣","蒋"],
-  ["陈武","吴","A","🛡️","江东虎臣，合肥死战","陈"],
-  ["丁奉","吴","A","❄️","雪中奋短兵","丁"],
-  ["徐盛","吴","A","🏹","疑城退敌，以少胜多","徐"],
-  ["潘璋","吴","A","🪢","麦城擒关羽父子","潘"],
-  ["凌统","吴","A+","🦅","江东虎臣，与甘宁释怨","凌"],
-  ["周泰","吴","A+","🩹","身被数创，护主江东","周"],
-  ["董袭","吴","B+","🌊","江东虎臣，濡须战死","董"],
-  ["凌操","吴","B+","⛵","凌统之父，征黄祖战死","凌"],
-  ["祖茂","吴","B+","🪖","换盔救主，孙坚的护卫","祖"],
-  ["顾雍","吴","B+","🕊️","东吴丞相，沉默寡言","顾"],
-  ["吕蒙","吴","B+","⚓","白衣渡江，擒关羽","吕"],
-  ["周瑜","吴","B","🔥","赤壁火起，雄姿英发","周"],
-  ["陆逊","吴","B","🌿","书生拜将 · 火烧连营","陆"],
-  ["张昭","吴","B-","📚","内事不决问张昭","张"],
-  ["张纮","吴","B-","📔","江东二张之一","张"],
-  ["诸葛瑾","吴","B-","🤝","诸葛亮之兄，东吴重臣","诸葛"],
-  ["阚泽","吴","B-","✉️","密献诈降书","阚"],
-  ["大乔","吴","B-","🌸","孙策夫人","大"]
+  ["吕布","汉","SS","⚔️","虎牢关前独战诸侯 · 人中吕布","吕","奉先",3],
+  ["文丑","汉","S","🪓","河北名将，延津渡口被诛","文","",26],
+  ["颜良","汉","S","🗡️","河北名将，白马坡前授首","颜","",25],
+  ["高顺","汉","A","🛡️","陷阵营统领，每战必克","高","",19],
+  ["公孙瓒","汉","A","🐎","白马义从，威震塞外","公孙","伯珪",7],
+  ["华雄","汉","A","💪","汜水关前连斩数将","华","",5],
+  ["麴义","汉","A","🏹","界桥一战，破白马义从","麴","",0],
+  ["蹋顿","汉","A","🐺","乌桓单于，白狼山被斩","蹋","",33],
+  ["袁谭","汉","A","🎖️","袁绍长子，与弟相争","袁","显思",0],
+  ["纪灵","汉","A+","🔱","袁术上将，与关羽战三十合","纪","",16],
+  ["王允","汉","B+","🎭","司徒，连环计除董卓","王","子师",8],
+  ["龚都","汉","B+","🏴","黄巾余部，归顺刘备","龚","",0],
+  ["刘辟","汉","B+","🌾","黄巾余部，助刘备守汝南","刘","",0],
+  ["袁尚","汉","B+","👘","袁绍三子，兄弟阋墙","袁","显甫",0],
+  ["皇甫嵩","汉","B+","📕","平黄巾的三名将之一","皇甫","义真",0],
+  ["吕旷","汉","B+","🔨","袁尚部将，后降曹操","吕","",0],
+  ["吕翔","汉","B+","🔧","袁尚部将，后降曹操","吕","",0],
+  ["董卓","汉","B","🐗","挟天子迁都长安","董","仲颖",8],
+  ["袁绍","汉","B","🏰","四世三公，官渡败北","袁","本初",30],
+  ["刘表","汉","B-","🍵","荆州牧，坐谈之客","刘","景升",0],
+  ["陶谦","汉","B-","🏺","徐州牧，三让徐州","陶","恭祖",0],
+  ["卢植","汉","B-","📖","海内大儒，刘备之师","卢","子干",0],
+  ["蔡瑁","汉","B","⛵","荆州水军都督","蔡","德珪",34],
+  ["张角","汉","B","🌀","黄巾起义，天公将军","张","",1],
+  ["张宝","汉","B","🌪️","黄巾渠帅，地公将军","张","",0],
+  ["张梁","汉","B","🌊","黄巾渠帅，人公将军","张","",0],
+  ["张绣","汉","B","🏹","宛城反曹，杀典韦曹昂","张","",16],
+  ["貂蝉","汉","B-","🌸","王允歌伎，连环计的主角","貂","",8],
+  ["陈宫","汉","B","🎋","捉放曹，后佐吕布，白门楼就刑","陈","公台",19],
+  ["马腾","汉","B","🐴","西凉太守，衣带诏同谋","马","寿成",10],
+  ["韩遂","汉","B","🏔️","西凉军阀，与马超结义","韩","文约",59],
+  ["张鲁","汉","B-","⛩️","五斗米道，割据汉中","张","公祺",0],
+  ["刘璋","汉","B-","🕊️","益州牧，引狼入室","刘","季玉",0],
+  ["刘焉","汉","B-","📜","益州牧，刘璋之父","刘","君郎",0],
+  ["袁术","汉","B-","💎","得玉玺僭号称帝","袁","公路",0],
+  ["李傕","汉","B","🐍","董卓部将，与郭汜乱长安","李","",0],
+  ["郭汜","汉","B","🦂","董卓部将，与李傕乱长安","郭","",0],
+  ["丁原","汉","B","🐎","并州刺史，吕布义父","丁","建阳",0],
+  ["沮授","汉","B-","🧭","献策早图曹操，袁绍不从","沮","",0],
+  ["田丰","汉","B-","📐","力劝袁绍袭许都，下狱","田","元皓",0],
+  ["审配","汉","B-","🔒","袁绍谋士，死守邺城","审","正南",0],
+  ["荀正","汉","B","🔪","袁术部将，被关羽所斩","荀","",0],
+  ["武安国","汉","B","🔨","孔融部将，虎牢关战吕布","武","",0],
+  ["徐荣","汉","B","🪝","董卓部将，曾败曹操孙坚","徐","",0],
+  ["朱儁","汉","B","📗","平黄巾的三名将之一","朱","公伟",0],
+  ["邹靖","汉","B","🧵","幽州校尉，引刘备见刘焉","邹","",0],
+  ["蔡夫人","汉","B-","🪞","刘表继室，蔡瑁之姊","蔡","",0],
+  ["穆顺","汉","B-","📨","汉献帝的宦官 · 藏密信于发髻送伏完","穆","",66],
+  ["潘凤","汉","B-","🪓","上将潘凤，出战华雄","潘","",0],
+  ["张闿","汉","B-","🗡️","黄巾余党，杀曹嵩全家","张","",0],
+  ["侯成","汉","B","🐎","吕布部将，盗赤兔降曹","侯","",0],
+  ["魏续","汉","B-","🪢","吕布部将，白门楼缚吕布","魏","",0],
+  ["宋宪","汉","B-","🪢","吕布部将，白门楼缚吕布","宋","",0],
+  ["孙乾","汉","B-","🗣️","刘备幕僚，往来游说","孙","公祐",0],
+  ["曹性","汉","B","🎯","吕布部将，射伤夏侯惇一目","曹","",0],
+  ["李肃","汉","B-","🐴","说吕布杀丁原","李","",0],
+  ["郭图","汉","B-","🖋️","袁绍谋士，谮沮授","郭","公则",0],
+  ["逢纪","汉","B-","🖊️","袁绍谋士，献计取冀州","逢","元图",0],
+  ["韩馥","汉","B-","🏚️","冀州牧，让州于袁绍","韩","文节",0],
+  ["刘岱","汉","B","🏕️","兖州刺史","刘","",0],
+  ["许贡","汉","B-","🕯️","吴郡太守，门客刺孙策","许","",0],
+  ["许攸","汉","B-","🔥","袁绍谋士，投曹献乌巢之计","许","子远",30],
+  ["蒯良","汉","B-","📘","刘表谋士，荆州名士","蒯","子柔",0],
+  ["董承","汉","B-","📃","衣带诏主谋","董","",20],
+  ["刘琮","汉","B-","🪑","刘表次子，举州降曹","刘","",0],
+  ["公孙越","汉","B-","🐎","公孙瓒之弟，死于流矢","公孙","",0],
+  ["韩猛","汉","B","🐴","袁绍部将，押运粮草","韩","",0],
+  ["淳于琼","汉","B","🍶","守乌巢，饮酒误事","淳于","仲简",0],
+  ["鲍信","汉","B","🤝","迎曹操领兖州，战死","鲍","",0],
+  ["胡车儿","汉","B","🌙","张绣部将，盗典韦双戟","胡","",0],
+  ["胡轸","汉","B","🛖","董卓部将，汜水关都督","胡","",0],
+  ["程远志","汉","B","🟡","黄巾渠帅，首战被关羽所斩","程","",0],
+  ["邓茂","汉","B","🟡","黄巾副将，被张飞刺死","邓","",0],
+  ["高干","汉","B","🏯","袁绍外甥，并州刺史","高","元才",0],
+  ["袁熙","汉","B","👘","袁绍次子，出奔辽东","袁","显奕",0],
+  ["于糜","汉","B-","🪤","刘繇部将，被孙策活捉挟死","于","",0],
+  ["樊能","汉","B-","😱","刘繇部将，被孙策一声喝落马下","樊","",0],
+  ["严纲","汉","B","🏳️","公孙瓒部将，界桥战死","严","",0],
+  ["裴元绍","汉","B","🟡","黄巾余部，欲夺赵云之马","裴","",0],
+  ["方悦","汉","B-","🪶","河内名将，五合被吕布刺死","方","",0],
+  ["俞涉","汉","B-","🪶","袁术部将，三合被华雄斩","俞","",0],
+  ["卞喜","汉","B","🏮","汜水关镇国寺设伏，被关羽所杀","卞","",0],
+  ["司马徽","汉","B-","🎐","水镜先生，荐卧龙凤雏","司马","德操",35],
+  ["华佗","汉","B-","⚕️","神医，为关羽刮骨疗毒","华","元化",78],
+  ["关羽","蜀","S","🗡️","美髯公 · 千里走单骑","关","云长",27],
+  ["张飞","蜀","S","🪓","当阳桥断喝，万军辟易","张","翼德",42],
+  ["马超","蜀","S","🐎","锦马超 · 西凉铁骑","马","孟起",58],
+  ["赵云","蜀","S+","🐉","长坂坡单骑救主","赵","子龙",41],
+  ["关平","蜀","A+","🗡️","关羽义子，随父征战","关","",0],
+  ["刘封","蜀","A+","🛡️","刘备义子，勇力过人","刘","",0],
+  ["周仓","蜀","A","🪣","关羽身旁的扛刀人","周","",0],
+  ["刘备","蜀","A","👑","织席贩履，终成帝业","刘","玄德",1],
+  ["诸葛亮","蜀","B-","🪶","卧龙 · 隆中对三分天下","诸葛","孔明",38],
+  ["徐庶","蜀","B-","🎋","元直走马荐诸葛","徐","元直",36],
+  ["简雍","蜀","B-","🎤","刘备同乡，善滑稽","简","宪和",0],
+  ["廖化","蜀","B+","🧭","蜀中无大将，廖化作先锋","廖","元俭",0],
+  ["糜芳","蜀","B","📦","南郡太守，后降东吴","糜","子方",0],
+  ["糜竺","蜀","B-","💰","资助刘备起家","糜","子仲",0],
+  ["糜夫人","蜀","B-","🌸","长坂坡投井托孤","糜","",0],
+  ["甘夫人","蜀","B-","🌷","刘备夫人，阿斗生母","甘","",0],
+  ["刘禅","蜀","B-","🛋️","后主 · 乐不思蜀","刘","公嗣",85],
+  ["诸葛均","蜀","B-","🏡","诸葛亮之弟，躬耕南阳","诸葛","",0],
+  ["曹操","魏","A","👑","治世能臣，乱世奸雄","曹","孟德",50],
+  ["典韦","魏","S","🪓","古之恶来 · 濮阳救主","典","",16],
+  ["许褚","魏","S","🐯","虎痴 · 裸衣斗马超","许","仲康",59],
+  ["夏侯惇","魏","S","👁️","拔矢啖睛 —— 父精母血，不可弃也","夏侯","元让",18],
+  ["夏侯渊","魏","S","🏹","虎步关右，定军山阵亡","夏侯","妙才",0],
+  ["张辽","魏","S","🛡️","威震逍遥津","张","文远",67],
+  ["张郃","魏","S","🐎","街亭断水，破马谡","张","儁乂",95],
+  ["徐晃","魏","S","🪓","长驱直入，解樊城之围","徐","公明",76],
+  ["曹仁","魏","A","🏰","天人将军，死守樊城","曹","子孝",51],
+  ["曹洪","魏","A","🐴","舍命献马，救主荥阳","曹","子廉",0],
+  ["乐进","魏","A","🎯","先登陷阵，五子良将","乐","文谦",0],
+  ["于禁","魏","A","⚖️","治军严整，五子良将","于","文则",74],
+  ["李典","魏","A","📘","儒将之风，共守合肥","李","曼成",0],
+  ["臧霸","魏","A","⛰️","泰山群雄，镇守青徐","臧","宣高",0],
+  ["高览","魏","A+","🪓","河北四庭柱之一","高","",0],
+  ["韩浩","魏","B+","🌾","曹操部将，倡办屯田","韩","元嗣",0],
+  ["朱灵","魏","B+","🚩","曹操部将，屡从征伐","朱","文博",0],
+  ["程昱","魏","B-","🧮","曹操谋士，多有筹策","程","仲德",0],
+  ["郭嘉","魏","B-","🍷","鬼才 · 遗计定辽东","郭","奉孝",33],
+  ["贾诩","魏","B-","♟️","毒士 · 算无遗策","贾","文和",0],
+  ["司马懿","魏","B-","🐺","鹰视狼顾 · 隐忍半生","司马","仲达",95],
+  ["刘晔","魏","B-","🔭","汉室宗亲，曹操谋士","刘","子阳",0],
+  ["荀彧","魏","B-","🕯️","王佐之才 —— 吾之子房","荀","文若",0],
+  ["荀攸","魏","B-","🎓","曹操的谋主，算无遗策","荀","公达",0],
+  ["曹安民","魏","B-","🕯️","曹操之侄，死于宛城","曹","",0],
+  ["曹昂","魏","B-","🕯️","曹操长子，宛城死难","曹","子脩",0],
+  ["车胄","魏","B","🏯","徐州刺史，被关羽所斩","车","",0],
+  ["路招","魏","B","🛠️","曹操部将","路","",0],
+  ["史涣","魏","B","🔥","曹操部将，与徐晃烧敌粮","史","公刘",0],
+  ["王忠","魏","B","🪖","曹操部将，被关羽所擒","王","",0],
+  ["夏侯兰","魏","B","⚖️","赵云同乡，被擒后任军正","夏侯","",0],
+  ["孙策","吴","S","🦁","小霸王 · 江东基业","孙","伯符",15],
+  ["太史慈","吴","S","🎯","箭无虚发，信义笃烈","太史","子义",15],
+  ["甘宁","吴","S","🔔","锦帆贼 · 百骑劫营","甘","兴霸",68],
+  ["孙权","吴","A","👑","碧眼儿 · 坐领江东","孙","仲谋",29],
+  ["孙坚","吴","A","🐎","讨董先锋，江东基业的开端","孙","文台",6],
+  ["程普","吴","A","🍷","江东元老，历仕三朝","程","德谋",0],
+  ["黄盖","吴","A","🔥","苦肉计 · 赤壁纵火","黄","公覆",46],
+  ["韩当","吴","A","🐴","历仕三朝的老将","韩","义公",0],
+  ["蒋钦","吴","A","🏮","江表之虎臣","蒋","公奕",0],
+  ["陈武","吴","A","🛡️","江东虎臣，合肥死战","陈","子烈",0],
+  ["丁奉","吴","A","❄️","雪中奋短兵","丁","承渊",108],
+  ["徐盛","吴","A","🏹","疑城退敌，以少胜多","徐","文向",86],
+  ["潘璋","吴","A","🪢","麦城擒关羽父子","潘","文珪",0],
+  ["凌统","吴","A+","🦅","江东虎臣，与甘宁释怨","凌","公绩",0],
+  ["周泰","吴","A+","🩹","身被数创，护主江东","周","幼平",0],
+  ["董袭","吴","B+","🌊","江东虎臣，濡须战死","董","元代",0],
+  ["凌操","吴","B+","⛵","凌统之父，征黄祖战死","凌","",0],
+  ["祖茂","吴","B+","🪖","换盔救主，孙坚的护卫","祖","大荣",6],
+  ["顾雍","吴","B+","🕊️","东吴丞相，沉默寡言","顾","元叹",0],
+  ["吕蒙","吴","B+","⚓","白衣渡江，擒关羽","吕","子明",75],
+  ["周瑜","吴","B","🔥","赤壁火起，雄姿英发","周","公瑾",49],
+  ["陆逊","吴","B","🌿","书生拜将 · 火烧连营","陆","伯言",84],
+  ["张昭","吴","B-","📚","内事不决问张昭","张","子布",43],
+  ["张纮","吴","B-","📔","江东二张之一","张","子纲",0],
+  ["诸葛瑾","吴","B-","🤝","诸葛亮之兄，东吴重臣","诸葛","子瑜",0],
+  ["阚泽","吴","B-","✉️","密献诈降书","阚","德润",47],
+  ["大乔","吴","B-","🌸","孙策夫人","大","",0]
 ];
 /* BUILD:HERO_DATA:END */
 
@@ -890,7 +891,8 @@ const HEROES = { legend:[], rare:[], common:[] };
 const HEROES_ALL = [];
 const HERO_BY_NAME = {};
 for(const row of HERO_DATA){
-  const o = { n:row[0], f:row[1], g:row[2], e:row[3], d:row[4], s:row[5]||row[0].slice(0,1), tier:GRADE_TIER[row[2]] };
+  const o = { n:row[0], f:row[1], g:row[2], e:row[3], d:row[4], s:row[5]||row[0].slice(0,1),
+              z:row[6]||"", c:Number(row[7])||0, tier:GRADE_TIER[row[2]] };
   HEROES[o.tier].push(o);
   HEROES_ALL.push(o);
   HERO_BY_NAME[o.n] = o;
@@ -929,6 +931,40 @@ function fmtMD(s){ const d=parseD(s); return (d.getMonth()+1)+"月"+d.getDate()+
 function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function round1(n){ return Math.round(n*10)/10; }
+// 金额先转成有限数再运算，禁止字符串拼接、负金额与非数值进入余额。
+function moneyNumber(v){
+  if(typeof v!=="number" && !(typeof v==="string" && v.trim()!=="")) return NaN;
+  const n=Number(v);
+  return Number.isFinite(n) && n>=0 && n<=Number.MAX_SAFE_INTEGER/100 ? round1(n) : NaN;
+}
+function money(v){ const n=moneyNumber(v); return Number.isFinite(n)?n:0; }
+function recordLevel(v){ const n=Number(v); return n===1?1:n===0.5?0.5:0; }
+function validPrizeCost(v){ const n=moneyNumber(v); return Number.isFinite(n) && n>0; }
+function normalizeMoneyState(s){
+  const fix=(obj,key,optional)=>{
+    if(obj[key]==null && optional){ obj[key]=0; return; }
+    const n=moneyNumber(obj[key]);
+    if(!Number.isFinite(n)) throw new Error("存档金额异常："+key+"。原数据已保留，请先导出备份核查");
+    obj[key]=n;
+  };
+  fix(s,"bonusMerit",true); fix(s,"peakMerit",true);
+  if(s.meritSrc) for(const k of ["dup","collect","migrate"]) fix(s.meritSrc,k,true);
+  // 锦囊门槛坏了不能拖垮整个存档：标记后归零，既不扣费也不参与统计，
+  // 孩子只会看到这一张「门槛异常」，而不是整个 App 打不开。
+  for(const v of (s.vault||[])){
+    const n=moneyNumber(v.merit);
+    if(Number.isFinite(n) && n>0){ v.merit=n; delete v.meritInvalid; }
+    else { v.meritInvalid=v.merit==null?"":String(v.merit); v.merit=0; }
+    if(v.paidMerit!=null){
+      const p=moneyNumber(v.paidMerit);
+      v.paidMerit=Number.isFinite(p)?p:0;
+    }
+  }
+  for(const d of Object.keys(s.ledger||{})) fix(s.ledger[d],"merit",true);
+  if(s.draws!=null && (!Number.isSafeInteger(Number(s.draws)) || Number(s.draws)<0)) throw new Error("招贤令消费记录异常");
+  s.draws=Number(s.draws)||0;
+  return s;
+}
 function cnNum(n){
   const a=["零","一","二","三","四","五","六","七","八","九"];
   n = Math.floor(n);
@@ -1044,7 +1080,8 @@ function defaultState(){
     heroes:{},             // 武将图鉴：{ 名字: 获得日期 }
     heroCount:{},          // 重复抽到的次数：{ 名字: n }
     draws:0,
-    bonusMerit:0,          // 重复武将折算来的军功
+    bonusMerit:0,          // 额外军功总额，历史余额不追溯重算
+    meritEvents:[],        // 本版起逐笔记录额外奖励（含幂等编号）
     // 账本：历史每一天一经结算就冻结，之后改任务不再追溯改写
     // { "YYYY-MM-DD": { tasks:[快照], done, total, complete, base, mult, merit, ticket, settled, rest } }
     ledger:{},
@@ -1052,6 +1089,7 @@ function defaultState(){
     pity:{ sinceLegend:0 },// 距上次出神将已揭榜次数
     graduated:{},          // 已养成的军令：{ taskId: {name,emoji,subject,at,weeks} }
     lastOpen:"",
+    lastBackup:"",         // 最近一次导出备份的日期，用来提醒别把数据只留在一台机器上
     // 兑现台：开锦囊时自动生成一张，等家长确认已兑现
     // { id, name, emoji, tier, merit, openedAt, status:"pending"|"done", doneAt, note }
     coupons:[],
@@ -1074,6 +1112,13 @@ function defaultState(){
 function migrate(s){
   if(!s || typeof s!=="object") return s;
   if(typeof s.schema!=="number") s.schema = 1;   // 1.5.0 之前的数据没有这个字段
+  // 必须在迁移读取字段之前补齐；导入和启动走同一条链。
+  if(!s.heroes || typeof s.heroes!=="object") s.heroes={};
+  if(!s.heroCount || typeof s.heroCount!=="object") s.heroCount={};
+  if(!s.story || typeof s.story!=="object") s.story=defaultState().story;
+  if(!Array.isArray(s.vault)) s.vault=[];
+  if(!s.ledger || typeof s.ledger!=="object") s.ledger={};
+  normalizeMoneyState(s);
 
   if(s.schema < 2){
     // v1 → v2：新增兑现台、休整期、自愿开工、主动性记录
@@ -1096,9 +1141,10 @@ function migrate(s){
     // v3 → v4：武将库从 36 位换成「怀沙实体卡」160 位。
     // 其中 27 位旧武将保留；另外 9 位（黄忠、姜维、魏延、庞统、张苞、马岱、王平、马良、严颜）
     // 实体卡里没有，若已招募则折算成军功补偿 —— 不让孩子的收集凭空消失。
-    const gone = Object.keys(s.heroes||{}).filter(n=>!HERO_BY_NAME[n]);
+    const removed=["黄忠","姜维","魏延","庞统","张苞","马岱","王平","马良","严颜"];
+    const gone = removed.filter(n=>!!s.heroes[n]);
     if(gone.length){
-      addMerit(s, gone.length * REMOVED_HERO_MERIT, "migrate");
+      addMerit(s, gone.length * REMOVED_HERO_MERIT, "migrate", "migrate:heroes160", gone.join("、"));
       for(const n of gone) delete s.heroes[n];
       for(const n of gone) delete s.heroCount[n];
       s.heroMigrateNote = gone.length + " 位旧武将不在新图鉴里（" + gone.join("、") + "），已各补 ⭐" + REMOVED_HERO_MERIT + " 军功";
@@ -1136,7 +1182,14 @@ function migrate(s){
     checkCollection(s);
     s.schema = 7;
   }
+  if(s.schema < 8){
+    // v7 → v8：只补流水和实付快照，历史余额保持原值，不臆造旧流水。
+    if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
+    for(const v of s.vault) if(v.redeemed && v.paidMerit==null) v.paidMerit=money(v.merit);
+    s.schema=8;
+  }
   if(!s.hintApplied || typeof s.hintApplied!=="object") s.hintApplied={};
+  if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
 
   // 无论版本，这些字段的类型兜底都要保证
   if(!s.heroes || typeof s.heroes!=="object") s.heroes={};
@@ -1164,6 +1217,8 @@ function migrate(s){
   return s;
 }
 let ST = null;
+let STORAGE_LAST_RAW; // 最近一次读写的原文，防止旧窗口覆盖新账本
+let LOAD_ERROR="";
 // 持久化存储的申请结果："granted" / "denied" / "unsupported" / "unknown"
 let STORAGE_PERSIST = "unknown";
 // localStorage 在 file:// 协议下会被 WebKit 直接禁用（iPad/iPhone 尤其严格），
@@ -1201,26 +1256,55 @@ function requestPersistentStorage(){
   }catch(e){ STORAGE_PERSIST="unknown"; return Promise.resolve("unknown"); }
 }
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(ST)); }
+  try{
+    const raw=JSON.stringify(ST);
+    if(STORAGE_LAST_RAW!==undefined && localStorage.getItem(KEY)!==STORAGE_LAST_RAW) throw new Error("另一窗口已修改存档，请刷新后重试");
+    localStorage.setItem(KEY, raw);
+    STORAGE_LAST_RAW=raw;
+    return true;
+  }
   catch(e){
     const w=$("#storageWarn");
     if(w) w.classList.add("show");
-    toast("数据没能保存下来：这个浏览器禁用了本地存储",3200);
+    toast("数据没有保存，请勿继续操作："+(e.message||"本地存储不可用"),4200);
+    return false;
   }
+}
+// 对抽卡和开启锦囊，保存成功才算完成；写入失败恢复操作前状态。
+function commitEconomy(action){
+  const before=JSON.stringify(ST);
+  try{
+    const result=action();
+    if(save()) return result;
+  }catch(e){ toast("本次操作未完成，星星未变："+e.message,4200); }
+  ST=JSON.parse(before);
+  return null;
+}
+function prepareState(o){
+  if(!o || typeof o!=="object" || Array.isArray(o) || !Array.isArray(o.tasks)) throw new Error("存档格式不对");
+  if(Number(o.schema)>SCHEMA) throw new Error("这是更新版本的存档，请先更新应用");
+  const d=defaultState();
+  const merged=Object.assign({},d,o);
+  // 不能用默认的最新schema覆盖「没有schema」的老存档，否则升级规则全部被跳过。
+  merged.schema=typeof o.schema==="number"?o.schema:1;
+  merged.story=Object.assign({},d.story,o.story||{});
+  merged.season=Object.assign({},d.season,o.season||{});
+  return migrate(merged);
 }
 function load(){
   try{
     const raw=localStorage.getItem(KEY);
+    STORAGE_LAST_RAW=raw;
+    LOAD_ERROR="";
     if(!raw) return null;
-    const o=JSON.parse(raw);
-    if(!o || typeof o!=="object") return null;
-    const d=defaultState();
-    const merged=Object.assign(d,o);
-    // 嵌套对象先合并，再交给 migrate 做版本升级与类型兜底
-    merged.story=Object.assign(d.story,o.story||{});
-    merged.season=Object.assign(d.season,o.season||{});
-    return migrate(merged);
-  }catch(e){ return null; }
+    const original=JSON.parse(raw), prepared=prepareState(original);
+    // 升级前先保留旧原文。写不下（配额满）时只警告，绝不因此让 App 起不来。
+    if(original.appVersion!==APP_VERSION || original.schema!==SCHEMA){
+      try{ localStorage.setItem(KEY+"_before_upgrade",raw); }
+      catch(e){ console.warn("升级前快照没存下（空间不足），继续使用新版本"); }
+    }
+    return prepared;
+  }catch(e){ LOAD_ERROR=e.message||"存档无法读取"; return null; }
 }
 
 /* =====================================================================
@@ -1237,7 +1321,7 @@ function setRec(dateStr,taskId,level,type,minutes){
     if(!Object.keys(ST.records[dateStr]).length) delete ST.records[dateStr];
     return;
   }
-  ST.records[dateStr][taskId]={ level:level||0, type:type||"miss", minutes:minutes||0, at:Date.now() };
+  ST.records[dateStr][taskId]={ level:recordLevel(level), type:type||"miss", minutes:Math.max(0,Number(minutes)||0), at:Date.now() };
 }
 function weekDone(taskId,dateStr){
   let n=0;
@@ -1316,7 +1400,7 @@ function dayRatio(dateStr){
 }
 function dayStars(dateStr){
   const day=ST.records[dateStr]; if(!day) return 0;
-  let s=0; for(const k in day) s+=day[k].level||0; return round1(s);
+  let s=0; for(const k of Object.keys(day)) s+=recordLevel(day[k] && day[k].level); return round1(s);
 }
 function allDatesWithRecords(){
   const set=new Set(Object.keys(ST.records));
@@ -1413,13 +1497,13 @@ function settleLedger(){
   return changed;
 }
 function ledgerMerit(){
-  let s=0; for(const d in ST.ledger) s+=ST.ledger[d].merit||0;
+  let s=0; for(const d of Object.keys(ST.ledger)) if(d<=TODAY() && ST.ledger[d].settled) s+=money(ST.ledger[d].merit);
   return round1(s);
 }
 // 某天的军功（冻结的走账本，窗口内的实时算，都含连击倍率）
 function dayMerit(dateStr){
   const L=ST.ledger[dateStr];
-  if(isFrozen(dateStr) && L && L.settled) return L.merit||0;
+  if(L && L.settled) return money(L.merit);
   return round1(dayStars(dateStr) * streakMult(streakEndingAt(dateStr)));
 }
 // 补录窗口里那些还没结算的日子，得实时算进来，不然刚补录的点卯不认账
@@ -1430,12 +1514,14 @@ function liveWindowDates(){
   return Array.from(set).filter(d => d>=floor && d<=t && !(ST.ledger[d] && ST.ledger[d].settled));
 }
 function earnedMerit(){
+  // 页面跨午夜一直开着时，也先结算刚离开补录窗口的那一天，不能让星星凭空消失。
+  settleLedger();
   let s=ledgerMerit();
   for(const d of liveWindowDates()) s += dayMerit(d);
   return round1(s);
 }
-function totalMerit(){ return round1(earnedMerit() + (ST.bonusMerit||0)); }
-function spentMerit(){ return ST.vault.filter(v=>v.redeemed).reduce((a,b)=>a+(b.merit||0),0); }
+function totalMerit(){ return round1(earnedMerit() + money(ST.bonusMerit)); }
+function spentMerit(){ return round1(ST.vault.filter(v=>v.redeemed).reduce((a,b)=>a+money(b.paidMerit==null?b.merit:b.paidMerit),0)); }
 // 可用军功：不再用 Math.max(0,...) 把亏空悄悄吞掉
 function availMerit(){ return round1(totalMerit()-spentMerit()); }
 // 官职用历史最高军功，只升不降
@@ -1448,7 +1534,8 @@ function rankMerit(){
 function ticketsEarned(){
   let n=0;
   const t=TODAY();
-  for(const d in ST.ledger){ if(d<t) n += ST.ledger[d].ticket||0; }
+  settleLedger();
+  for(const d of Object.keys(ST.ledger)){ if(d<=t && ST.ledger[d].settled) n += ST.ledger[d].ticket===1?1:0; }
   // 补录窗口里还没结算的日子实时算，别让刚补的点卯白点
   for(const d of liveWindowDates()) if(dayIsComplete(d)) n += 1;
   n += 2*Object.keys(ST.bossDefeats).length;
@@ -1615,11 +1702,16 @@ function heroOwnedCount(){ return Object.keys(ST.heroes).filter(n=>!!HERO_BY_NAM
 /* ---- 军功来源记账 ----
    bonusMerit 有三个来源（旧将重逢 / 集齐奖励 / 升级补偿），
    以前全显示成「旧将重逢」，家长看不出异常是哪来的。现在分开记。 */
-function addMerit(st, n, src){
+function addMerit(st, n, src, eventId, detail){
   st = st || ST;
-  st.bonusMerit = round1((st.bonusMerit||0) + (n||0));
+  n=moneyNumber(n);
+  if(!Number.isFinite(n) || n<=0 || !["dup","collect","migrate"].includes(src)) throw new Error("拒绝异常军功入账");
+  if(!Array.isArray(st.meritEvents)) st.meritEvents=[];
+  if(eventId && st.meritEvents.some(e=>e.id===eventId)) return money(st.bonusMerit);
+  st.bonusMerit = round1(money(st.bonusMerit) + n);
   if(!st.meritSrc || typeof st.meritSrc!=="object") st.meritSrc={ dup:0, collect:0, migrate:0 };
-  st.meritSrc[src] = round1((st.meritSrc[src]||0) + (n||0));
+  st.meritSrc[src] = round1(money(st.meritSrc[src]) + n);
+  st.meritEvents.push({id:eventId||uid(),date:TODAY(),at:Date.now(),src,amount:n,detail:detail||MERIT_SRC_NAME[src]});
   return st.bonusMerit;
 }
 const MERIT_SRC_NAME = { dup:"旧将重逢", collect:"集齐奖励", migrate:"升级补偿" };
@@ -1628,16 +1720,44 @@ function meritSrcLine(){
   if(!s || typeof s!=="object") return (ST.bonusMerit?(" · 其他 "+round1(ST.bonusMerit)):"");
   const parts=[];
   for(const k of ["dup","collect","migrate"]){
-    const v=s[k]||0;
+    const v=money(s[k]);
     if(v>0) parts.push(MERIT_SRC_NAME[k]+" "+round1(v));
   }
   // 老数据没有分项记录时，把总额兜进去，别让数字凭空消失
-  const sum=round1((s.dup||0)+(s.collect||0)+(s.migrate||0));
+  const sum=round1(money(s.dup)+money(s.collect)+money(s.migrate));
   const rest=round1((ST.bonusMerit||0)-sum);
   if(rest>0.05) parts.push("其他 "+rest);
   return parts.length ? (" · "+parts.join(" · ")) : "";
 }
+function openMeritBook(){
+  const earned=earnedMerit(), bonus=money(ST.bonusMerit), spent=spentMerit();
+  let h='<h3>星星明细</h3><div class="quote">点卯 '+earned+' + 额外奖励 '+bonus+' - 已用 '+spent+' = 可用 '+availMerit()+'</div>';
+  h+='<p style="font-size:12px;line-height:1.8">武将卡上的星级代表相遇次数，不是可花费的军功。锦囊上的数值是开启门槛，抽到锦囊不会增加星星。</p>';
+  const rows=[];
+  for(const d of Object.keys(ST.ledger||{})){
+    const l=ST.ledger[d];
+    if(d<=TODAY() && l.settled && money(l.merit)>0) rows.push({date:d,label:"点卯（已结算）",n:money(l.merit)});
+  }
+  for(const d of liveWindowDates()) if(dayMerit(d)>0) rows.push({date:d,label:"点卯（可补录）",n:dayMerit(d)});
+  const events=(ST.meritEvents||[]);
+  for(const e of events) rows.push({date:e.date,label:e.detail||MERIT_SRC_NAME[e.src]||"额外奖励",n:money(e.amount)});
+  const historical=round1(bonus-events.reduce((n,e)=>n+money(e.amount),0));
+  if(historical>0) h+='<div class="quote">历史额外奖励 '+historical+'：旧版本未逐笔记录，来源无法追溯；保留原额，不自动清零。</div>';
+  for(const v of ST.vault.filter(v=>v.redeemed)) rows.push({date:v.redeemedAt||v.gotAt||"",label:"开启锦囊："+v.name,n:-money(v.paidMerit==null?v.merit:v.paidMerit)});
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  for(const r of rows.slice(0,80)) h+='<div class="setrow"><span class="sn">'+esc(r.label)+'<small>'+esc(r.date)+'</small></span><b>'+(r.n>=0?"+":"")+r.n+'</b></div>';
+  h+='<p style="font-size:12px">显示最近80条；完整记录包含在导出备份中。</p><button class="btn ghost" onclick="closeSheet()">收起</button>';
+  openSheet(h);
+}
 function heroTierOf(name){ const h=HERO_BY_NAME[name]; return h ? h.tier : "common"; }
+// 未识得的卡不给空白：把它那句话前半句当谜面，去掉名字，留一个能猜的钩子
+function riddleOf(x){
+  let t=String((x&&x.d)||"").split("·")[0].trim();
+  if(x&&x.n) t=t.split(x.n).join("");
+  t=t.replace(/[，,、。；;\s]+$/,"").trim();
+  if(!t) t="榜上无名";
+  return t.length>13 ? t.slice(0,13)+"…" : t;
+}
 
 /* ---- 集齐奖励 ----
    集换式收集最基本的约定：集齐有奖。160 张的图鉴如果永远只有一根进度条，
@@ -1658,13 +1778,13 @@ function checkCollection(st){
     const got=(HEROES_BY_FACTION[f]||[]).filter(x=>!!st.heroes[x.n]).length;
     if(got>=tot && !st.factionDone[f]){
       st.factionDone[f]=TODAY();
-      addMerit(st, FACTION_DONE_MERIT, "collect");
+      addMerit(st, FACTION_DONE_MERIT, "collect", "collect:"+f, f+"阵营集齐");
       out.push({type:"faction", f, tot, merit:FACTION_DONE_MERIT});
     }
   }
   if(HEROES_ALL.length>0 && owned>=HEROES_ALL.length && !st.allDone){
     st.allDone=TODAY();
-    addMerit(st, ALL_DONE_MERIT, "collect");
+    addMerit(st, ALL_DONE_MERIT, "collect", "collect:all160", "160位全图鉴集齐");
     out.push({type:"all", merit:ALL_DONE_MERIT});
   }
   return out;
@@ -1682,10 +1802,11 @@ function pickHero(){
 }
 // 抽一个锦囊
 function pickPrize(){
-  const pool=ST.prizes;
+  // 旧模板若有非法门槛或权重，先排除，不让坏模板生成无法开启的锦囊。
+  const pool=ST.prizes.filter(p=>validPrizeCost(p.merit) && Number.isFinite(Number(p.weight)) && Number(p.weight)>0);
   if(!pool.length) return null;
   const tierW={common:0,rare:0,legend:0};
-  for(const p of pool) tierW[p.tier]=(tierW[p.tier]||0)+(p.weight||0);
+  for(const p of pool) tierW[p.tier]=(tierW[p.tier]||0)+Number(p.weight);
   const avail=Object.keys(tierW).filter(t=>tierW[t]>0);
   if(!avail.length) return pool[Math.floor(Math.random()*pool.length)];
   const total=avail.reduce((a,b)=>a+tierW[b],0);
@@ -1706,29 +1827,49 @@ function pickLegend(){
 }
 // 还差几次触发保底
 function pityLeft(){ return Math.max(0, PITY - (ST.pity.sinceLegend||0)); }
-// 一次招贤
+// 当前状态下的实际出率（不含保底那一榜），直接把代码里的权重算给家长和孩子看
+function drawOdds(){
+  const w={legend:0,rare:0,common:0};
+  for(const t of HERO_ORDER) for(const h of HEROES[t])
+    w[t]+=HERO_W[t]*(heroOwned(h.n)?1:HERO_NEW_BOOST);
+  const sum=w.legend+w.rare+w.common;
+  const pct=n=>sum>0?Math.round(P_HERO*w[n]/sum*10)/10:0;
+  return { legend:pct("legend"), rare:pct("rare"), common:pct("common"), prize:100-P_HERO };
+}
+// 正式抽卡入口：扣令、奖励、集齐和存档必须一并成功，动画只展示结果。
+function drawOnce(){
+  if(ticketsAvail()<1){ toast("招贤令不够了"); return null; }
+  return commitEconomy(()=>{
+    ST.draws++;
+    const res=rollDraw();
+    res.collection=checkCollection();
+    return res;
+  });
+}
+// 随机结果计算器，正式入口只能通过 drawOnce 调用
 function rollDraw(){
   const force = pityLeft() <= 0;
-  const bump = () => { ST.pity.sinceLegend = (ST.pity.sinceLegend||0)+1; };
-
-  if(force || Math.random()*100 < P_HERO){
-    const h = force ? pickLegend() : pickHero();
-    if(!h){ bump(); return { kind:"prize", prize:pickPrize() }; }
-    if(h.tier==="legend") ST.pity.sinceLegend = 0; else bump();
-    if(heroOwned(h.n)){
-      const m=DUP_MERIT[h.tier]||6;
-      ST.heroCount[h.n]=(ST.heroCount[h.n]||1)+1;
-      addMerit(ST, m, "dup");
-      return { kind:"dup", hero:h, merit:m, forced:force };
+  const bump = () => { ST.pity.sinceLegend = (Number(ST.pity.sinceLegend)||0)+1; };
+  if(!force && Math.random()*100 >= P_HERO){
+    const p=pickPrize();
+    if(p){
+      bump();
+      ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:moneyNumber(p.merit), redeemed:false, gotAt:TODAY(), from:"draw" });
+      return { kind:"prize", prize:p };
     }
-    ST.heroes[h.n]=TODAY();
-    return { kind:"hero", hero:h, forced:force };
+    // 所有锦囊被删除/禁用时，改发武将也必须真正入图鉴或按重复计奖。
   }
-  bump();
-  const p=pickPrize();
-  if(!p) return { kind:"hero", hero:pickHero() };
-  ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:p.merit, redeemed:false, gotAt:TODAY(), from:"draw" });
-  return { kind:"prize", prize:p };
+  const h=force?pickLegend():pickHero();
+  if(!h) throw new Error("招贤榜暂无可用奖励，本次不扣令");
+  if(h.tier==="legend") ST.pity.sinceLegend=0; else bump();
+  if(heroOwned(h.n)){
+    const m=DUP_MERIT[h.tier]||6;
+    ST.heroCount[h.n]=Math.max(1,Math.floor(Number(ST.heroCount[h.n])||1))+1;
+    addMerit(ST, m, "dup", "dup:"+h.n+":"+ST.heroCount[h.n], h.n+"第"+ST.heroCount[h.n]+"次相遇");
+    return {kind:"dup",hero:h,merit:m,forced:force};
+  }
+  ST.heroes[h.n]=TODAY();
+  return {kind:"hero",hero:h,forced:force};
 }
 
 /* ---- 毕业：连续若干完整周 100% 达成 → 视为已养成 ---- */
@@ -1988,11 +2129,17 @@ function viewToday(){
   const noText = chapTotal ? ("第 "+cnNum(chapRaw+1)+" 回") : "";
   const chapTitle = chapters[chapRaw] || "—";
   const shown = chapTotal ? Math.min(raw, chapTotal) : 0;
+  // 图鉴咬合：这一回有登记名场面的武将，读到就点亮
+  const inChap = HEROES_ALL.filter(h=>h.c===chapRaw+1);
+  const metCount = inChap.filter(h=>!!ST.heroes[h.n]).length;
   html+='<div class="story-card">'
       + '<div class="chap-no">'+(chapRaw+1)+'</div>'
       + '<div class="sc-top">📜 主线 · 《'+esc(st.book||"—")+'》</div>'
       + '<div class="sc-no">'+noText+'</div>'
       + '<div class="sc-title">'+esc(chapTitle)+'</div>'
+      + (inChap.length ? '<div style="font-size:10.5px;color:var(--ink-3);font-weight:600;margin-top:4px;">'
+          + '本回登场：'+inChap.map(h=>esc(h.n)).join("、")
+          + '（已入麾下 '+metCount+' 位）</div>' : '')
       + '<div class="sc-bar"><i style="width:'+(chapTotal?Math.round(shown/chapTotal*100):0)+'%"></i></div>'
       + '<div class="sc-foot"><span>已推进 '+shown+' / '+chapTotal+' 回</span>'
       + '<span>'+(finished ? "全书已读完 🎉" : "再攒 "+storyNextIn()+" 天全勤")+'</span></div>'
@@ -2216,16 +2363,18 @@ function openCheck(taskId,dateStr){
       const mins=parseInt(($("#actMin",sheet)||{}).value||"0",10)||0;
       const before=dayIsComplete(dateStr);
       const storyBefore=storyChapterRaw();
+      const meritBefore=totalMerit();
       const level = picked==="full"?1 : (picked==="half"||picked==="poor")?0.5 : 0;
-      setRec(dateStr,taskId,level,picked,mins);
+      if(!commitEconomy(()=>{ setRec(dateStr,taskId,level,picked,mins); return {ok:true}; })) return;
       const after=dayIsComplete(dateStr);
       const storyAfter=storyChapterRaw();
       const beatenBefore=bossBeaten(dateStr);
       // 飘字：从被点的那个选项位置飞出来，让反馈有实体
       const anchor=$$(".opt",sheet).filter(b=>b.classList.contains("sel"))[0]||sheet;
-      if(picked==="full") floatFromEl(anchor,"⭐ +1",true);
-      else if(picked==="half"||picked==="poor") floatFromEl(anchor,"◑ +0.5",true);
+      const meritDelta=round1(totalMerit()-meritBefore);
+      if(meritDelta!==0) floatFromEl(anchor,"军功 "+(meritDelta>0?"+":"")+meritDelta,true);
       else if(picked==="skip") floatFromEl(anchor,"🏳️",false);
+      else floatFromEl(anchor,"已记录 · 军功未变",false);
       calcAchievements(); save(); closeSheet(); refreshTop(); render();
       if(picked==="half") toast("苦战也算数，这份力没有白费 ◑");
       else if(picked==="poor") toast("惨胜也是胜，先把旗子插上 ◐");
@@ -2257,8 +2406,8 @@ function clearRec(taskId,dateStr){
     closeSheet(); toast("这一天的账已结算入账，不能再改动（只能补录最近 "+BACKFILL_DAYS+" 天）");
     return;
   }
-  setRec(dateStr,taskId,null,null);
-  save(); closeSheet(); refreshTop(); render(); toast("已撤销这天的点卯");
+  if(!commitEconomy(()=>{ setRec(dateStr,taskId,null,null); return {ok:true}; })) return;
+  closeSheet(); refreshTop(); render(); toast("已撤销这天的点卯");
 }
 
 /* =====================================================================
@@ -2425,11 +2574,14 @@ function attackBoss(){
   const d=TODAY();
   if(!dayIsComplete(d)){ toast("军令未了，不可出战！"); return; }
   if(bossBeaten(d)){ toast("今日劲敌已破"); return; }
-  ST.bossDefeats[d]=true;
-  const B=BOSSES[parseD(d).getDay()];
-  // 战利品：直接给一个锦囊
-  const p=pickPrize();
-  if(p) ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:p.merit, redeemed:false, gotAt:TODAY(), from:"boss" });
+  const result=commitEconomy(()=>{
+    ST.bossDefeats[d]=true;
+    const p=pickPrize();
+    if(p) ST.vault.push({ uid:uid(), name:p.name, emoji:p.emoji||"🎁", tier:p.tier, merit:p.merit, redeemed:false, gotAt:TODAY(), from:"boss" });
+    return {prize:p};
+  });
+  if(!result) return;
+  const p=result.prize, B=BOSSES[parseD(d).getDay()];
   calcAchievements(); save(); refreshTop();
   confetti(110);
   let h='<div class="draw-stage"><div class="draw-roll opened" style="animation:none">🏳️</div></div>'
@@ -2454,16 +2606,19 @@ function openDraw(){
    + '<div class="pt"><span class="pl">'+(left<=0?"🎉 这一榜必出神将！":"再揭 "+left+" 次必出神将")+'</span>'
    + '<span style="color:var(--ink-3)">'+(PITY-left)+' / '+PITY+'</span></div>'
    + '<div class="prog mini"><i style="width:'+Math.round((PITY-left)/PITY*100)+'%"></i></div></div>';
+  const o=drawOdds();
+  h+='<div class="quote" style="margin-bottom:10px;font-size:11.5px;">本次出率：神将 '+o.legend+'% · 名将 '+o.rare+'% · 良将 '+o.common+'% · 锦囊 '+o.prize+'%<br>'
+   + '（按你当前图鉴算的，还没抽出过的会更常见；保底那一榜不计在内）</div>';
   h+='<div class="draw-stage" id="ds"><div class="draw-roll" id="dr">📜</div></div>'
       + '<button class="btn gold" style="width:100%;margin-top:6px;" id="drawBtn">✨ 揭榜</button>'
       + '<div id="drawResult"></div>';
   openSheet(h,(sheet)=>{
     let opened=false;
     $("#drawBtn",sheet).onclick=()=>{
-      if(opened) return; opened=true;
-      if(ticketsAvail()<1){ toast("招贤令不够了"); return; }
-      ST.draws++;
-      const res=rollDraw();
+      if(opened) return;
+      const res=drawOnce();
+      if(!res) return;
+      opened=true;
       const dr=$("#dr",sheet);
       dr.classList.add("opened");
       const db=$("#drawBtn",sheet);
@@ -2513,7 +2668,7 @@ function openDraw(){
           + '<button class="btn" onclick="closeSheet();openDraw();">再揭一次 🎟️'+(ticketsAvail())+'</button>'
           + '</div>';
         // 集齐奖励：攒满一个阵营 / 集齐全套，当场给反馈
-        const done=checkCollection();
+        const done=res.collection||[];
         if(done.length){
           save();
           done.forEach((d,i)=>{
@@ -2594,6 +2749,7 @@ function goReport(){ VIEW="report"; VIEW_DATE=TODAY(); render(); }
 function viewHeroes(){
   const owned=heroOwnedCount(), tot=heroTotal();
   const av=availMerit(), tk=ticketsAvail();
+  const chapter=storyChapterRaw();      // 读到第几回，用来把「读到过」的武将点亮成灰卡
 
   let h='<div class="card">';
   h+='<div class="card-head"><h3>招贤榜</h3><span class="hint">名将 '+owned+' / '+tot+'</span></div>';
@@ -2624,16 +2780,18 @@ function viewHeroes(){
   }else{
     for(const v of un){
       const T=TIERS[v.tier]||TIERS.common;
-      const can = av>=v.merit;
+      const bad=!validPrizeCost(v.merit);          // 旧数据门槛坏了：只禁用这一张，不影响整匣
+      const can = !bad && av>=v.merit;
       h+='<div class="opt" style="cursor:default;">'
        + '<span class="oe">'+v.emoji+'</span>'
        + '<span class="ob"><span class="ot">'+esc(v.name)+'</span>'
        + '<span class="od">'+T.name+' · '+(v.from==="boss"?"破敌所得":(v.from==="prize"?"破敌所得":"招贤所得"))+' · '+v.gotAt+'</span></span>'
        + '<span style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
-       + '<span class="os">⭐'+v.merit+'</span>'
-       + '<button class="btn '+(can?"gold":"ghost")+' sm" '+(can?"":"disabled")+' onclick="redeem(\''+v.uid+'\')">'+(can?"开启":"还差 "+(v.merit-av))+'</button>'
+       + '<span class="os">'+(bad?"门槛异常":"⭐"+v.merit)+'</span>'
+       + '<button class="btn '+(can?"gold":"ghost")+' sm" '+(can?'onclick="redeem(\''+v.uid+'\')"':"disabled")+'>'+(bad?"需核查":(can?"开启":"还差 "+(v.merit-av)))+'</button>'
        + '</span>'
        + '<button class="wishbtn'+(v.wish?" on":"")+'" title="最想要这个" onclick="markWish(\''+v.uid+'\')">'+(v.wish?"❤️":"🤍")+'</button>'
+       + '<button class="wishbtn" title="调整或删除" onclick="openVaultEdit(\''+v.uid+'\')">⋯</button>'
        + '</div>';
     }
     if(un.length>1){
@@ -2697,17 +2855,19 @@ function viewHeroes(){
     h+='<div class="heroes">';
     for(const x of list){
       const on=heroOwned(x.n);
+      const met=!on && x.c>0 && chapter>=x.c;      // 读到过这一回：剪影变灰卡，但还没入麾下
       const seen=on?(ST.heroCount[x.n]||1):0;
       const stars=seen>=2?('<span class="tag-stars">'+'★'.repeat(Math.min(seen,5))+'</span>'):'';
-      const cls="hero-card "+HERO_TIER_CLS[x.tier]+(on?"":" locked")+(seen>=5?" maxed":"");
+      const cls="hero-card "+HERO_TIER_CLS[x.tier]+(on?"":(met?" met":" locked"))+(seen>=5?" maxed":"");
       const badge = on
         ? '<div class="hero-badge '+(HERO_FACTION_CLS[x.f]||'b-han')+'">'+esc(x.s)+'</div>'
-        : '<div class="hero-badge b-locked">？</div>';
-      h+='<div class="'+cls+'" '+(on?'onclick="showHero(\''+esc(x.n).replace(/'/g,"")+'\')"':'')+'>'
+        : (met?'<div class="hero-badge '+(HERO_FACTION_CLS[x.f]||'b-han')+'" style="opacity:.45">'+esc(x.s)+'</div>'
+              :'<div class="hero-badge b-locked">？</div>');
+      h+='<div class="'+cls+'" '+((on||met)?'onclick="showHero(\''+esc(x.n).replace(/'/g,"")+'\')"':'')+'>'
        + '<span class="tag-r">'+x.g+'</span>'+stars
        + badge
-       + '<div class="hn">'+(on?esc(x.n):"未招募")+'</div>'
-       + '<div class="hd">'+(on?esc(x.d):"等级 "+x.g)+'</div>'
+       + '<div class="hn">'+(on||met?esc(x.n):"未识得")+'</div>'
+       + '<div class="hd">'+(on?esc(x.d):(met?("第"+x.c+"回 · 已识得"):esc(riddleOf(x))))+'</div>'
        + '</div>';
     }
     h+='</div>';
@@ -2728,6 +2888,7 @@ function viewHeroes(){
 }
 function showHero(name){
   const x=HERO_BY_NAME[name]; if(!x) return;
+  const on=heroOwned(name);
   const got=ST.heroes[name]||"—";
   const seen=ST.heroCount[name]||1;
   const starRow = seen>=2
@@ -2735,29 +2896,80 @@ function showHero(name){
       + '★'.repeat(Math.min(seen,5)) + (seen>5?' <span style="font-size:11px;letter-spacing:0;">×'+seen+'</span>':'')
       + '</div>'
     : '';
-  let h='<h3>'+esc(x.n)+'</h3><div class="sh-sub">'+x.f+' · '+esc(x.d)+'</div>';
+  // 字与名场面：史书没留字的就只显示等级，不编一个上去
+  const sub = x.f+' · 等级 '+x.g+(x.z?(' · 字'+x.z):'');
+  let h='<h3>'+esc(x.n)+'</h3><div class="sh-sub">'+esc(sub)+' · '+esc(x.d)+'</div>';
   const bigBadge='<div class="re"><span class="hero-badge '+(HERO_FACTION_CLS[x.f]||'b-han')+'" style="width:56px;height:56px;font-size:28px;border-radius:14px;">'+esc(x.s)+'</span></div>';
-  h+='<div class="result-box '+HERO_TIER_BOX[x.tier]+'">'
+  h+='<div class="result-box '+HERO_TIER_BOX[x.tier]+'"'+(on?'':' style="opacity:.9"')+'>'
    + bigBadge
    + '<div class="rn">'+esc(x.n)+'</div>'
    + '<div class="rt">'+HERO_TIER_NAME[x.tier]+' · 等级 '+x.g+'</div>'
    + starRow
-   + '<div class="rc">入麾下于 '+got+(seen>1?' · 已相遇 '+seen+' 次':'')+'</div>'
-   + (seen>=5?'<div class="rc" style="color:#B8860B;">满星 · 这位老将与你格外有缘</div>':'')
+   + (on
+       ? '<div class="rc">入麾下于 '+got+(seen>1?' · 已相遇 '+seen+' 次':'')+'</div>'
+       : '<div class="rc">尚未入麾下 · 揭榜可遇</div>')
+   + (on&&seen>=5?'<div class="rc" style="color:#B8860B;">满星 · 这位老将与你格外有缘</div>':'')
    + '</div>';
+  if(x.c){
+    const title=SANGUO[x.c-1]||"";
+    h+='<div class="quote" style="margin-top:12px;">第 '+x.c+' 回 · '+esc(title)+'</div>';
+  }
   h+='<button class="btn ghost" style="width:100%;margin-top:13px;" onclick="closeSheet()">收起</button>';
   openSheet(h);
 }
+/* ---- 锦囊匣：已抽到但还没开启的奖励，家长可以改或删 ---- */
+function openVaultEdit(uidv){
+  const v=ST.vault.find(x=>x.uid===uidv); if(!v) return;
+  if(v.redeemed){ toast("已经开启的锦囊不能改，账目已经结过"); return; }
+  let h='<h3>调整这张锦囊</h3><div class="sh-sub">改的是孩子手里这一张，不影响「锦囊设置」里的模板。</div>';
+  h+='<div class="field"><label>奖励名</label><input type="text" id="vName" maxlength="20" value="'+esc(v.name)+'"></div>';
+  h+='<div class="grid2"><div class="field"><label>图标</label><input type="text" id="vEmoji" value="'+esc(v.emoji||"🎁")+'"></div>'
+   + '<div class="field"><label>开启需军功</label><input type="number" id="vMerit" min="1" value="'+(v.merit||50)+'"></div></div>';
+  h+='<div class="grid2" style="margin-top:6px;"><button class="btn danger" id="vDel">删除</button><button class="btn" id="vOk">保存</button></div>';
+  h+='<button class="btn ghost" style="width:100%;margin-top:8px;" onclick="closeSheet()">取消</button>';
+  openSheet(h,(sheet)=>{
+    $("#vOk",sheet).onclick=()=>{
+      if(saveVaultItem(uidv, ($("#vName",sheet).value||"").trim(), ($("#vEmoji",sheet).value||"").trim(), $("#vMerit",sheet).value)){
+        closeSheet(); refreshTop(); render(); toast("已保存 ✓");
+      }
+    };
+    $("#vDel",sheet).onclick=()=>{
+      if(!confirm("从锦囊匣里删掉「"+v.name+"」？没有消耗过军功，删除不影响星星。")) return;
+      if(deleteVaultItem(uidv)){ closeSheet(); refreshTop(); render(); toast("已删除"); }
+    };
+  });
+}
+function saveVaultItem(uidv,name,emoji,merit){
+  const v=ST.vault.find(x=>x.uid===uidv); if(!v) return false;
+  if(v.redeemed){ toast("已经开启的锦囊不能改"); return false; }
+  const cost=moneyNumber(merit);
+  if(!name){ toast("先给它起个名字"); return false; }
+  if(!validPrizeCost(cost)){ toast("开启门槛必须是大于0的有效军功数"); return false; }
+  v.name=name; v.emoji=emoji||"🎁"; v.merit=cost; delete v.meritInvalid;
+  return !!save();
+}
+function deleteVaultItem(uidv){
+  const v=ST.vault.find(x=>x.uid===uidv); if(!v) return false;
+  if(v.redeemed){ toast("已经开启的锦囊不能删，账目已经结过"); return false; }
+  ST.vault=ST.vault.filter(x=>x.uid!==uidv);
+  return !!save();
+}
+
 function redeem(u){
   const v=ST.vault.find(x=>x.uid===u); if(!v) return;
   // 纵深防御：界面已经把「已开启」分到另一区了，这里再挡一道。
   // 否则万一有别的路径调到这里，会重复扣军功、重复发兑现券。
   if(v.redeemed){ toast("这个锦囊已经开启了"); return; }
-  const av=availMerit();
-  if(av<v.merit){ toast("还差 "+(v.merit-av)+" 军功"); return; }
-  v.redeemed=true; v.redeemedAt=TODAY();
-  const c=couponFor(v);                 // 发一张兑现券，事情还没完
-  save(); refreshTop(); render(); confetti(90);
+  if(!validPrizeCost(v.merit)){ toast("这个锦囊的军功门槛异常，未扣星星，请先核查奖励设置",4200); return; }
+  const cost=moneyNumber(v.merit), av=availMerit();
+  if(!Number.isFinite(av) || av<cost){ toast("还差 "+round1(cost-av)+" 军功"); return; }
+  const c=commitEconomy(()=>{
+    v.redeemed=true; v.redeemedAt=TODAY();
+    v.paidMerit=cost;                 // 记录当时实付，模板改价不能追溯改写支出
+    return couponFor(v);
+  });
+  if(!c) return;
+  refreshTop(); render(); confetti(90);
   openSheet(
     '<div class="ceremony-hero"><span class="ce">'+c.emoji+'</span>'
     + '<div class="cn">'+esc(c.name)+'</div></div>'
@@ -2875,6 +3087,43 @@ function viewStats(){
    + '<div class="prog" style="margin-top:11px;"><i style="width:'+pct+'%"></i></div>'
    + '</div></div></div>';
 
+  h+='<div class="card"><div class="card-head"><h3>近 8 周达成率</h3><span class="hint">看趋势，不看单天</span></div>';
+  (function(){
+    const rows=[];
+    for(let i=7;i>=0;i--){
+      const mon=addD(weekStart(TODAY()),-7*i);
+      let t2=0,d2=0;
+      for(const d of weekDates(mon)){
+        if(d>TODAY()||isRestDay(d)) continue;
+        const list=dayExpected(d); if(!list.length) continue;
+        t2+=list.length;
+        d2+=list.filter(t=>{const r=rec(d,t.id);return r&&r.level>=0.5;}).length;
+      }
+      rows.push({mon, pct:t2?Math.round(d2/t2*100):null, partial:(mon===weekStart(TODAY()))});
+    }
+    const has=rows.filter(r=>r.pct!==null);
+    if(!has.length){ h+='<div class="empty"><span class="ee">📈</span>还没有足够的数据<br>积累两周就能看出趋势</div>'; }
+    else{
+      h+='<div style="display:flex;align-items:flex-end;gap:6px;height:110px;padding:6px 2px 0;">';
+      for(const r of rows){
+        const pct=r.pct===null?0:r.pct;
+        h+='<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;">'
+         + '<div style="font-size:10px;color:var(--ink-3);font-weight:700;margin-bottom:3px;">'+(r.pct===null?"—":pct+"%")+'</div>'
+         + '<div style="width:100%;height:'+Math.max(3,Math.round(pct*0.62))+'px;border-radius:4px 4px 2px 2px;'
+         + 'background:'+(pct>=80?"#9E342C":pct>=50?"#C97A66":"#D9C7B6")+';'+(r.partial?"opacity:.55;":"")+'"></div>'
+         + '<div style="font-size:10px;color:var(--ink-3);margin-top:4px;">'+fmtMD(r.mon).replace("月","/").replace("日","")+'</div>'
+         + '</div>';
+      }
+      h+='</div>';
+      const avg=Math.round(has.reduce((s,r)=>s+r.pct,0)/has.length);
+      const first=has[0].pct, last=has[has.length-1].pct;
+      const trend = last-first>=8 ? "在变好" : (first-last>=8 ? "在走低" : "基本持平");
+      h+='<div class="quote" style="margin-top:10px;">最近 '+has.length+' 周平均 '+avg+'%，'+trend+'。'
+       + (trend==="在走低"?"<br>先看是不是任务定多了，而不是孩子不努力。":"")+'</div>';
+    }
+  })();
+  h+='</div>';
+
   h+='<div class="card"><div class="card-head"><h3>本周军功账</h3></div><div class="report-stat">';
   h+='<div class="rs-box"><div class="v">'+round1(weekMerit)+'</div><div class="l">本周所得</div></div>';
   for(const [v,l] of [[full,"完胜 ⭐"],[half,"苦战 ◑"],[poor,"惨胜 ◐"],[miss,"未战 ✕"]]){
@@ -2884,7 +3133,7 @@ function viewStats(){
   h+='<div style="font-size:12.5px;font-weight:600;color:var(--ink-2);line-height:1.95;">'
    + '累计军功 ⭐'+totalMerit()+'（点卯所得 '+earnedMerit()+meritSrcLine()+'）<br>'
    + '可用 ⭐'+availMerit()+' · 已开锦囊用去 ⭐'+spentMerit()
-   + '</div></div>';
+   + '</div><button class="btn ghost sm" style="margin-top:10px" onclick="openMeritBook()">查看星星明细</button></div>';
 
   const rows=Object.keys(perTask).filter(k=>perTask[k].act>0).map(k=>Object.assign({id:k},perTask[k]));
   h+='<div class="card"><div class="card-head"><h3>计划用时 vs 实际用时</h3><span class="hint">本周</span></div>';
@@ -3146,7 +3395,9 @@ function viewSettings(){
   }
   h+='</div>';
 
-  h+='<div class="card"><div class="card-head"><h3>锦囊设置</h3><button class="btn sm" onclick="openPrizeEdit()">+ 新增</button></div>';
+  h+='<div class="card"><div class="card-head"><h3>锦囊设置</h3><div style="display:flex;gap:6px;">'
+   + '<button class="btn ghost sm" onclick="openPrizePresets()">推荐模板</button>'
+   + '<button class="btn sm" onclick="openPrizeEdit()">+ 新增</button></div></div>';
   h+='<div style="font-size:12px;color:var(--ink-3);font-weight:600;margin-bottom:10px;">和孩子一起商量着填。权重越大越容易抽到。</div>';
   for(const tk of ["common","rare","legend"]){
     const list=ST.prizes.filter(p=>p.tier===tk);
@@ -3189,10 +3440,12 @@ function viewSettings(){
   h+='<div class="setrow"><span class="si">📥</span><span class="sn">导入备份<small>会覆盖当前全部数据，请谨慎</small></span>'
    + '<button class="btn ghost sm" onclick="document.getElementById(\'impFile\').click()">选择文件</button>'
    + '<input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)"></div>';
-  h+='<div class="setrow"><span class="si">🧪</span><span class="sn">造点示例数据<small>给过去 20 天随机生成点卯记录，方便先看效果</small></span>'
-   + '<button class="btn ghost sm" onclick="seedDemo()">生成</button></div>';
-  h+='<div class="setrow"><span class="si">🎟️</span><span class="sn">补发招贤令<small>想立刻试试揭榜时用，每次补 3 枚</small></span>'
-   + '<button class="btn ghost sm" onclick="grantTickets(3)">补发</button></div>';
+  h+='<div class="quote">正式使用不再提供示例数据和调试补令入口，避免覆盖真实记录或反复退还已用招贤令。</div>';
+  // 备份提醒：iOS 上删掉主屏幕图标再重装，这个 Web App 的本地数据会一起没掉。
+  const bd=ST.lastBackup?Math.round((parseD(TODAY())-parseD(ST.lastBackup))/86400000):null;
+  h+='<div class="quote" style="'+(bd===null||bd>30?"border-color:#EFC8BC;background:#FCEBE6;":"")+'">'
+   + '最近备份：'+(bd===null?"<b>还没有导出过</b>":bd===0?"今天":bd+" 天前")
+   + '。<br>换手机、删掉主屏幕图标重装、清理浏览器数据，都会把记录一起带走 —— 动手之前先导出一份。</div>';
   h+='<div class="setrow"><span class="si">🛡️</span><span class="sn">数据保护<small>'
    + ({
        granted:     "浏览器已承诺不自动清理这份数据 ✓",
@@ -3333,10 +3586,13 @@ function openPrizeEdit(id){
     $("#pOk",sheet).onclick=()=>{
       const name=$("#pName",sheet).value.trim();
       if(!name){ toast("先起个名吧"); return; }
+      const cost=moneyNumber($("#pCost",sheet).value);
+      const weight=Number($("#pWeight",sheet).value);
+      if(!validPrizeCost(cost)){ toast("开启门槛必须是大于0的有效军功数"); return; }
+      if(!Number.isInteger(weight) || weight<0 || weight>999){ toast("抽中权重需为0到999的整数"); return; }
       const obj={ name, emoji:$("#pEmoji",sheet).value.trim()||"🎁",
         tier:$("#pTier button.on",sheet).dataset.v,
-        merit:parseInt($("#pCost",sheet).value||"50",10)||50,
-        weight:parseInt($("#pWeight",sheet).value||"0",10)||0 };
+        merit:cost, weight };
       if(isNew) ST.prizes.push(Object.assign({id:uid()},obj));
       else Object.assign(ST.prizes.find(x=>x.id===id),obj);
       save(); closeSheet(); render(); toast(isNew?"锦囊已入榜 🎁":"已保存 ✓");
@@ -3350,13 +3606,85 @@ function delPrize(id){
   save(); closeSheet(); render(); toast("已删除");
 }
 
+/* ---- 推荐锦囊模板：家长从零想 10 个奖励太费劲，给三组现成的 ---- */
+const PRIZE_PRESETS = {
+  "学习向":[
+    ["挑一本课外书","📚","rare",200,9],
+    ["免一次课外作业","📜","common",80,10],
+    ["一件新文具","✏️","common",60,12],
+    ["周末去图书馆挑书","🏛️","common",120,10],
+    ["一次科学小实验套装","🔬","rare",300,8],
+    ["多玩 30 分钟学习类 App","📱","common",100,10]
+  ],
+  "生活向":[
+    ["小零食一份","🍬","common",50,12],
+    ["今晚吃什么你定","🍜","common",80,11],
+    ["晚睡半小时","🌙","common",100,10],
+    ["这周免做一次家务","🧹","common",60,11],
+    ["家庭电影夜（你选片）","🎬","rare",200,9],
+    ["一个小玩意儿","🎁","rare",400,8]
+  ],
+  "体验向":[
+    ["公园玩半日","🌳","common",150,12],
+    ["博物馆或科技馆一次","🏛️","rare",300,10],
+    ["游乐场一天","🎡","legend",800,5],
+    ["和朋友玩一整天","🤝","rare",500,7],
+    ["短途旅行一次","✈️","legend",1500,3],
+    ["心愿一件（自己填）","🌟","legend",1200,3]
+  ]
+};
+function openPrizePresets(){
+  let h='<h3>推荐模板</h3><div class="sh-sub">会把「锦囊设置」整组换成模板里的内容。'
+      + '<br>已经抽到手的锦囊不受影响，匣子里的照旧。</div>';
+  for(const k in PRIZE_PRESETS){
+    h+='<div class="opt" onclick="applyPrizePreset(\''+k+'\')" style="cursor:pointer;">'
+     + '<span class="oe">'+(k==="学习向"?"📚":k==="生活向"?"🍬":"🎡")+'</span>'
+     + '<span class="ob"><span class="ot">'+k+'</span>'
+     + '<span class="od">'+PRIZE_PRESETS[k].map(p=>p[0]).join(" · ")+'</span></span>'
+     + '<span class="os">'+PRIZE_PRESETS[k].length+' 项</span></div>';
+  }
+  h+='<button class="btn ghost" style="width:100%;margin-top:10px;" onclick="closeSheet()">算了</button>';
+  openSheet(h);
+}
+function applyPrizePreset(key){
+  const list=PRIZE_PRESETS[key]; if(!list) return;
+  if(!confirm("把锦囊设置整组换成「"+key+"」？原有模板会被替换（匣子里的不受影响）。")) return;
+  ST.prizes=list.map(p=>({ id:uid(), name:p[0], emoji:p[1], tier:p[2], merit:p[3], weight:p[4] }));
+  if(!save()) return;
+  closeSheet(); render(); toast("已载入「"+key+"」"+list.length+" 项 ✓");
+}
+
+function exportRawBackup(){
+  const raw=localStorage.getItem(KEY);
+  if(!raw){ toast("没有原始存档可导出"); return; }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([raw],{type:"application/json"}));
+  a.download="少年主公原始存档_"+TODAY()+".json";
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
 function exportData(){
-  const blob=new Blob([JSON.stringify(ST,null,2)],{type:"application/json"});
+  const json=JSON.stringify(ST,null,2);
+  const fname="少年主公备份_"+TODAY()+".json";
+  // iPad 上优先唤起系统分享面板：可以直接存 iCloud、隔空投送或发微信，
+  // 不用先落到「文件」App 再自己找。不支持才退回普通下载。
+  try{
+    if(navigator.share && typeof File==="function"){
+      const f=new File([json],fname,{type:"application/json"});
+      if(!navigator.canShare || navigator.canShare({files:[f]})){
+        navigator.share({files:[f],title:"少年主公备份"}).then(()=>{
+          ST.lastBackup=TODAY(); save(); toast("已分享备份 📤");
+        }).catch(()=>{});
+        return;
+      }
+    }
+  }catch(e){}
+  const blob=new Blob([json],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download="少年主公备份_"+TODAY()+".json";
+  a.download=fname;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  ST.lastBackup=TODAY(); save();
   toast("已导出备份 📤");
 }
 function importData(input){
@@ -3365,58 +3693,27 @@ function importData(input){
   fr.onload=()=>{
     try{
       const o=JSON.parse(fr.result);
-      if(!o||typeof o!=="object"||!Array.isArray(o.tasks)) throw new Error("格式不对");
-      if(!confirm("导入会覆盖当前全部数据，确定吗？")) return;
-      const d=defaultState();
-      ST=Object.assign(d,o);
-      ST.story=Object.assign(d.story,o.story||{});
-      ST.season=Object.assign(d.season,o.season||{});
-      if(!ST.heroes||typeof ST.heroes!=="object") ST.heroes={};
-      if(!ST.heroCount||typeof ST.heroCount!=="object") ST.heroCount={};
-      if(typeof ST.bonusMerit!=="number") ST.bonusMerit=0;
-      save(); refreshTop(); render(); toast("导入成功 ✓");
+      const next=prepareState(o); // 先在独立对象里校验并迁移，失败不动当前存档
+      if(!confirm("导入会覆盖当前全部数据，确定吗？会先保留当前本地快照。")) return;
+      const current=localStorage.getItem(KEY);
+      localStorage.setItem(KEY+"_before_import",current||JSON.stringify(ST));
+      const previous=ST, expected=STORAGE_LAST_RAW;
+      ST=next;
+      if(!save()){ ST=previous; STORAGE_LAST_RAW=expected; return; }
+      refreshTop(); render(); toast("导入成功 ✓");
     }catch(e){ alert("导入失败：" + e.message); }
     input.value="";
   };
   fr.readAsText(f);
 }
-function seedDemo(){
-  if(!confirm("将在过去 20 天随机生成点卯记录，用于查看效果。确定吗？")) return;
-  const today=TODAY();
-  // 重新生成前先把旧账本和旧记录清掉，让示例数据能重新结算
-  ST.ledger={}; ST.records={}; ST.bossDefeats={}; ST.prizes=ST.prizes;
-  const types=["full","full","full","full","half","poor"];
-  for(let i=20;i>=1;i--){
-    const d=addD(today,-i);
-    const list=dayExpected(d);
-    if(!list.length) continue;
-    for(const t of list){
-      if(Math.random()<0.12) continue;
-      const ty=types[Math.floor(Math.random()*types.length)];
-      const lv = ty==="full"?1:(ty==="half"||ty==="poor")?0.5:0;
-      const mins = Math.max(5,Math.round((t.planMin||15)*(0.6+Math.random()*0.9)));
-      setRec(d,t.id,lv,ty,mins);
-    }
-    if(Math.random()<0.5) ST.bossDefeats[d]=true;
-  }
-  // 顺便送几位名将，让图鉴不是空的
-  const gift=["关羽","张飞","赵云","太史慈","廖化","周仓","关平","乐进","丁奉","马良"];
-  for(const n of gift){ if(!ST.heroes[n]) ST.heroes[n]=addD(today,-Math.floor(Math.random()*20)); }
-  settleLedger();                       // 把过去 20 天一次性结算进账本
-  ST.pity.sinceLegend=0; ST.draws=0;
-  calcAchievements(); save(); refreshTop(); render();
-  toast("示例数据已生成 🧪");
-}
-function grantTickets(n){
-  // 调试/演示用：直接发几张招贤令
-  ST.draws=Math.max(0, ST.draws-(n||1));
-  save(); refreshTop(); render();
-  toast("已补 "+(n||1)+" 枚招贤令 🎟️");
-}
+// 保留旧函数名只为兼容旧页面事件；正式版绝不能修改记录或退还消费次数。
+function seedDemo(){ toast("正式使用已停用示例数据，真实记录不会被覆盖"); }
+function grantTickets(){ toast("正式使用已停用调试补令，已用招贤令不会退还"); }
 function resetAll(){
   if(!confirm("清空全部数据并恢复出厂设置？此操作不可撤销！")) return;
   if(!confirm("再确认一次：所有点卯记录、武将图鉴、锦囊、军报都会被删除。")) return;
   localStorage.removeItem(KEY);
+  STORAGE_LAST_RAW=null;
   ST=defaultState(); save(); refreshTop(); render(); toast("已恢复出厂设置");
 }
 
@@ -3555,6 +3852,11 @@ function render(){
    ===================================================================== */
 (function init(){
   ST=load();
+  if(!ST && LOAD_ERROR){
+    // 旧存档异常时不能默默恢复出厂并覆盖；留下载原文件的恢复出口。
+    $("#main").innerHTML='<div class="card"><h3>存档需要核查，已暂停写入</h3><p>'+esc(LOAD_ERROR)+'</p><p>原数据没有清空。请导出原始存档后再处理。</p><button class="btn" onclick="exportRawBackup()">导出原始存档</button></div>';
+    return;
+  }
   if(!ST){ ST=defaultState(); save(); }
   applySkin();
   // 存不住的话，先把话说清楚

@@ -12,10 +12,10 @@ function surnameOf(n){
   for(const c of COMPOUND) if(n.startsWith(c)) return c;
   return n.slice(0,1);
 }
-// 每行一位：["姓名","阵营","等级","图标","一句话","纹章姓氏"]
+// 每行一位：["姓名","阵营","等级","图标","一句话","纹章姓氏","字","名场面回目"]
 const lines = data.heroes.map(h => {
   const s = surnameOf(h.n);
-  return `  ["${esc(h.n)}","${esc(h.f)}","${esc(h.g)}","${esc(h.e)}","${esc(h.d)}","${esc(s)}"]`;
+  return `  ["${esc(h.n)}","${esc(h.f)}","${esc(h.g)}","${esc(h.e)}","${esc(h.d)}","${esc(s)}","${esc(h.z||"")}",${Number(h.c)||0}]`;
 });
 const literal = "const HERO_DATA = [\n" + lines.join(",\n") + "\n];";
 

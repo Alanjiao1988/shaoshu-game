@@ -23,3 +23,21 @@ Thumbs.db
 desktop.ini
 .DS_Store
 ehthumbs.db
+
+# ---- 浏览器诊断临时目录（我排查渲染器时留下的）----
+_diag/
+_p_/
+_chk.js
+_live.html
+
+# ---- 交付副本：与站点内容重复，仓库里只要源码 ----
+outputs/
+
+# ---- 浏览器诊断临时目录（我排查渲染器时留下的）----
+_diag/
+_p_/
+_chk.js
+_live.html
+
+# ---- 交付副本：与站点内容重复，仓库里只要源码 ----
+outputs/
