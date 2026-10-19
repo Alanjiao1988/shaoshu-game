@@ -25,7 +25,7 @@
 - v2.0.2/schema8本地修复：数值校验、事务保存失败回滚、抽卡即时保存、额外奖励幂等流水、升级前原文快照、导入统一迁移、异常存档不清空。尚未发布，不自动扣除历史可疑余额。
 - 用户“5天1000多”没有实际存档，不能断言根因或保证绝不出错。旧测试29.4漏算，修正逐日时钟后7项默认任务5天全完胜仅点卯为41.3。
 - 浏览器回归2026-10-16出现Chrome/Edge均targets=0，未完成验证，不能说全绿或发布生产版。
-- **2026-10-19 确认这是环境级故障**：Chrome 155 渲染器在本机完全不可用（headless 多种参数、旧版 headless、可见窗口全失败，连 `data:text/html,<h1>hello</h1>` 的 dump-dom 都为空）。ui.js 支持 `SHAOZHU_TEST_HEADFUL=1` 切可见窗口。界面 31 项必须换环境或由用户本人在设备上验。
+- **2026-10-19 确认这是环境级故障**：Chrome 155 与 Firefox 的渲染器在本机完全不可用（headless 多种参数、旧版 headless、可见窗口全失败，连 `data:text/html,<h1>hello</h1>` 的 dump-dom 都为空）。**结论：这台机器不可能做视觉/截图验收，别再来回试浏览器**。改用 `tests/dom.js`（jsdom）验证交互逻辑；CSS 布局仍需用户本人在设备上看。
 - **⚠️ 不要建议「删掉主屏幕图标重新添加」来更新版本** —— iOS 删除 Web Clip 会连同该 Web App 的本地存储一起删除，等于删档。已在设置页加备份提醒与这句警告。
 - ⚠️ 旧数据容错原则：**单条坏数据只能降级该条，不能让整份存档加载失败**。v2.0.2 已按此处理锦囊门槛、升级快照写入失败。
 - 后续：跨周趋势、目标层、实际设备备份核查。
@@ -72,6 +72,10 @@
 - `tests/stress_30days.js` — 固定种子30天逐日涨幅/流水/收支/重载对账，有失败退出码
 - `tests/repro_5days.js` — 5天精确对账（7默认任务全完胜=41.3）
 - `tests/ui.js` — 浏览器31项 + 截图（`tests/shots/`），当前page targets=0未验收
+- `tests/dom.js` — **真实 DOM 交互 34 项**（jsdom，绕开浏览器渲染器），覆盖点击/表单/面板/落盘
+  - 跑法：`NODE_PATH=C:/Users/ianji/.workbuddy/binaries/node/workspace/node_modules node .workbuddy/tests/dom.js`
+  - ⚠️ 应用启动 260ms 后会弹「今日仪式卡」，测试需先等 450ms 再 closeSheet，否则面板被顶掉
+  - ⚠️ 页面里有三个「+ 新增」（军令/锦囊/…），**必须按卡片 h3 标题定位**，取第一个会点错
 - `tools/makeicon.js` — 生成全部图标尺寸（含 maskable）
 - `tools/buildheroes.js` — 从 `ref/heroes.json` 生成 `HERO_DATA` 注入 HTML
 - `tools/checkheroes.js` — 校验武将库与怀沙实体卡核对表是否一一对应

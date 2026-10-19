@@ -635,7 +635,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.1.1";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 8;
 // 最近几天（含今天）的账还没冻结，可以补录点卯。
@@ -2759,7 +2759,8 @@ function viewHeroes(){
    + '<span>招贤令 🎟️ '+tk+'</span></div>';
   h+='<button class="btn gold" style="width:100%;margin-top:13px;" '+(tk<1?"disabled":"")+' onclick="openDraw()">'
    + (tk<1?"尚无招贤令":"✨ 揭榜招贤（🎟️ × 1）")+'</button>';
-  // 保底进度：把「抽不到」变成「快到了」
+  h+='<div style="font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:9px;line-height:1.75;">'
+   + '黑影＝还没认得 · 读到那一回会变成灰卡 · 揭榜抽到才真正入麾下</div>';
   (function(){
     const left=pityLeft();
     const done=PITY-left;
@@ -3665,27 +3666,37 @@ function exportRawBackup(){
 function exportData(){
   const json=JSON.stringify(ST,null,2);
   const fname="少年主公备份_"+TODAY()+".json";
+  const done = msg => { ST.lastBackup=TODAY(); save(); toast(msg); };
   // iPad 上优先唤起系统分享面板：可以直接存 iCloud、隔空投送或发微信，
-  // 不用先落到「文件」App 再自己找。不支持才退回普通下载。
+  // 不用先落到「文件」App 再自己找。
   try{
     if(navigator.share && typeof File==="function"){
       const f=new File([json],fname,{type:"application/json"});
       if(!navigator.canShare || navigator.canShare({files:[f]})){
         navigator.share({files:[f],title:"少年主公备份"}).then(()=>{
-          ST.lastBackup=TODAY(); save(); toast("已分享备份 📤");
-        }).catch(()=>{});
+          done("已分享备份 📤");
+        }).catch(err=>{
+          // 用户自己点「取消」就什么都别做；分享失败则必须退回下载，
+          // 否则「导出备份」按下去会毫无反应 —— 备份按钮不能有静默失败。
+          if(err && err.name==="AbortError") return;
+          downloadBackup(json,fname) ? done("已导出备份 📤") : toast("备份没能导出，请换用 Safari 打开后再试",4200);
+        });
         return;
       }
     }
   }catch(e){}
-  const blob=new Blob([json],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=fname;
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-  ST.lastBackup=TODAY(); save();
-  toast("已导出备份 📤");
+  if(downloadBackup(json,fname)) done("已导出备份 📤");
+  else toast("备份没能导出，请换用 Safari 打开后再试",4200);
+}
+function downloadBackup(json,fname){
+  try{
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+    a.download=fname;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    return true;
+  }catch(e){ return false; }
 }
 function importData(input){
   const f=input.files[0]; if(!f) return;

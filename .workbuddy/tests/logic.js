@@ -74,7 +74,7 @@ const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODA
 console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
 
 console.log("=== 1. 版本与静态资源 ===");
-t("软件版本为 2.1.0", run(`APP_VERSION`)==="2.1.0", run(`APP_VERSION`));
+t("软件版本为 2.1.1", run(`APP_VERSION`)==="2.1.1", run(`APP_VERSION`));
 t("数据结构版本为 8", run(`SCHEMA`)===8, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
@@ -100,7 +100,7 @@ t("启动器是 UTF-16LE + BOM（Windows 才不乱码）", (()=>{
 t("有持久化存储的申请逻辑", /navigator\.storage\.persist/.test(html) && /requestPersistentStorage/.test(html));
 t("sw.js 缓存清单包含 maskable 图标", (()=>{
   const sw = fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8");
-  return /icon-maskable-512\.png/.test(sw) && /VERSION = "2\.1\.0"/.test(sw);
+  return /icon-maskable-512\.png/.test(sw) && /VERSION = "2\.1\.1"/.test(sw);
 })());
 
 console.log("\n=== 2. 补录窗口 ===");
