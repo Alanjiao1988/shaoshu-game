@@ -74,7 +74,7 @@ const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODA
 console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
 
 console.log("=== 1. 版本与静态资源 ===");
-t("软件版本为 2.1.1", run(`APP_VERSION`)==="2.1.1", run(`APP_VERSION`));
+t("软件版本为 2.1.2", run(`APP_VERSION`)==="2.1.2", run(`APP_VERSION`));
 t("数据结构版本为 8", run(`SCHEMA`)===8, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
@@ -434,17 +434,19 @@ const doneOn = (dates) => {
        ST.createdAt=addD(TODAY(),-200); ST.story.startDay=addD(TODAY(),-200); ST.story.baseDays=0; ${DAYS_2}`);
   for(const d of dates) run(`setRec("${d}","a",1,"full",15); setRec("${d}","b",1,"full",10);`);
 };
-t("推进常量是每 3 天全勤 1 回", run(`CHAPTER_PER_DONE_DAYS`)===3);
-t("一天没完成时停在第 1 回", (()=>{ doneOn([]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===3; })());
-t("完成 1 天：还没推进，但要再攒 2 天", (()=>{ doneOn([run(`addD(TODAY(),-2)`)]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===2; })());
-t("完成 2 天：再攒 1 天", (()=>{ doneOn([run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===1; })());
-t("★ 完成 3 天：推进到第 2 回", (()=>{
-  doneOn([run(`addD(TODAY(),-3)`),run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]);
+t("推进常量是每 1 天全勤 1 回", run(`CHAPTER_PER_DONE_DAYS`)===1);
+t("一天没完成时停在第 1 回", (()=>{ doneOn([]); return run(`storyChapterRaw()`)===0 && run(`storyNextIn()`)===1; })());
+t("★ 完成 1 天就推进到第 2 回", (()=>{
+  doneOn([run(`addD(TODAY(),-1)`)]);
   return run(`storyChapterRaw()`)===1;
 })(), "第 " + (run(`storyChapterRaw()`)+1) + " 回");
-t("完成 9 天：推进到第 4 回", (()=>{
-  doneOn([0,1,2,3,4,5,6,7,8].map(i=>run(`addD(TODAY(),-${i+1})`)));
+t("完成 3 天：推进到第 4 回", (()=>{
+  doneOn([1,2,3].map(i=>run(`addD(TODAY(),-${i})`)));
   return run(`storyChapterRaw()`)===3;
+})(), "第 " + (run(`storyChapterRaw()`)+1) + " 回");
+t("完成 9 天：推进到第 10 回", (()=>{
+  doneOn([0,1,2,3,4,5,6,7,8].map(i=>run(`addD(TODAY(),-${i+1})`)));
+  return run(`storyChapterRaw()`)===9;
 })(), "第 " + (run(`storyChapterRaw()`)+1) + " 回");
 t("只完成一半的日子不算数", (()=>{
   run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.createdAt=addD(TODAY(),-200); ST.story.startDay=addD(TODAY(),-200); ST.story.baseDays=0;`);
@@ -455,7 +457,7 @@ t("★ 休整日不会被误算成全勤", (()=>{
   // 前后各一天全勤，中间一段休整期（没有任务）——全勤应该正好是 2
   doneOn([run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-1)`)]);
   run(`ST.breaks=[{id:"br",from:addD(TODAY(),-4),to:addD(TODAY(),-2),reason:"生病"}];`);
-  return run(`storyDoneDays()`)===2 && run(`storyChapterRaw()`)===0;
+  return run(`storyDoneDays()`)===2 && run(`storyChapterRaw()`)===2;
 })(), "全勤 " + run(`storyDoneDays()`) + " 天");
 t("休整期里的「今天想做一点」照样能推进", (()=>{
   doneOn([]);
@@ -470,38 +472,36 @@ t("★ 往后补录也会推进（不限于当天）", (()=>{
   const a=run(`storyChapterRaw()`);
   run(`setRec("${run(`addD(TODAY(),-1)`)}","a",1,"full",15); setRec("${run(`addD(TODAY(),-1)`)}","b",1,"full",10);`);
   run(`setRec("${TODAY}","a",1,"full",15); setRec("${TODAY}","b",1,"full",10);`);
-  return a===0 && run(`storyChapterRaw()`)===1;
+  return a===1 && run(`storyChapterRaw()`)===3;
 })());
 t("★ 撤销记录后进度只可能停住，不会倒退到 0 以下", (()=>{
   doneOn([run(`addD(TODAY(),-3)`),run(`addD(TODAY(),-2)`),run(`addD(TODAY(),-1)`)]);
   const a=run(`storyChapterRaw()`);
   run(`clearRec("a","${run(`addD(TODAY(),-1)`)}"); clearRec("b","${run(`addD(TODAY(),-1)`)}");`);
-  return a===1 && run(`storyChapterRaw()`)<=a && run(`storyDoneDays()`)>=0;
+  return a===3 && run(`storyChapterRaw()`)<=a && run(`storyDoneDays()`)>=0;
 })());
 t("★ 读满 120 回后封顶，不会归零重来", (()=>{
-  run(`ST=defaultState(); ST.story.baseDays=120*3; ST.story.startDay=addD(TODAY(),-200); ST.records={}; ST.ledger={}; ST.breaks=[];`);
+  run(`ST=defaultState(); ST.story.baseDays=120*CHAPTER_PER_DONE_DAYS; ST.story.startDay=addD(TODAY(),-200); ST.records={}; ST.ledger={}; ST.breaks=[];`);
   const out=run(`viewToday()`);
-  return run(`storyChapterRaw()`)===120
-      && /第 一百二十 回/.test(out) || /已推进 120 \/ 120 回/.test(out);
-})(), (()=>{ run(`ST=defaultState(); ST.story.baseDays=360; ST.story.startDay=addD(TODAY(),-200);`);
-  return "raw=" + run(`storyChapterRaw()`) + " 顶回=" + run(`Math.min(storyChapterRaw(),ST.story.chapters.length)`); })());
+  return run(`storyChapterRaw()`)===120 && /已推进 120 \/ 120 回/.test(out);
+})(), "raw=" + run(`storyChapterRaw()`));
 t("剧情卡显示「再攒 N 天全勤」", (()=>{
   run(`ST=defaultState(); ST.records={}; ST.ledger={}; ST.breaks=[]; ST.story.startDay=TODAY(); ST.story.baseDays=0;`);
-  return /再攒 3 天全勤/.test(run(`viewToday()`));
+  return /再攒 1 天全勤/.test(run(`viewToday()`));
 })());
 t("★ 旧的按周进度会折算过来，不倒退", (()=>{
   run(`ST=defaultState(); ST.records={}; ST.story.startWeek=addD(weekStart(TODAY()),-7*30); ST.schema=5; delete ST.story.baseDays; delete ST.story.startDay;`);
   run(`ST=migrate(ST);`);
-  return run(`ST.story.baseDays`)===30*3 && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===8;
+  return run(`ST.story.baseDays`)===30*run(`CHAPTER_PER_DONE_DAYS`) && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===8;
 })(), "折算 " + run(`ST.story.baseDays`) + " 天 → 第 " + (run(`storyChapterRaw()`)+1) + " 回");
 t("新装的人不受迁移影响（baseDays=0）", (()=>{
   run(`ST=defaultState();`);
   return run(`ST.story.baseDays`)===0 && run(`!!ST.story.startDay`) && run(`storyChapterRaw()`)===0;
 })());
-t("推进速度算得清：满勤约一年读完", (()=>{
+t("推进速度算得清：满勤 120 天读完", (()=>{
   const days = run(`ST.story.chapters.length`) * run(`CHAPTER_PER_DONE_DAYS`);
-  return days===360;
-})(), "120 回 × 3 天 = 360 天满勤");
+  return days===120;
+})(), "120 回 × 1 天 = 120 天满勤");
 
 console.log("\n=== 10.10 重复武将的星级成长 ===");
 t("刚招募时不显示星级（只有 1 张）", (()=>{

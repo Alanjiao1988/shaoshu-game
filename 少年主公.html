@@ -635,7 +635,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.1.1";
+const APP_VERSION = "2.1.2";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 8;
 // 最近几天（含今天）的账还没冻结，可以补录点卯。
@@ -1416,9 +1416,9 @@ function isCompleteOn(dateStr){
 }
 
 /* ---- 主线推进：靠努力换，不靠时间 ----
-   累计「军令齐备」的天数（休整日跳过），每满 CHAPTER_PER_DONE_DAYS 天推进一回。
+   累计「军令齐备」的天数（休整日跳过），全勤一天推进一回。
    只用累加，所以进度永远不会倒退。 */
-const CHAPTER_PER_DONE_DAYS = 3;
+const CHAPTER_PER_DONE_DAYS = 1;
 function storyDoneDays(){
   const st = ST.story || {};
   let n = st.baseDays || 0;                       // 迁移时折算过来的旧进度

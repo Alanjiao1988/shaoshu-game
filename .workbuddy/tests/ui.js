@@ -178,7 +178,7 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     await cdp.eval("try{closeSheet();}catch(e){} ST=defaultState(); ST.createdAt=addD(TODAY(),-30); ST.lastOpen=TODAY(); save(); VIEW='today'; VIEW_DATE=TODAY(); render();");
     await sleep(400);
     t("今日视图渲染出内容", (await cdp.eval(`document.querySelector("#main").innerHTML.length`)) > 800);
-    t("版本号显示为 2.1.1", /少年主公 v2\.1\.1/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
+    t("版本号显示为 2.1.2", /少年主公 v2\.1\.1/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
     for (const v of ["today","week","heroes","stats","report","settings"]) {
       const len = await cdp.eval(`(function(){ VIEW="${v}"; render(); return document.querySelector("#main").innerHTML.length; })()`);
       t("切换到「" + v + "」正常", len > 200, "长度 " + len);
@@ -200,7 +200,7 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
       return JSON.stringify({ n: rs.length, state: rs[0] && rs[0].active ? rs[0].active.state : "none" }); })`));
     t("已注册并激活", sw.n > 0 && sw.state === "activated", JSON.stringify(sw));
     const caches = await cdp.eval(`caches.keys().then(function(k){ return JSON.stringify(k); })`);
-    t("缓存名为 shaozhu-v2.1.1", /shaozhu-v2\.1\.1/.test(caches), caches);
+    t("缓存名为 shaozhu-v2.1.2", /shaozhu-v2\.1\.1/.test(caches), caches);
     const cached = await cdp.eval(`caches.keys().then(function(k){
       return caches.open(k[0]).then(function(c){ return c.keys(); }).then(function(rs){
         return JSON.stringify(rs.map(function(r){ return r.url.split("/").pop() || "root"; })); }); })`);
