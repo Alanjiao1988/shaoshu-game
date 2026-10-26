@@ -647,7 +647,7 @@ const SCHEMA = 8;
    - 换口令：node .workbuddy/tools/setgate.js <新口令>
    这是网页上的门锁，挡普通访客，不防懂技术的人；孩子的数据本来就只在他自己的设备上。 */
 const GATE_KEY = "shaozhu_gate";
-/* BUILD:GATE */const GATE_HASH = "";/* END:GATE */
+/* BUILD:GATE */const GATE_HASH = "bdf6e55fd799e205";/* END:GATE */
 function gateHash(code){
   let str="shaozhu-gate|"+String(code).trim(), h1=0x9e3779b9, h2=0x85ebca6b;
   for(let r=0;r<2000;r++){
