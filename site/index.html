@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>少年主公 · 学习军令台</title>
 <!-- iPad / iPhone：加到主屏幕后全屏运行，像原生 App -->
@@ -635,9 +636,68 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.1.2";
+const APP_VERSION = "2.1.3";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 8;
+
+/* ---------------------- 家庭口令（打开 App 的门） ----------------------
+   网址是公开的，口令让外人打不开。只存哈希，明文不进源码。
+   - 已经有存档的设备（孩子手机、家里电脑）自动放行，永远不会被拦；
+   - 新设备输对一次后记住，以后不再问；
+   - 换口令：node .workbuddy/tools/setgate.js <新口令>
+   这是网页上的门锁，挡普通访客，不防懂技术的人；孩子的数据本来就只在他自己的设备上。 */
+const GATE_KEY = "shaozhu_gate";
+/* BUILD:GATE */const GATE_HASH = "";/* END:GATE */
+function gateHash(code){
+  let str="shaozhu-gate|"+String(code).trim(), h1=0x9e3779b9, h2=0x85ebca6b;
+  for(let r=0;r<2000;r++){
+    for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); }
+    h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+    h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+    str=(h1>>>0).toString(36)+(h2>>>0).toString(36)+r;
+  }
+  return (h2>>>0).toString(16).padStart(8,"0")+(h1>>>0).toString(16).padStart(8,"0");
+}/* END:GATEFN */
+function gatePassed(){
+  if(!GATE_HASH) return true;
+  try{
+    if(localStorage.getItem(GATE_KEY)===GATE_HASH) return true;
+    // 已经在用的设备：有存档就是自家设备，直接放行并记住
+    if(localStorage.getItem(KEY)!==null){ localStorage.setItem(GATE_KEY,GATE_HASH); return true; }
+  }catch(e){}
+  return false;
+}
+function showGate(){
+  const app=document.querySelector(".app"); if(app) app.style.display="none";
+  const g=document.createElement("div");
+  g.id="gate";
+  g.style.cssText="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#F6F1E6;padding:24px;z-index:9999;";
+  g.innerHTML='<div style="max-width:320px;width:100%;text-align:center;">'
+    +'<div style="font-size:44px;">🏯</div>'
+    +'<h2 style="margin:10px 0 6px;">少年主公</h2>'
+    +'<div style="color:#7a6a55;font-size:14px;margin-bottom:16px;">这是一个家庭私用的学习工具，请输入家庭口令</div>'
+    +'<input id="gateIn" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;font-size:18px;padding:12px;border:1px solid #c9b48f;border-radius:10px;text-align:center;">'
+    +'<button id="gateOk" class="btn" style="width:100%;margin-top:12px;padding:12px;font-size:16px;">进入</button>'
+    +'<div id="gateMsg" style="color:#b23a2a;font-size:13px;min-height:18px;margin-top:10px;"></div>'
+    +'</div>';
+  document.body.appendChild(g);
+  let fails=0, waitUntil=0;
+  const inp=g.querySelector("#gateIn"), msg=g.querySelector("#gateMsg");
+  const go=()=>{
+    if(Date.now()<waitUntil){ msg.textContent="请稍等几秒再试"; return; }
+    if(gateHash(inp.value)===GATE_HASH){
+      try{ localStorage.setItem(GATE_KEY,GATE_HASH); }catch(e){}
+      location.reload();
+      return;
+    }
+    fails++; inp.value="";
+    if(fails>=5){ waitUntil=Date.now()+30000; fails=0; msg.textContent="口令不对，30 秒后再试"; }
+    else msg.textContent="口令不对";
+  };
+  g.querySelector("#gateOk").onclick=go;
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
+  setTimeout(()=>inp.focus(),50);
+}
 // 最近几天（含今天）的账还没冻结，可以补录点卯。
 // 更早的日子一经结算就只读 —— 否则改任务会一直改写历史。
 const BACKFILL_DAYS = 3;
@@ -3862,6 +3922,8 @@ function render(){
    启动
    ===================================================================== */
 (function init(){
+  // 外人先过家庭口令；不过就什么都不加载，也不会在他设备上建存档
+  if(!gatePassed()){ showGate(); return; }
   ST=load();
   if(!ST && LOAD_ERROR){
     // 旧存档异常时不能默默恢复出厂并覆盖；留下载原文件的恢复出口。
