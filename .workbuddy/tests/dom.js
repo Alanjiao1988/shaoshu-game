@@ -24,6 +24,9 @@ function make(seed) {
     virtualConsole: vc,
     beforeParse(w) {
       w.scrollTo = () => {};
+      // 模拟已过家庭口令的自家设备（口令本身由 gate.js 测）
+      const gh = (html.match(/const GATE_HASH = "([0-9a-f]*)"/) || [])[1];
+      if (gh) w.localStorage.setItem("shaozhu_gate", gh);
       w.confirm = () => true;
       w.alert = () => {};
       w.URL.createObjectURL = () => "blob:stub";
