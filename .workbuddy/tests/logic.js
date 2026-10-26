@@ -74,8 +74,8 @@ const FROZEN = [run(`addD(TODAY(),-5)`), run(`addD(TODAY(),-4)`), run(`addD(TODA
 console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区 ≤ ${run(`addD(TODAY(),-3)`)}\n`);
 
 console.log("=== 1. 版本与静态资源 ===");
-t("软件版本为 2.1.3", run(`APP_VERSION`)==="2.1.3", run(`APP_VERSION`));
-t("数据结构版本为 8", run(`SCHEMA`)===8, String(run(`SCHEMA`)));
+t("软件版本与 sw.js 一致", run(`APP_VERSION`)===(fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8").match(/VERSION = "([^"]+)"/)||[])[1], run(`APP_VERSION`));
+t("数据结构版本为 9", run(`SCHEMA`)===9, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
 t("site 里图标文件齐全", ["apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png",
@@ -153,14 +153,14 @@ t("空白日子也被冻结", (()=>{
 })(), String(run(`Object.keys(ST.ledger).length`)));
 
 console.log("\n=== 4. 数据迁移 ===");
-t("v1 老数据一路升到 v8", (()=>{
+t("v1 老数据一路升到最新", (()=>{
   store["shaozhu_v1"]=JSON.stringify({ version:1, childName:"小虎",
     tasks:[{id:"z",name:"旧军令",subject:"cn",type:"daily",weekdays:[0,1,2,3,4,5,6]}],
     records:{"2026-10-01":{"z":{level:1,type:"full",minutes:10}}},
     bossDefeats:{}, vault:[], heroes:{"关羽":"2026-09-01"}, heroCount:{}, draws:2, bonusMerit:25,
     ledger:{}, peakMerit:100, pity:{sinceLegend:3}, graduated:{}, lastOpen:"" });
   run(`ST=load();`);
-  const ok = run(`ST.schema`)===8 && run(`ST.childName`)==="小虎" && run(`ST.peakMerit`)===100
+  const ok = run(`ST.schema`)===run(`SCHEMA`) && run(`ST.childName`)==="小虎" && run(`ST.peakMerit`)===100
     && Array.isArray(run(`ST.coupons`)) && Array.isArray(run(`ST.breaks`))
     && Array.isArray(run(`ST.signals`)) && typeof run(`ST.hintApplied`)==="object";
   run(`ST=defaultState(); save();`);
@@ -414,7 +414,7 @@ t("剧情卡正常渲染当前回目", (()=>{
 t("★ 选过别的书的人会被归位到三国演义", (()=>{
   run(`ST=defaultState(); ST.story.book="西游记"; ST.story.chapters=["石猴出世","拜师学艺"]; ST.schema=4;`);
   run(`ST=migrate(ST);`);
-  return run(`ST.story.book`)==="三国演义" && run(`ST.story.chapters.length`)===120 && run(`ST.schema`)===8;
+  return run(`ST.story.book`)==="三国演义" && run(`ST.story.chapters.length`)===120 && run(`ST.schema`)===run(`SCHEMA`);
 })(), run(`ST.story.book`) + " / " + run(`ST.story.chapters.length`) + " 回");
 t("已经是三国演义的人不会被二次改写", (()=>{
   run(`ST=defaultState(); ST.schema=4;`);
@@ -493,7 +493,7 @@ t("剧情卡显示「再攒 N 天全勤」", (()=>{
 t("★ 旧的按周进度会折算过来，不倒退", (()=>{
   run(`ST=defaultState(); ST.records={}; ST.story.startWeek=addD(weekStart(TODAY()),-7*30); ST.schema=5; delete ST.story.baseDays; delete ST.story.startDay;`);
   run(`ST=migrate(ST);`);
-  return run(`ST.story.baseDays`)===30*run(`CHAPTER_PER_DONE_DAYS`) && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===8;
+  return run(`ST.story.baseDays`)===30*run(`CHAPTER_PER_DONE_DAYS`) && !!run(`ST.story.startDay`) && run(`!ST.story.startWeek`) && run(`ST.schema`)===run(`SCHEMA`);
 })(), "折算 " + run(`ST.story.baseDays`) + " 天 → 第 " + (run(`storyChapterRaw()`)+1) + " 回");
 t("新装的人不受迁移影响（baseDays=0）", (()=>{
   run(`ST=defaultState();`);
@@ -658,7 +658,7 @@ t("★ 迁移时补记已集满的（不重复发）", (()=>{
   run(`ST=migrate(ST);`);
   const m1=run(`ST.bonusMerit`);
   run(`ST=migrate(ST);`);
-  return m1===m0+200 && run(`ST.bonusMerit`)===m1 && run(`ST.schema`)===8;
+  return m1===m0+200 && run(`ST.bonusMerit`)===m1 && run(`ST.schema`)===run(`SCHEMA`);
 })(), "补发 " + (run(`ST.bonusMerit`)-200) + " → " + run(`ST.bonusMerit`));
 t("checkCollection 可作用于迁移中的对象", (()=>{
   run(`const s=defaultState(); s.heroes={}; s.bonusMerit=0;`);
@@ -816,13 +816,13 @@ t("v7升级保留原有1000余额与已付金额，且迁移幂等", (()=>{
   run(`ST=defaultState(); ST.schema=7; ST.bonusMerit=1000; ST.vault=[{uid:"old-paid",name:"旧奖励",merit:50,redeemed:true}]; delete ST.meritEvents; ST=migrate(ST);`);
   const before=run(`JSON.stringify(ST)`);
   run(`ST=migrate(ST);`);
-  return run(`ST.schema`)===8 && run(`ST.bonusMerit`)===1000 && run(`ST.vault[0].paidMerit`)===50 && before===run(`JSON.stringify(ST)`);
+  return run(`ST.schema`)===run(`SCHEMA`) && run(`ST.bonusMerit`)===1000 && run(`ST.vault[0].paidMerit`)===50 && before===run(`JSON.stringify(ST)`);
 })());
 t("首次升级先留原文快照再写入新存档", (()=>{
   run(`ST=defaultState(); ST.schema=7; ST.appVersion="2.0.1"; ST.bonusMerit=1000; localStorage.setItem(KEY,JSON.stringify(ST));`);
   const original=store["shaozhu_v1"];
   run(`ST=load(); save();`);
-  return store["shaozhu_v1_before_upgrade"]===original && run(`ST.bonusMerit`)===1000 && run(`ST.schema`)===8;
+  return store["shaozhu_v1_before_upgrade"]===original && run(`ST.bonusMerit`)===1000 && run(`ST.schema`)===run(`SCHEMA`);
 })());
 t("坏金额存档被拒绝且原始存档不覆盖", (()=>{
   // 真正会加钱入余额的字段坏了才停；单个锦囊门槛坏了不拦启动
@@ -863,7 +863,7 @@ t("升级快照写不下时仍能正常启动", (()=>{
   sandbox.localStorage.setItem=(k,v)=>{ if(String(k).includes("_before_upgrade")) throw new Error("QuotaExceededError"); return orig(k,v); };
   let loaded;
   try{ loaded=run(`load()`); } finally { sandbox.localStorage.setItem=orig; }
-  const ok=!!loaded && loaded.schema===8 && run(`LOAD_ERROR`)==="";
+  const ok=!!loaded && loaded.schema===run(`SCHEMA`) && run(`LOAD_ERROR`)==="";
   run(`ST=defaultState(); STORAGE_LAST_RAW=undefined; save();`);
   return ok;
 })());
