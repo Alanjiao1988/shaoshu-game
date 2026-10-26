@@ -129,7 +129,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   console.log("\n=== J. 老存档升级 ===");
   const old=JSON.parse(raw); old.schema=8; delete old.parentPin; delete old.changeLog; old.bonusMerit=1585;
   const up=ev(`prepareState(${JSON.stringify(old)})`);
-  t("v8 存档升到 v9，星星一颗不少", up.schema===9 && up.bonusMerit===1585 && Array.isArray(up.changeLog) && up.parentPin===null);
+  t("v8 存档升到最新，星星一颗不少", up.schema>=9 && up.bonusMerit===1585 && Array.isArray(up.changeLog) && up.parentPin===null);
   t("老存档的已有军令都不会变成待批准", up.tasks.every(x=>!x.pending));
 
   t("全程无未捕获异常", errors.length===0, errors.slice(0,2).join(" | "));

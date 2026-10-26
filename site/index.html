@@ -636,9 +636,9 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
-const SCHEMA = 9;
+const SCHEMA = 10;
 
 /* ---------------------- 家庭口令（打开 App 的门） ----------------------
    网址是公开的，口令让外人打不开。只存哈希，明文不进源码。
@@ -937,8 +937,12 @@ const HERO_TIER_BOX  = { legend:"t-legend", rare:"t-rare", common:"t-normal" };
 const HERO_ORDER = ["legend","rare","common"];
 // 单张卡的基础权重（160 位里良将占 112，所以权重按「单卡稀有度」而不是「档位总量」调）
 const HERO_W = { legend:10, rare:16, common:18 };
-// 重复抽到折算的军功
-const DUP_MERIT = { legend:80, rare:25, common:6 };
+// 军功只凭学习（v2.3.0 起）：抽卡、集齐都不再给星。
+// 重复抽到的武将只加星级（相遇次数），不折算军功。DUP_MERIT 只留给旧版说明，不再入账。
+const DUP_MERIT = { legend:0, rare:0, common:0 };
+// 新规：每项完胜 3 星（苦战/惨胜 1.5），破敌当天另加 10 星
+const STAR_PER_FULL = 3;
+const BOSS_MERIT = 10;
 // 未获得的武将权重加成 —— 160 张比 36 张大得多，加成相应调高
 const HERO_NEW_BOOST = 3.5;
 // 移出图鉴的旧武将，按持有数量补军功（见 migrate）
@@ -1150,6 +1154,7 @@ function defaultState(){
     graduated:{},          // 已养成的军令：{ taskId: {name,emoji,subject,at,weeks} }
     lastOpen:"",
     lastBackup:"",         // 最近一次导出备份的日期，用来提醒别把数据只留在一台机器上
+    ruleFrom:"",           // 「军功只凭学习」新规的生效日；空 = 新存档从第一天就是新规
     // 家长密码：只存加盐哈希。设了之后，设置页和一切「改规则、改奖励、确认兑现」都要先输密码
     parentPin:null,        // { salt, h }
     pinFails:{ n:0, until:0 },
@@ -1257,6 +1262,15 @@ function migrate(s){
     // v8 → v9：家长密码与改动留痕。不改任何已有数据，已有军令一律视为家长已认可。
     s.schema=9;
   }
+  if(s.schema < 10){
+    // v9 → v10：军功只凭学习。从升级当天起：完胜 3 星、破敌 +10，揭榜/集齐不再给星。
+    // 已有的星（含旧版抽卡得的）一颗不扣；升级之前的日子仍按旧规，不追溯。
+    s.ruleFrom = TODAY();
+    if(!Array.isArray(s.changeLog)) s.changeLog=[];
+    s.changeLog.push({ at:Date.now(), date:TODAY(), what:"启用新规「军功只凭学习」：完胜 3 星、破敌 +10，揭榜与集齐不再给星。已有军功不变", locked:!!(s.parentPin&&s.parentPin.h) });
+    s.schema=10;
+  }
+  if(typeof s.ruleFrom!=="string") s.ruleFrom="";
   if(!s.hintApplied || typeof s.hintApplied!=="object") s.hintApplied={};
   if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
   if(!Array.isArray(s.changeLog)) s.changeLog=[];
@@ -1474,9 +1488,13 @@ function dayRatio(dateStr){
 // 孩子自己加、家长还没批的军令：可以做、可以记，但不算军功、不算全勤
 // 批准当天起才生效：批准前那几天的点卯不倒算军功，也不会让已经全勤的日子回头变成「没做完」
 function taskActiveOn(t,dateStr){ return !t.pending && !(t.approvedAt && dateStr<t.approvedAt); }
+// 新规从 ST.ruleFrom 那天起算；之前的日子按旧规（每项 1 星、破敌不加星），不追溯
+function newRuleOn(dateStr){ return !ST.ruleFrom || dateStr>=ST.ruleFrom; }
+function starRate(dateStr){ return newRuleOn(dateStr) ? STAR_PER_FULL : 1; }
+function bossMeritOn(dateStr){ return newRuleOn(dateStr) && bossBeaten(dateStr) ? BOSS_MERIT : 0; }
 function dayStars(dateStr){
   const day=ST.records[dateStr]; if(!day) return 0;
-  let s=0; for(const k of Object.keys(day)){ const tk=ST.tasks.find(x=>x.id===k); if(tk && !taskActiveOn(tk,dateStr)) continue; s+=recordLevel(day[k] && day[k].level); } return round1(s);
+  let s=0; for(const k of Object.keys(day)){ const tk=ST.tasks.find(x=>x.id===k); if(tk && !taskActiveOn(tk,dateStr)) continue; s+=recordLevel(day[k] && day[k].level); } return round1(s*starRate(dateStr));
 }
 function allDatesWithRecords(){
   const set=new Set(Object.keys(ST.records));
@@ -1551,7 +1569,7 @@ function buildDaySheet(dateStr){
       timeSlot:t.timeSlot||"any", weekTarget:t.weekTarget||1
     })),
     done, total, complete, rest,
-    base:round1(base), mult, merit:round1(base*mult), streak:st,
+    base:round1(base), mult, boss:bossMeritOn(dateStr), merit:round1(base*mult+bossMeritOn(dateStr)), streak:st,
     ticket: complete?1:0, settled:true, at:Date.now()
   };
 }
@@ -1580,7 +1598,7 @@ function ledgerMerit(){
 function dayMerit(dateStr){
   const L=ST.ledger[dateStr];
   if(L && L.settled) return money(L.merit);
-  return round1(dayStars(dateStr) * streakMult(streakEndingAt(dateStr)));
+  return round1(dayStars(dateStr) * streakMult(streakEndingAt(dateStr)) + bossMeritOn(dateStr));
 }
 // 补录窗口里那些还没结算的日子，得实时算进来，不然刚补录的点卯不认账
 function liveWindowDates(){
@@ -1976,8 +1994,8 @@ function riddleOf(x){
 /* ---- 集齐奖励 ----
    集换式收集最基本的约定：集齐有奖。160 张的图鉴如果永远只有一根进度条，
    孩子看不到终点。集满一个阵营给一次大庆功，集齐全套给称号。 */
-const FACTION_DONE_MERIT = 200;   // 集满一个阵营
-const ALL_DONE_MERIT = 1000;      // 集齐全套 160 位
+const FACTION_DONE_MERIT = 0;     // 集满一个阵营：只给称号（v2.3.0 起不给星）
+const ALL_DONE_MERIT = 0;         // 集齐全套：只给称号
 const ALL_DONE_TITLE = "天下归心";
 function factionOwned(f){ return (HEROES_BY_FACTION[f]||[]).filter(x=>heroOwned(x.n)).length; }
 function factionTotal(f){ return (HEROES_BY_FACTION[f]||[]).length; }
@@ -1992,13 +2010,11 @@ function checkCollection(st){
     const got=(HEROES_BY_FACTION[f]||[]).filter(x=>!!st.heroes[x.n]).length;
     if(got>=tot && !st.factionDone[f]){
       st.factionDone[f]=TODAY();
-      addMerit(st, FACTION_DONE_MERIT, "collect", "collect:"+f, f+"阵营集齐");
       out.push({type:"faction", f, tot, merit:FACTION_DONE_MERIT});
     }
   }
   if(HEROES_ALL.length>0 && owned>=HEROES_ALL.length && !st.allDone){
     st.allDone=TODAY();
-    addMerit(st, ALL_DONE_MERIT, "collect", "collect:all160", "160位全图鉴集齐");
     out.push({type:"all", merit:ALL_DONE_MERIT});
   }
   return out;
@@ -2077,10 +2093,9 @@ function rollDraw(){
   if(!h) throw new Error("招贤榜暂无可用奖励，本次不扣令");
   if(h.tier==="legend") ST.pity.sinceLegend=0; else bump();
   if(heroOwned(h.n)){
-    const m=DUP_MERIT[h.tier]||6;
+    // 军功只凭学习：旧将重逢只加星级，不折算军功
     ST.heroCount[h.n]=Math.max(1,Math.floor(Number(ST.heroCount[h.n])||1))+1;
-    addMerit(ST, m, "dup", "dup:"+h.n+":"+ST.heroCount[h.n], h.n+"第"+ST.heroCount[h.n]+"次相遇");
-    return {kind:"dup",hero:h,merit:m,forced:force};
+    return {kind:"dup",hero:h,merit:0,forced:force};
   }
   ST.heroes[h.n]=TODAY();
   return {kind:"hero",hero:h,forced:force};
@@ -2300,6 +2315,9 @@ function viewToday(){
   bar+='</div>';
 
   let html=bar;
+  if(ST.ruleFrom && (parseD(TODAY())-parseD(ST.ruleFrom))/86400000<7){
+    html+='<div class="quote" style="border-color:#E8C77A;background:#FFF7E0;">📜 <b>军令新规</b>：从 '+fmtMD(ST.ruleFrom)+' 起，<b>军功只凭学习挣</b>。每项完胜 '+STAR_PER_FULL+' 军功（原来 1），破敌再加 '+BOSS_MERIT+'。揭榜照常得名将和锦囊，但重复的名将只加星级、不再给军功。已有的军功一颗不少。</div>';
+  }
   // 孩子能自己点「忘记密码」把锁拆掉 —— 拆了就在首页挂 14 天，大人一定看得见
   if(ST.pinResetAt && !pinSet() && (parseD(TODAY())-parseD(ST.pinResetAt))/86400000<14){
     html+='<div class="quote" style="border-color:#EFC8BC;background:#FCEBE6;">⚠️ 家长密码在 '+esc(ST.pinResetAt)+' 被「忘记密码」清除了，请家长到「设置」重新设。</div>';
@@ -2542,9 +2560,9 @@ function openCheck(taskId,dateStr){
     return;
   }
   const opts=[
-    { k:"full", e:"⭐", tt:"完胜", dd:"完整高质量完成 · 得 1 军功", st:"1.0" },
-    { k:"half", e:"◑",  tt:"苦战", dd:"拼尽了力但没做完 · 得 0.5 军功", st:"0.5" },
-    { k:"poor", e:"◐",  tt:"惨胜", dd:"做完了，但质量打了折扣 · 得 0.5 军功", st:"0.5" },
+    { k:"full", e:"⭐", tt:"完胜", dd:"完整高质量完成 · 得 "+starRate(dateStr)+" 军功", st:String(starRate(dateStr)) },
+    { k:"half", e:"◑",  tt:"苦战", dd:"拼尽了力但没做完 · 得 "+starRate(dateStr)/2+" 军功", st:String(starRate(dateStr)/2) },
+    { k:"poor", e:"◐",  tt:"惨胜", dd:"做完了，但质量打了折扣 · 得 "+starRate(dateStr)/2+" 军功", st:String(starRate(dateStr)/2) },
     { k:"miss", e:"✕",  tt:"未战", dd:"今天确实没动手 · 不计军功", st:"—" }
   ];
   let h='<h3>'+esc(t.name)+'</h3><div class="sh-sub">'+S.icon+' '+S.place+' · '+fmtMD(dateStr)+'（'+WD[parseD(dateStr).getDay()]+'）</div>';
@@ -2810,7 +2828,7 @@ function attackBoss(){
   let h='<div class="draw-stage"><div class="draw-roll opened" style="animation:none">🏳️</div></div>'
     + '<h3 style="text-align:center;margin-top:8px;">破了 '+esc(B.name)+'！</h3>'
     + '<div class="sh-sub" style="text-align:center;">'+esc(B.place)+' 一战，' + esc(B.name) + ' 已退</div>';
-  h+='<div class="result-box t-legend"><div class="re">🎟️🎟️</div><div class="rn">招贤令 ×2</div><div class="rt">战利品已入锦囊匣</div>'
+  h+='<div class="result-box t-legend"><div class="re">🎟️🎟️</div><div class="rn">招贤令 ×2'+(bossMeritOn(d)?' · 军功 +'+bossMeritOn(d):'')+'</div><div class="rt">战利品已入锦囊匣</div>'
     + (p?('<div class="rc">'+p.emoji+' '+esc(p.name)+'</div>'):'')
     + '</div>';
   h+='<button class="btn" style="width:100%;margin-top:14px;" onclick="closeSheet();render();">收下战利品</button>';
@@ -2870,11 +2888,11 @@ function openDraw(){
             + '<div class="rn">'+esc(res.hero.n)+'</div>'
             + '<div class="rt">'+res.hero.f+' · 等级 '+res.hero.g+' · 已在麾下</div>'
             + (seen>=2?('<div class="rc" style="color:#B8860B;font-weight:800;letter-spacing:2px;">'+starTxt+'</div>'):'')
-            + '<div class="rc">折算为 ⭐'+res.merit+' 军功</div></div>';
+            + '<div class="rc">相遇 '+seen+' 次</div></div>';
           extra = seen>=5
-            ? '<div class="quote" style="margin-top:12px;">满星了 —— '+esc(res.hero.n)+' 与你格外有缘。这 '+res.merit+' 军功也是实打实的。</div>'
-            : '<div class="quote" style="margin-top:12px;">旧将重逢，也是缘分 —— '+esc(res.hero.n)+' 升至 '+starTxt+'。军功已入账。</div>';
-          if(res.forced) extra = '<div class="quote" style="margin-top:12px;">🎯 保底触发！虽是旧将重逢，但这 '+res.merit+' 军功是实打实的。</div>' + extra;
+            ? '<div class="quote" style="margin-top:12px;">满星了 —— '+esc(res.hero.n)+' 与你格外有缘。</div>'
+            : '<div class="quote" style="margin-top:12px;">旧将重逢，也是缘分 —— '+esc(res.hero.n)+' 升至 '+starTxt+'。</div>';
+          if(res.forced) extra = '<div class="quote" style="margin-top:12px;">🎯 保底触发！神将重逢，再添一颗星。</div>' + extra;
         }else{
           const p=res.prize;
           const T=TIERS[p.tier]||TIERS.common;
@@ -2898,9 +2916,9 @@ function openDraw(){
             setTimeout(()=>{
               confetti(d.type==="all"?220:150);
               if(d.type==="faction"){
-                toast("🏁 「"+d.f+"」名将 "+d.tot+" 位尽入麾下！军功 +"+d.merit, 4200);
+                toast("🏁 「"+d.f+"」名将 "+d.tot+" 位尽入麾下！", 4200);
               }else{
-                toast("👑 160 位名将尽入麾下 · 获称号「"+ALL_DONE_TITLE+"」！军功 +"+d.merit, 5200);
+                toast("👑 160 位名将尽入麾下 · 获称号「"+ALL_DONE_TITLE+"」！", 5200);
               }
             }, 3600 + i*1200);
           });
@@ -2992,7 +3010,7 @@ function viewHeroes(){
      + '<span style="color:var(--ink-3)">'+done+' / '+PITY+'</span></div>'
      + '<div class="prog mini"><i style="width:'+Math.round(done/PITY*100)+'%"></i></div></div>';
   })();
-  h+='<div class="quote" style="margin-top:12px;">揭榜有名将卡与锦囊两种。名将卡直接入图鉴永久收藏；锦囊是实打实的奖励，需攒够军功才能开启。重复抽到的名将会折算成军功，不亏。</div>';
+  h+='<div class="quote" style="margin-top:12px;">揭榜有名将卡与锦囊两种。名将卡直接入图鉴永久收藏；锦囊是实打实的奖励，需攒够军功才能开启。重复抽到的名将会多亮一颗星。<b>军功只凭学习挣</b>，揭榜不加军功。</div>';
   h+='</div>';
 
   // 锦囊匣
@@ -3734,7 +3752,7 @@ function viewSettings(){
    + '· <b>连战加成</b>：连续 3 天起军功 ×1.2，5 天 ×1.5，7 天 ×2<br>'
    + '· <b>保底</b>：连揭 '+PITY+' 榜未遇神将，下一榜必出，进度在武将页可见<br>'
    + '· 招贤榜有名将卡与锦囊两种，名将卡永久入图鉴<br>· <b>图鉴 160 位</b>，与「怀沙三国英雄之旅」实体武将卡一一对应，含阵营（汉/魏/蜀/吴）与等级（SS~B-）<br>'
-   + '· 重复抽到的名将折算为军功，不会白揭一张榜<br>'
+   + '· <b>军功只凭学习</b>：每项完胜 '+STAR_PER_FULL+' 军功、苦战惨胜一半，破敌再加 '+BOSS_MERIT+'；揭榜重复的名将只加星级，不给军功<br>'
    + '· 灵活类军令没做完不会记「欠债」，只提示「尚需几次」<br>'
    + '· 实在赶不及，可「高挂免战牌」，任务顺延不责<br>'
    + '· 苦战、惨胜都算半个军功——拼过的力气不该被清零<br>'

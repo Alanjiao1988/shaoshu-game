@@ -4,7 +4,7 @@
    - 其余 GET 用 cache-first
    - 缓存名带版本号，升级时自动清掉旧缓存
    版本号要和 index.html 里的 APP_VERSION 保持一致。 */
-const VERSION = "2.2.0";
+const VERSION = "2.3.0";
 const CACHE = "shaozhu-v" + VERSION;
 const ASSETS = [
   "./",

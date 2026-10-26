@@ -75,7 +75,7 @@ console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区
 
 console.log("=== 1. 版本与静态资源 ===");
 t("软件版本与 sw.js 一致", run(`APP_VERSION`)===(fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8").match(/VERSION = "([^"]+)"/)||[])[1], run(`APP_VERSION`));
-t("数据结构版本为 9", run(`SCHEMA`)===9, String(run(`SCHEMA`)));
+t("数据结构版本为 10", run(`SCHEMA`)===10, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
 t("site 里图标文件齐全", ["apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png",
@@ -131,7 +131,7 @@ console.log("\n=== 3. 账目冻结 ===");
 setup(FROZEN); run(`settleLedger();`);
 const TK=run(`ticketsEarned()`), MT=run(`earnedMerit()`);
 t("三天满勤 3 枚券", TK===3, String(TK));
-t("连击加成算进账本（2+2+2.4）", MT===6.4, String(MT));
+t("连击加成算进账本（新规×3：6+6+7.2）", MT===19.2, String(MT));
 run(`settleLedger(); ST.tasks.push({id:"c",name:"新令",subject:"en",type:"daily",emoji:"z",timeSlot:"any",planMin:10,weekTarget:5,weekdays:[0,1,2,3,4,5,6],boss:false,archived:false}); settleLedger();`);
 t("新增军令后已得的券不变", run(`ticketsEarned()`)===3, String(run(`ticketsEarned()`)));
 t("历史军功不倒扣", run(`earnedMerit()`)===MT, MT+" → "+run(`earnedMerit()`));
@@ -290,10 +290,10 @@ t("毕业仍是 4 个完整周", (()=>{
   return run(`checkGraduation().length`)===1;
 })());
 t("武将库 160 位 / 三国演义 120 回", run(`heroTotal()`)===160 && run(`SANGUO.length`)===120);
-t("重复名将折算军功", (()=>{
+t("★ 重复名将不再折算军功（军功只凭学习）", (()=>{
   run(`ST=defaultState(); ST.heroes={"关羽":"2026-01-01"}; ST.heroCount={}; ST.bonusMerit=0; ST.pity.sinceLegend=0;`);
   return withStub("pickHero", ()=>({tier:"legend",n:"关羽",e:"🗡️",d:"武圣"}), ()=>
-    withRandom(0.5, ()=>{ const r=run(`rollDraw()`); return r.kind==="dup" && r.merit===80; }));
+    withRandom(0.5, ()=>{ const r=run(`rollDraw()`); return r.kind==="dup" && r.merit===0 && run(`ST.bonusMerit`)===0 && run(`ST.heroCount["关羽"]`)>=1; }));
 })());
 
 console.log("\n=== 10. 存储告警 ===");
@@ -612,12 +612,12 @@ t("四个阵营都能查进度", (()=>{
   fillFaction("汉");
   return run(`factionTotal("汉")`)===84 && run(`factionOwned("汉")`)===84;
 })());
-t("★ 集满一个阵营给 200 军功", (()=>{
+t("★ 集满一个阵营只给称号、不给军功", (()=>{
   fillFaction("蜀");
   const m0=run(`ST.bonusMerit`);
   const out=run(`checkCollection()`);
   return out.length===1 && out[0].type==="faction" && out[0].f==="蜀"
-      && run(`ST.bonusMerit`)===m0+200 && run(`!!ST.factionDone["蜀"]`);
+      && run(`ST.bonusMerit`)===m0 && run(`!!ST.factionDone["蜀"]`);
 })(), "+" + run(`checkCollection()`).length + " 项");
 t("没集满不发奖", (()=>{
   run(`ST=defaultState(); ST.heroes={"关羽":TODAY(),"赵云":TODAY()}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
@@ -631,14 +631,14 @@ t("★ 同一个阵营不会重复发奖", (()=>{
   run(`checkCollection()`); run(`checkCollection()`);
   return run(`ST.bonusMerit`)===m;
 })());
-t("★ 集齐全套 160 位给 1000 军功 + 称号", (()=>{
+t("★ 集齐全套 160 位只给称号、不给军功", (()=>{
   run(`ST=defaultState(); ST.heroes={}; ST.heroCount={}; ST.factionDone={}; ST.bonusMerit=0; delete ST.allDone;`);
   for(const h of run(`HEROES_ALL`)) run(`ST.heroes["${h.n}"]=TODAY();`);
   const out=run(`checkCollection()`);
   const all=out.filter(o=>o.type==="all");
-  return all.length===1 && all[0].merit===1000
-      && run(`ST.bonusMerit`)===1000+4*200 && run(`!!ST.allDone`);
-})(), "军功 " + run(`ST.bonusMerit`) + "（含 4 个阵营各 200）");
+  return all.length===1 && all[0].merit===0
+      && run(`ST.bonusMerit`)===0 && run(`!!ST.allDone`);
+})(), "军功 " + run(`ST.bonusMerit`));
 t("全套称号是「天下归心」", run(`ALL_DONE_TITLE`)==="天下归心");
 t("集满的阵营在图鉴里显示「✓ 尽入麾下」", (()=>{
   fillFaction("蜀");
@@ -651,20 +651,20 @@ t("全集齐后图鉴顶部显示称号", (()=>{
   run(`checkCollection()`);
   return /天下归心/.test(run(`viewHeroes()`));
 })());
-t("★ 迁移时补记已集满的（不重复发）", (()=>{
+t("★ 迁移时补记已集满的（只记标记，不加星）", (()=>{
   run(`ST=defaultState(); ST.schema=6; ST.heroes={}; ST.heroCount={}; ST.bonusMerit=0;`);
   for(const h of run(`HEROES_BY_FACTION["吴"]`)) run(`ST.heroes["${h.n}"]=TODAY();`);
   const m0=run(`ST.bonusMerit`);
   run(`ST=migrate(ST);`);
   const m1=run(`ST.bonusMerit`);
   run(`ST=migrate(ST);`);
-  return m1===m0+200 && run(`ST.bonusMerit`)===m1 && run(`ST.schema`)===run(`SCHEMA`);
-})(), "补发 " + (run(`ST.bonusMerit`)-200) + " → " + run(`ST.bonusMerit`));
+  return m1===m0 && run(`!!ST.factionDone["吴"]`) && run(`ST.bonusMerit`)===m1 && run(`ST.schema`)===run(`SCHEMA`);
+})(), "bonusMerit " + run(`ST.bonusMerit`));
 t("checkCollection 可作用于迁移中的对象", (()=>{
   run(`const s=defaultState(); s.heroes={}; s.bonusMerit=0;`);
   for(const h of run(`HEROES_BY_FACTION["魏"]`)) run(`s.heroes["${h.n}"]=TODAY();`);
   const out=run(`checkCollection(s)`);
-  return out.length===1 && out[0].f==="魏" && run(`s.bonusMerit`)===200;
+  return out.length===1 && out[0].f==="魏" && run(`s.bonusMerit`)===0;
 })());
 
 console.log("\n=== 10.13 锦囊两处标题区分 ===");
@@ -711,14 +711,14 @@ t("没有额外军功时不留空后缀", (()=>{
   run(`ST=defaultState(); ST.bonusMerit=0; ST.meritSrc={dup:0,collect:0,migrate:0};`);
   return run(`meritSrcLine()`)==="";
 })());
-t("集齐奖励走 addMerit 记录来源和幂等编号", /addMerit\(st, FACTION_DONE_MERIT, "collect", "collect:"\+f/.test(html)
-  && /addMerit\(st, ALL_DONE_MERIT, "collect", "collect:all160"/.test(html));
+t("集齐不再调用 addMerit 发军功", !/addMerit\(st, FACTION_DONE_MERIT/.test(html) && !/addMerit\(st, ALL_DONE_MERIT/.test(html)
+  && run(`FACTION_DONE_MERIT`)===0 && run(`ALL_DONE_MERIT`)===0);
 t("迁移补偿走 addMerit 记录来源和幂等编号", /addMerit\(s, gone\.length \* REMOVED_HERO_MERIT, "migrate", "migrate:heroes160"/.test(html));
 
 console.log("\n=== 10.15 星星可靠性回归 ===");
 t("金额字符串转数字，避免11/4050式拼接", (()=>{
   run(`ST=defaultState(); ST.records[TODAY()]={a:{level:"1"},b:{level:"1"},c:{level:"0.5"},d:{level:999}}; ST.bonusMerit="25"; ST.vault=[{merit:"40",redeemed:true},{merit:"50",redeemed:true}];`);
-  return run(`dayStars(TODAY())`)===2.5 && run(`spentMerit()`)===90 && Number.isFinite(run(`totalMerit()`));
+  return run(`dayStars(TODAY())`)===7.5 && run(`spentMerit()`)===90 && Number.isFinite(run(`totalMerit()`));
 })());
 t("非法金额拒绝入账且不改余额", (()=>{
   run(`ST=defaultState(); ST.bonusMerit=12;`);
@@ -733,7 +733,7 @@ t("同一交易编号不重复入账", (()=>{
 })());
 t("失去集齐标记也不会重复发同一笔奖励", (()=>{
   fillFaction("蜀"); run(`checkCollection(); delete ST.factionDone["蜀"]; checkCollection();`);
-  return run(`ST.bonusMerit`)===200;
+  return run(`ST.bonusMerit`)===0;
 })());
 t("旧存档未知姓名不产生无限迁移补偿", (()=>{
   run(`ST=defaultState(); ST.schema=3; ST.heroes={"不存在的人物":TODAY(),"黄忠":TODAY()}; ST=migrate(ST);`);
@@ -993,6 +993,39 @@ t("输出无 undefined / NaN", (()=>{
   const out=run(`viewToday()+viewWeek()+viewHeroes()+viewStats()+viewReport()+viewSettings()`);
   return !/undefined/.test(out) && !/>NaN</.test(out) && !/NaN%/.test(out);
 })());
+
+console.log("\n=== 11. 新规：军功只凭学习 ===");
+t("新存档从第一天就是新规（完胜 3 星）", (()=>{
+  setup([TODAY]); return run(`ST.ruleFrom`)==="" && run(`dayStars(TODAY())`)===6;
+})());
+t("★ 生效日之前的日子仍按旧规，不追溯", (()=>{
+  setup(FROZEN); run(`ST.ruleFrom=TODAY(); settleLedger();`);
+  return run(`earnedMerit()`)===6.4;
+})(), String(run(`earnedMerit()`)));
+t("★ 生效日当天起按新规", (()=>{
+  setup([TODAY]); run(`ST.ruleFrom=TODAY();`);
+  return run(`dayStars(TODAY())`)===6 && run(`dayStars(addD(TODAY(),-1))`)===0;
+})());
+t("★ 破敌加 10 军功（新规）", (()=>{
+  setup([TODAY]); const m0=run(`dayMerit(TODAY())`);
+  run(`ST.bossDefeats[TODAY()]=true;`);
+  return run(`dayMerit(TODAY())`)===m0+10;
+})(), String(run(`dayMerit(TODAY())`)));
+t("生效日之前的破敌不补发", (()=>{
+  setup([FROZEN[0]]); run(`ST.ruleFrom=TODAY(); ST.bossDefeats["${FROZEN[0]}"]=true;`);
+  return run(`bossMeritOn("${FROZEN[0]}")`)===0;
+})());
+t("★ 升级到 schema 10：设生效日、已有军功一颗不扣", (()=>{
+  setup(FROZEN); run(`ST.ruleFrom=""; ST.schema=9; ST.bonusMerit=1585; ST.ledger={};`);
+  // 模拟旧版：生效日前的冻结账按旧规
+  run(`ST.ruleFrom=TODAY(); settleLedger(); const L=JSON.stringify(ST.ledger); ST.ruleFrom=undefined; ST.schema=9; ST=migrate(ST); globalThis.__L=L;`);
+  return run(`ST.schema`)===10 && run(`ST.ruleFrom`)===TODAY && run(`ST.bonusMerit`)===1585
+      && run(`JSON.stringify(ST.ledger)`)===run(`__L`) && run(`earnedMerit()`)===6.4 && run(`totalMerit()`)===1591.4;
+})(), run(`ST.ruleFrom`)+" / "+run(`totalMerit()`));
+t("升级留痕写进改动记录", /启用新规/.test(run(`JSON.stringify(ST.changeLog||[])`)));
+t("重复迁移不改生效日", (()=>{ const r=run(`ST.ruleFrom`); run(`ST=migrate(ST);`); return run(`ST.ruleFrom`)===r; })());
+t("今日页显示新规公告（7 天内）", /军令新规/.test(run(`VIEW_DATE=TODAY(); viewToday()`)));
+t("揭榜源码里不再有发军功的重复卡路径", !/addMerit\(ST,\s*DUP_MERIT/.test(html) && !/addMerit\([^)]*"dup"/.test(html.replace(/\/\*[\s\S]*?\*\//g,"")));
 
 console.log("\n"+"=".repeat(52));
 console.log(`  逻辑测试：${pass} 通过 / ${fail} 失败`);

@@ -33,7 +33,7 @@ let expected=0;
 for(let i=4;i>=0;i--){
   NOW=run(`addD("${TODAY_STR}",-${i})`);
   const d=NOW;
-  expected=Number((expected+ids.length*(5-i>=5?1.5:5-i>=3?1.2:1)).toFixed(1));
+  expected=Number((expected+ids.length*3*(5-i>=5?1.5:5-i>=3?1.2:1)).toFixed(1)); // 新规：完胜 3 星
   for(const id of ids) run(`setRec("${d}","${id}",1,"full",15);`);
   run(`settleLedger();`);
   const m = run(`availMerit()`);

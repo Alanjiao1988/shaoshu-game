@@ -153,7 +153,7 @@ t("负数锦囊不能反向增加余额", (()=>{
 })());
 t("字符串记录按数字相加而不是拼接", (()=>{
   run(`${FRESH} ST.records[TODAY()]={a:{level:"1"},b:{level:"1"}};`);
-  return run(`dayStars(TODAY())`)===2;
+  return run(`dayStars(TODAY())`)===6; // 新规每项完胜 3 星
 })());
 t("字符串支出按数字相加而不是拼接", (()=>{
   run(`${FRESH} ST.vault=[{merit:"40",redeemed:true},{merit:"50",redeemed:true}];`);
