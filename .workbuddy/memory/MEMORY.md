@@ -80,6 +80,8 @@
   - 跑法：`NODE_PATH=C:/Users/ianji/.workbuddy/binaries/node/workspace/node_modules node .workbuddy/tests/dom.js`
   - ⚠️ 应用启动 260ms 后会弹「今日仪式卡」，测试需先等 450ms 再 closeSheet，否则面板被顶掉
   - ⚠️ 页面里有三个「+ 新增」（军令/锦囊/…），**必须按卡片 h3 标题定位**，取第一个会点错
+- `tests/diary_book.js` — 日记本 72 项（jsdom）：写/开头的话/边写边存/翻看/旧日记迁移/锁/备份
+- 日记本定位：**是孩子自己的日记本，正文为主**；表情+诸葛亮涂色只是可选插画（用户 2026-11-03 纠正过「悄悄话」式设计）
 - `tools/makeicon.js` — 生成全部图标尺寸（含 maskable）
 - `tools/buildheroes.js` — 从 `ref/heroes.json` 生成 `HERO_DATA` 注入 HTML
 - `tools/checkheroes.js` — 校验武将库与怀沙实体卡核对表是否一一对应
