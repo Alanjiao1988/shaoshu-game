@@ -590,6 +590,22 @@ textarea{min-height:66px;line-height:1.6;}
   .task-card{padding:13px 13px;}
   .setrow{padding:12px 0;}
 }
+/* ============ 军师帐（日记） ============ */
+.dy-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.dy-wd{text-align:center;font-size:11px;color:var(--ink-3);font-weight:700;padding-bottom:2px;}
+.dy-day{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:52px;padding:2px 0;border-radius:var(--r-sm);font-size:10.5px;color:var(--ink-3);font-weight:700;}
+.dy-day i{display:block;width:26px;height:26px;margin:4px 0 4px;border-radius:50%;border:1px dashed var(--line);}
+.dy-day.fut{opacity:.35;}
+.dy-day.today i{border-color:var(--zhu-2);}
+.dy-day.has{background:#F6EFE2;color:var(--ink-2);}
+.dy-day svg{display:block;}
+.dy-pal{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;}
+.dy-sw{width:30px;height:30px;border-radius:50%;border:2px solid rgba(0,0,0,.12)!important;}
+.dy-sw.sel{border:3px solid var(--ink)!important;transform:scale(1.08);}
+.dyp{cursor:pointer;}
+.dy-nudge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:900;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);box-shadow:0 6px 20px rgba(60,45,25,.18);border-radius:999px;padding:9px 10px 9px 16px;font-size:13px;font-weight:700;color:var(--ink-2);animation:tin .3s;max-width:92vw;white-space:nowrap;cursor:pointer;}
+.dy-nudge .dn-go{color:var(--zhu);}
+.dy-nudge .dn-x{width:24px;height:24px;border-radius:50%;color:var(--ink-3);font-size:16px;line-height:1;}
 </style>
 </head>
 <body>
@@ -618,6 +634,7 @@ textarea{min-height:66px;line-height:1.6;}
     <button data-view="today" class="active">今日</button>
     <button data-view="week">一周</button>
     <button data-view="heroes">武将</button>
+    <button data-view="diary">日记</button>
     <button data-view="stats">数据</button>
     <button data-view="report">军报</button>
     <button data-view="settings">设置</button>
@@ -636,7 +653,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.4.0";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 10;
 
@@ -1376,6 +1393,7 @@ function prepareState(o){
   merged.schema=typeof o.schema==="number"?o.schema:1;
   merged.story=Object.assign({},d.story,o.story||{});
   merged.season=Object.assign({},d.season,o.season||{});
+  delete merged.diary;
   return migrate(merged);
 }
 function load(){
@@ -2633,6 +2651,11 @@ function openCheck(taskId,dateStr){
           toast("📜 主线推进 · 第 "+cnNum(idx+1)+" 回\n「"+(chaps[idx]||"")+"」",3600);
         }, before&&after ? 600 : 2900);
       }
+      // 军师帐：每天第一次点卯后顺手问一句，排在所有提示之后，不点也不催
+      if(dateStr===TODAY() && diaryNudgeDue()){
+        const wait = storyAfter>storyBefore ? 7000 : (!before && after) ? 3200 : 2300;
+        setTimeout(diaryNudge, wait);
+      }
     };
     if(ok) ok.onclick=commit;
   });
@@ -3726,6 +3749,7 @@ function viewSettings(){
   h+='<div class="setrow"><span class="si">📥</span><span class="sn">导入备份<small>会覆盖当前全部数据，请谨慎</small></span>'
    + '<button class="btn ghost sm" onclick="pickImport()">选择文件</button>'
    + '<input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)"></div>';
+  h+='<div class="quote">📔 日记（军师帐）单独存放：导出备份会带上；导入备份、恢复出厂都不会清掉孩子的日记。</div>';
   h+='<div class="quote">正式使用不再提供示例数据和调试补令入口，避免覆盖真实记录或反复退还已用招贤令。</div>';
   // 备份提醒：iOS 上删掉主屏幕图标再重装，这个 Web App 的本地数据会一起没掉。
   const bd=ST.lastBackup?Math.round((parseD(TODAY())-parseD(ST.lastBackup))/86400000):null;
@@ -3962,7 +3986,8 @@ function exportRawBackup(){
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
 }
 function exportData(){
-  const json=JSON.stringify(ST,null,2);
+  const dy=diaryExport();   // 日记单独存，备份时一起带上
+  const json=JSON.stringify(dy ? Object.assign({},ST,{diary:dy}) : ST,null,2);
   const fname="少年主公备份_"+TODAY()+".json";
   const done = msg => { ST.lastBackup=TODAY(); save(); toast(msg); };
   // iPad 上优先唤起系统分享面板：可以直接存 iCloud、隔空投送或发微信，
@@ -4003,6 +4028,8 @@ function importData(input){
   fr.onload=()=>{
     try{
       const o=JSON.parse(fr.result);
+      const incDiary=(o && typeof o==="object") ? o.diary : null;
+      if(o && typeof o==="object") delete o.diary;   // 日记不进军功存档
       const next=prepareState(o); // 先在独立对象里校验并迁移，失败不动当前存档
       if(!confirm("导入会覆盖当前全部数据，确定吗？会先保留当前本地快照。")) return;
       const current=localStorage.getItem(KEY);
@@ -4011,7 +4038,8 @@ function importData(input){
       ST=next;
       logChange("导入了备份文件（覆盖全部数据）");
       if(!save()){ ST=previous; STORAGE_LAST_RAW=expected; return; }
-      refreshTop(); render(); toast("导入成功 ✓");
+      const dyAdded=diaryMergeImport(incDiary);   // 只补不删：手机上已有的日记一篇不动
+      refreshTop(); render(); toast("导入成功 ✓"+(dyAdded?("（补回 "+dyAdded+" 篇日记）"):""));
     }catch(e){ alert("导入失败：" + e.message); }
     input.value="";
   };
@@ -4027,6 +4055,460 @@ function resetAll(){
   localStorage.removeItem(KEY);
   STORAGE_LAST_RAW=null;
   ST=defaultState(); save(); refreshTop(); render(); toast("已恢复出厂设置");
+}
+
+/* =====================================================================
+   军师帐（日记）
+   给孩子一个说心里话的地方。和军功系统完全分开：
+   - 单独存在 DIARY_KEY，不进 ST，星星那边的保存/回滚/重置都碰不到它
+   - 不给星、不算连击、不进全勤；诸葛亮不用抽到就能涂
+   - 只能写今天；当天可以随时改、随时补；往日只读，本人可删
+   - 默认只有孩子能看；可选 4 位数字锁，家长密码打不开；忘了只能重设并清空
+   ===================================================================== */
+const DIARY_KEY = "shaozhu_diary";
+let DY = null;              // 日记数据（懒加载）
+let DY_ERROR = "";          // 日记原文读不出时，停止写入、不覆盖
+let DY_OPEN = false;        // 本次已用日记锁打开
+let DY_MONTH = "";          // 正在看的月份 YYYY-MM
+const DY_FACES = [
+  {k:"happy",  n:"开心",   say:"好事要记下来，下次不开心时翻出来看看！"},
+  {k:"calm",   n:"平静",   say:"平平安安的一天，也是好日子。"},
+  {k:"sad",    n:"难过",   say:"军师也哭过。说出来，心里会轻一点。"},
+  {k:"angry",  n:"生气",   say:"张飞也常发火。生气没关系，我们先说说是怎么回事。"},
+  {k:"scared", n:"害怕",   say:"唱空城计的时候，军师心里也怕。害怕不丢人。"},
+  {k:"messy",  n:"乱糟糟", say:"心里乱的时候，一件一件写下来，就理清楚了。"}
+];
+const DY_HEAVY = ["sad","angry","scared","messy"];
+const DY_PARTS = [
+  {k:"jin",  n:"纶巾"}, {k:"face", n:"脸"}, {k:"robe", n:"鹤氅"},
+  {k:"shan", n:"内衫"}, {k:"fan",  n:"羽扇"}, {k:"shoe", n:"鞋"}
+];
+const DY_COLORS = ["#F5C342","#F08A3C","#E24B4A","#E86FA6","#9B6FD8","#4A7FD8","#3FB8C8","#5DBB63","#F6D7B8","#8A6A4A","#2C2C2A","#FFFFFF"];
+const DY_CLASSIC = {jin:"#3A4A6B", face:"#F6D7B8", robe:"#F4F1EA", shan:"#3A4A6B", fan:"#FFFFFF", shoe:"#2C2C2A"};
+// 三年级难度的提示题。on：只有选了这个选项才追问；no：选了这个就不用再写
+const DY_PROMPTS = [
+  {id:"h1", c:"good",  q:"今天让你笑出来的事是什么？", o:["玩游戏","好吃的","好朋友","爸爸妈妈","学会了新东西","别的"], t:"说说看……"},
+  {id:"h2", c:"good",  q:"今天谁对你好了？", o:["同学","老师","家里人","别的人"], t:"他做了什么？"},
+  {id:"h3", c:"good",  q:"今天你帮了谁吗？", o:["帮了","没有"], on:"帮了", t:"帮了什么？"},
+  {id:"s1", c:"heavy", q:"今天有没有让你不舒服的事？", o:["有","没有"], on:"有", t:"是什么事？"},
+  {id:"s2", c:"heavy", q:"今天有没有一件事让你很生气？", o:["有","没有"], on:"有", t:"你想对那个人说什么？"},
+  {id:"s3", c:"heavy", q:"今天有没有担心的事？", o:["考试","作业","朋友","家里","别的","没有"], no:"没有", t:"多说一点……"},
+  {id:"m1", c:"small", q:"今天学到了一个什么新东西？", t:"写下来……"},
+  {id:"m2", c:"small", q:"今天最好吃的是什么？", t:"写下来……"},
+  {id:"m3", c:"small", q:"如果明天可以做一件事，你想做什么？", t:"写下来……"}
+];
+const DY_PROMPT_BY_ID = Object.fromEntries(DY_PROMPTS.map(p=>[p.id,p]));
+
+function dyDefault(){ return {v:1, intro:false, lock:null, entries:{}, promptDay:{}, nudged:""}; }
+function dyColor(c){ return typeof c==="string" && /^#[0-9A-Fa-f]{6}$/.test(c) ? c : null; }
+function dyStr(s,max){ return typeof s==="string" ? s.slice(0,max) : ""; }
+// 单条坏数据只丢那一条，不让整本日记打不开
+function dyCleanEntry(e){
+  if(!e || typeof e!=="object" || Array.isArray(e)) return null;
+  const out={face:"", colors:{}, answers:[], note:dyStr(e.note,2000), at:Number(e.at)||0, upd:Number(e.upd)||0};
+  if(DY_FACES.some(f=>f.k===e.face)) out.face=e.face;
+  if(e.colors && typeof e.colors==="object") for(const p of DY_PARTS){ const c=dyColor(e.colors[p.k]); if(c) out.colors[p.k]=c; }
+  if(Array.isArray(e.answers)) for(const a of e.answers){
+    if(!a || !DY_PROMPT_BY_ID[a.id]) continue;
+    const P=DY_PROMPT_BY_ID[a.id];
+    const pick=(P.o && P.o.includes(a.pick)) ? a.pick : "";
+    const text=dyStr(a.text,500);
+    if(pick||text) out.answers.push({id:a.id, pick, text});
+  }
+  return out;
+}
+function dyClean(o){
+  const d=dyDefault();
+  if(!o || typeof o!=="object" || Array.isArray(o)) return d;
+  d.intro=!!o.intro;
+  if(o.lock && typeof o.lock.salt==="string" && typeof o.lock.h==="string") d.lock={salt:o.lock.salt, h:o.lock.h};
+  if(o.entries && typeof o.entries==="object"){
+    for(const k of Object.keys(o.entries)){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      const e=dyCleanEntry(o.entries[k]);
+      if(e && dyHasContent(e)) d.entries[k]=e;
+    }
+  }
+  if(o.promptDay && typeof o.promptDay==="object"){
+    for(const k of Object.keys(o.promptDay)){
+      if(/^\d{4}-\d{2}-\d{2}$/.test(k) && Array.isArray(o.promptDay[k])) d.promptDay[k]=o.promptDay[k].filter(id=>DY_PROMPT_BY_ID[id]).slice(0,2);
+    }
+  }
+  d.nudged=typeof o.nudged==="string" ? o.nudged : "";
+  return d;
+}
+function dyHasContent(e){
+  return !!(e && (e.face || Object.keys(e.colors||{}).length || (e.answers||[]).length || (e.note||"").trim()));
+}
+function diaryLoad(){
+  if(DY) return DY;
+  DY_ERROR="";
+  let raw=null;
+  try{ raw=localStorage.getItem(DIARY_KEY); }catch(e){ DY_ERROR="本机存储打不开"; DY=dyDefault(); return DY; }
+  if(!raw){ DY=dyDefault(); return DY; }
+  try{ DY=dyClean(JSON.parse(raw)); }
+  catch(e){ DY_ERROR="日记文件读不出来"; DY=dyDefault(); }
+  return DY;
+}
+function diarySave(){
+  diaryLoad();
+  if(DY_ERROR){ toast("日记文件需要检查，先不写入，原来的日记没有删",3600); return false; }
+  try{ localStorage.setItem(DIARY_KEY, JSON.stringify(DY)); return true; }
+  catch(e){ toast("日记没存上（手机空间可能不够了）",3600); return false; }
+}
+function diaryLocked(){ diaryLoad(); return !!DY.lock && !DY_OPEN; }
+function diaryRelock(){ DY_OPEN=false; }
+function dyEntry(d){ diaryLoad(); return DY.entries[d]||null; }
+
+// 每天 1～2 题：心情重的先给「说出来」的题；昨天问过的今天不再问
+function dyHash(s){ let h=7; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
+function diaryPrompts(dateStr, face){
+  diaryLoad();
+  const y=addD(dateStr,-1);
+  const used=new Set([...(DY.promptDay[y]||[]), ...((DY.entries[y]&&DY.entries[y].answers)||[]).map(a=>a.id)]);
+  const pool=c=>{ const all=DY_PROMPTS.filter(p=>p.c===c); const fresh=all.filter(p=>!used.has(p.id)); return fresh.length?fresh:all; };
+  const pick=(list,salt)=>list[dyHash(dateStr+salt)%list.length];
+  const first = DY_HEAVY.includes(face) ? pick(pool("heavy"),"a") : pick(pool("good"),"a");
+  const second = pick(pool("small"),"b");
+  return [first, second];
+}
+
+/* ---- 诸葛亮（之前定稿的那一版，6 块可涂） ---- */
+function dyFaceSVG(k){
+  const K="#2C2C2A";
+  const F={
+    calm:`<path d="M106,104 Q114,109 122,104 M138,104 Q146,109 154,104" fill="none" stroke="${K}" stroke-width="4" stroke-linecap="round"/><path d="M122,124 Q130,128 138,124" fill="none" stroke="${K}" stroke-width="3" stroke-linecap="round"/>`,
+    happy:`<circle cx="114" cy="102" r="6" fill="${K}"/><circle cx="146" cy="102" r="6" fill="${K}"/><path d="M118,120 Q130,134 142,120" fill="none" stroke="${K}" stroke-width="4" stroke-linecap="round"/>`,
+    sad:`<circle cx="114" cy="106" r="5" fill="${K}"/><circle cx="146" cy="106" r="5" fill="${K}"/><path d="M120,128 Q130,120 140,128" fill="none" stroke="${K}" stroke-width="4" stroke-linecap="round"/><path d="M108,114 q-4,9 0,13 q4,-4 0,-13" fill="#4A7FD8"/>`,
+    angry:`<path d="M102,92 L120,100 M158,92 L140,100" stroke="${K}" stroke-width="5" stroke-linecap="round"/><circle cx="116" cy="108" r="5" fill="${K}"/><circle cx="144" cy="108" r="5" fill="${K}"/><path d="M118,128 L124,122 L130,128 L136,122 L142,128" fill="none" stroke="${K}" stroke-width="4" stroke-linejoin="round"/>`,
+    scared:`<circle cx="114" cy="104" r="9" fill="#fff" stroke="${K}" stroke-width="3"/><circle cx="146" cy="104" r="9" fill="#fff" stroke="${K}" stroke-width="3"/><circle cx="114" cy="106" r="3" fill="${K}"/><circle cx="146" cy="106" r="3" fill="${K}"/><ellipse cx="130" cy="126" rx="5" ry="7" fill="${K}"/>`,
+    messy:`<path d="M108,98 l12,10 M120,98 l-12,10 M140,98 l12,10 M152,98 l-12,10" stroke="${K}" stroke-width="4" stroke-linecap="round"/><path d="M116,126 q4,-6 7,0 t7,0 t7,0 t7,0" fill="none" stroke="${K}" stroke-width="4"/>`
+  };
+  return F[k]||F.calm;
+}
+function zhugeSVG(e, size, live){
+  const c=(e&&e.colors)||{};
+  const f=p=>c[p]||"#FFFFFF";
+  const P=(p,d,extra)=>'<path class="'+(live?"dyp":"")+'" data-p="'+p+'" d="'+d+'" fill="'+f(p)+'" stroke="#2C2C2A" stroke-width="3" stroke-linejoin="round"'+(extra||"")+'/>';
+  return '<svg viewBox="0 0 260 290" width="'+size+'" height="'+Math.round(size*290/260)+'" aria-label="诸葛亮">'
+    + P("jin","M84,58 C70,70 58,96 52,118 L64,120 C70,100 78,80 90,66 Z")
+    + P("jin","M176,58 C190,70 202,96 208,118 L196,120 C190,100 182,80 170,66 Z")
+    + P("robe","M86,150 C62,170 52,230 48,266 L212,266 C208,230 198,170 174,150 Z")
+    + P("shan","M108,150 L152,150 L146,266 L114,266 Z")
+    + '<rect x="92" y="196" width="76" height="12" rx="4" fill="#5B4636" stroke="#2C2C2A" stroke-width="3"/>'
+    + P("shoe","M96,266 L124,266 L124,280 L92,280 Z M136,266 L164,266 L168,280 L136,280 Z")
+    + P("robe","M88,156 C64,170 58,206 72,220 L104,212 C96,196 96,176 100,162 Z")
+    + '<rect x="180" y="150" width="7" height="70" rx="3" fill="#8A6A4A" stroke="#2C2C2A" stroke-width="3" transform="rotate(14 183 185)"/>'
+    + P("fan","M188,152 C170,128 172,86 196,70 C206,64 230,70 238,90 C248,118 232,148 204,158 Z")
+    + '<path d="M190,150 L208,84 M194,152 L224,92 M198,154 L236,112 M192,150 L198,78" stroke="#2C2C2A" stroke-width="1.5" fill="none" opacity="0.45" pointer-events="none"/>'
+    + P("robe","M172,156 C186,148 194,160 198,174 L184,190 C178,180 172,170 168,166 Z")
+    + '<circle class="'+(live?"dyp":"")+'" data-p="face" cx="130" cy="104" r="48" fill="'+f("face")+'" stroke="#2C2C2A" stroke-width="3"/>'
+    + '<path d="M112,134 C112,160 130,176 130,176 C130,176 148,160 148,134 C140,140 120,140 112,134 Z" fill="#3B3632" stroke="#2C2C2A" stroke-width="3" stroke-linejoin="round" pointer-events="none"/>'
+    + P("jin","M82,92 C80,46 180,46 178,92 C160,82 100,82 82,92 Z")
+    + P("jin","M112,52 L112,30 C112,20 148,20 148,30 L148,52 Z")
+    + '<path d="M112,40 L148,40" stroke="#2C2C2A" stroke-width="2" pointer-events="none"/>'
+    + '<g class="dyface" pointer-events="none">'+dyFaceSVG(e&&e.face)+'</g>'
+    + '</svg>';
+}
+function dyFaceName(k){ const f=DY_FACES.find(x=>x.k===k); return f?f.n:""; }
+function dyFaceSay(k){ const f=DY_FACES.find(x=>x.k===k); return f?f.say:""; }
+
+/* ---- 日记页 ---- */
+function viewDiary(){
+  diaryLoad();
+  const T=TODAY();
+  if(!DY_MONTH) DY_MONTH=T.slice(0,7);
+  let h='';
+  if(DY_ERROR){
+    return '<div class="card"><div class="card-head"><h3>军师帐</h3></div><p style="font-size:13px;line-height:1.7">'+esc(DY_ERROR)+'。原来的日记没有删，先不写入，请让爸爸妈妈帮忙看看。</p></div>';
+  }
+  if(diaryLocked()){
+    return '<div class="card" style="text-align:center"><div class="card-head"><h3>军师帐</h3><span class="hint">🔒 上了锁</span></div>'
+      + '<div style="display:flex;justify-content:center;margin-bottom:8px">'+zhugeSVG({face:"calm",colors:DY_CLASSIC},96)+'</div>'
+      + '<p style="font-size:13px;color:var(--ink-2);font-weight:600;margin:0 0 10px">主公，请输入本子的密码</p>'
+      + '<input type="password" inputmode="numeric" maxlength="4" id="dyPin" style="max-width:160px;text-align:center;letter-spacing:6px;margin:0 auto 10px;display:block">'
+      + '<button class="btn" style="min-width:140px" onclick="diaryUnlock()">打开</button>'
+      + '<div><button class="addrow" style="margin-top:12px" onclick="diaryForgot()">忘了密码？</button></div></div>';
+  }
+  if(!DY.intro){
+    h+='<div class="card"><div class="card-head"><h3>军师帐</h3><span class="hint">只有你能看</span></div>'
+      + '<div style="display:flex;gap:12px;align-items:flex-start">'+zhugeSVG({face:"happy",colors:DY_CLASSIC},84)
+      + '<div style="font-size:13.5px;line-height:1.8;font-weight:600;color:var(--ink-2)">主公，这是你的<b>军师帐</b>。<br>每天可以给军师涂个颜色，说说今天的心情。<br>不想写也没关系，不会催你，也<b>没有星星</b>。<br>这里写的东西，<b>只有你能看</b>。</div></div>'
+      + '<div class="grid2" style="margin-top:12px"><button class="btn ghost" onclick="diaryIntroDone(false)">知道了</button><button class="btn" onclick="diaryIntroDone(true)">🔒 给本子加把锁</button></div>'
+      + '<p style="font-size:11px;color:var(--ink-3);margin:8px 0 0">小提示：换手机时导出的备份里也带着日记。</p></div>';
+  }
+  const te=dyEntry(T);
+  h+='<div class="card"><div class="card-head"><h3>今天 · '+fmtMD(T)+'</h3><span class="hint">只能写今天</span></div>';
+  if(te){
+    h+='<div style="display:flex;gap:12px;align-items:center"><div onclick="showDiaryEntry(\''+T+'\')" style="cursor:pointer">'+zhugeSVG(te,74)+'</div>'
+      + '<div style="flex:1;font-size:13px;line-height:1.7;font-weight:600;color:var(--ink-2)">'+(te.face?('今天是「'+dyFaceName(te.face)+'」<br>'):'')+'已经写下了。想到什么还可以再写一点。</div></div>'
+      + '<button class="btn" style="width:100%;margin-top:10px" onclick="openDiaryWrite()">✍️ 再写一点</button>';
+  }else{
+    h+='<div style="display:flex;gap:12px;align-items:center">'+zhugeSVG({face:"calm"},74)
+      + '<div style="flex:1;font-size:13.5px;line-height:1.7;font-weight:600;color:var(--ink-2)">今天心情怎么样？<br>给军师涂个颜色吧。</div></div>'
+      + '<button class="btn" style="width:100%;margin-top:10px" onclick="openDiaryWrite()">✍️ 写今天的</button>';
+  }
+  h+='</div>';
+  h+=diaryMonthHTML();
+  h+='<div class="card"><div class="card-head"><h3>本子的锁</h3><span class="hint">'+(DY.lock?"已上锁":"没上锁")+'</span></div>'
+    + (DY.lock
+        ? '<div class="grid2"><button class="btn ghost" onclick="openDiaryLock()">换密码</button><button class="btn ghost" onclick="diaryRemoveLock()">不要锁了</button></div><p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">离开日记页、或者切到别的 App，本子会自己锁上。</p>'
+        : '<button class="btn ghost" style="width:100%" onclick="openDiaryLock()">🔒 给本子加把锁</button><p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">4 位数字。爸爸妈妈的家长密码打不开它；忘了只能重设，旧日记会一起清掉。</p>')
+    + '</div>';
+  return h;
+}
+function diaryMonthHTML(){
+  const [Y,M]=DY_MONTH.split("-").map(Number);
+  const first=new Date(Y,M-1,1), days=new Date(Y,M,0).getDate();
+  const lead=(first.getDay()+6)%7;
+  const T=TODAY();
+  let cnt=0;
+  let g='<div class="dy-grid">';
+  for(const w of ["一","二","三","四","五","六","日"]) g+='<div class="dy-wd">'+w+'</div>';
+  for(let i=0;i<lead;i++) g+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const ds_=Y+"-"+pad(M)+"-"+pad(d);
+    const e=dyEntry(ds_);
+    if(e){ cnt++; g+='<button class="dy-day has" onclick="showDiaryEntry(\''+ds_+'\')">'+zhugeSVG(e,34)+'<span>'+d+'</span></button>'; }
+    else g+='<div class="dy-day'+(ds_>T?" fut":"")+(ds_===T?" today":"")+'"><i></i><span>'+d+'</span></div>';
+  }
+  g+='</div>';
+  const prev=addD(DY_MONTH+"-01",-1).slice(0,7), next=addD(DY_MONTH+"-"+pad(days),1).slice(0,7);
+  return '<div class="card"><div class="weeknav"><button class="btn ghost sm" onclick="diaryMonth(\''+prev+'\')">‹</button>'
+    + '<span class="wk">'+Y+' 年 '+M+' 月</span>'
+    + '<button class="btn ghost sm" onclick="diaryMonth(\''+next+'\')"'+(next>T.slice(0,7)?" disabled":"")+'>›</button></div>'
+    + g + '<p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0;text-align:center">'+(cnt?('这个月写了 '+cnt+' 天 · 点军师看那天写的'):'空着的日子就空着，不用补')+'</p></div>';
+}
+function diaryMonth(m){ if(m>TODAY().slice(0,7)) return; DY_MONTH=m; render(); }
+function diaryIntroDone(wantLock){
+  diaryLoad(); DY.intro=true; diarySave();
+  render();
+  if(wantLock) openDiaryLock();
+}
+
+/* ---- 写今天的 ---- */
+function openDiaryWrite(){
+  diaryLoad();
+  if(DY_ERROR){ toast("日记文件需要检查，先不写入"); return; }
+  if(diaryLocked()){ VIEW="diary"; setTab(); render(); return; }
+  const T=TODAY();
+  const old=dyEntry(T);
+  const draft=old ? JSON.parse(JSON.stringify(old)) : {face:"", colors:{}, answers:[], note:"", at:Date.now(), upd:0};
+  let cur=DY_COLORS[0];
+  const ans=id=>draft.answers.find(a=>a.id===id)||null;
+  const promptsFor=()=>{
+    // 已经答过的题保留；没答的按当前心情出
+    const answered=draft.answers.map(a=>DY_PROMPT_BY_ID[a.id]).filter(Boolean);
+    if(answered.length>=2) return answered.slice(0,2);
+    const fresh=diaryPrompts(T,draft.face).filter(p=>!answered.includes(p));
+    return answered.concat(fresh).slice(0,2);
+  };
+  const promptHTML=()=>{
+    let s='';
+    for(const P of promptsFor()){
+      const a=ans(P.id)||{pick:"",text:""};
+      s+='<div class="field dy-q" data-id="'+P.id+'"><label>'+esc(P.q)+'</label>';
+      if(P.o){
+        s+='<div class="chipsel" style="margin-bottom:6px">'+P.o.map(o=>'<button type="button" class="'+(a.pick===o?"on":"")+'" data-opt="'+esc(o)+'">'+esc(o)+'</button>').join("")+'</div>';
+      }
+      const show = P.on ? a.pick===P.on : (P.no ? a.pick!==P.no : true);
+      s+='<input type="text" maxlength="500" class="dy-t" placeholder="'+esc(P.t)+'" value="'+esc(a.text)+'"'+(show?"":' style="display:none"')+'>';
+      s+='</div>';
+    }
+    return s;
+  };
+  let h='<h3>军师帐 · '+fmtMD(T)+'</h3><div class="sh-sub">每一步都可以跳过。写好的会自动存下来。</div>';
+  h+='<div class="field"><label>① 军师今天是什么脸？</label><div class="chipsel" id="dyFaces">'
+    + DY_FACES.map(f=>'<button type="button" data-f="'+f.k+'" class="'+(draft.face===f.k?"on":"")+'">'+f.n+'</button>').join("")+'</div>'
+    + '<div id="dySay" class="quote" style="margin-top:8px;'+(draft.face?"":"display:none")+'">🪶 '+esc(dyFaceSay(draft.face))+'</div></div>';
+  h+='<div class="field"><label>② 你今天的心是什么颜色？给军师涂上</label>'
+    + '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">'
+    + '<div id="dyFig" style="background:#F6EFE2;border-radius:var(--r-md);padding:6px">'+zhugeSVG(draft,170,true)+'</div>'
+    + '<div style="flex:1;min-width:130px"><div class="dy-pal" id="dyPal">'+DY_COLORS.map((c,i)=>'<button type="button" class="dy-sw'+(i?"":" sel")+'" data-c="'+c+'" style="background:'+c+'" aria-label="颜色"></button>').join("")+'</div>'
+    + '<p style="font-size:11.5px;color:var(--ink-3);margin:6px 0">先点颜色，再点军师的纶巾、脸、鹤氅、内衫、羽扇、鞋。</p>'
+    + '<button type="button" class="btn ghost sm" id="dyClassic">原来的样子</button> <button type="button" class="btn ghost sm" id="dyWipe">擦掉</button></div></div></div>';
+  h+='<div class="field"><label>③ 说几句（可以点，也可以写）</label><div id="dyQs">'+promptHTML()+'</div></div>';
+  h+='<div class="field"><label>想对军师说的悄悄话</label><textarea id="dyNote" maxlength="2000" placeholder="想写多少写多少">'+esc(draft.note)+'</textarea></div>';
+  h+='<button class="btn" style="width:100%" id="dyDone">记下了</button>';
+
+  openSheet(h,(sheet)=>{
+    const persist=()=>{
+      draft.answers=draft.answers.filter(a=>a.pick||(a.text||"").trim());
+      draft.upd=Date.now();
+      const clean=dyCleanEntry(draft);
+      const prevEntry=DY.entries[T];
+      if(dyHasContent(clean)) DY.entries[T]=clean; else delete DY.entries[T];
+      DY.promptDay[T]=promptsFor().map(p=>p.id);
+      for(const k of Object.keys(DY.promptDay)) if(k<addD(T,-7)) delete DY.promptDay[k];
+      if(!diarySave()){ if(prevEntry) DY.entries[T]=prevEntry; else delete DY.entries[T]; return false; }
+      return true;
+    };
+    const setAns=(id,patch)=>{
+      let a=ans(id); if(!a){ a={id,pick:"",text:""}; draft.answers.push(a); }
+      Object.assign(a,patch);
+    };
+    const bindQs=()=>{
+      $$(".dy-q",sheet).forEach(box=>{
+        const id=box.dataset.id, P=DY_PROMPT_BY_ID[id];
+        const inp=$(".dy-t",box);
+        $$("button[data-opt]",box).forEach(b=>b.onclick=()=>{
+          const cur_=ans(id);
+          const v=(cur_&&cur_.pick===b.dataset.opt)?"":b.dataset.opt;   // 再点一次取消
+          setAns(id,{pick:v});
+          $$("button[data-opt]",box).forEach(x=>x.classList.toggle("on",x.dataset.opt===v));
+          const show = P.on ? v===P.on : (P.no ? v!==P.no : true);
+          inp.style.display=show?"":"none";
+          if(!show){ setAns(id,{text:""}); inp.value=""; }
+          persist();
+        });
+        inp.oninput=()=>{ setAns(id,{text:inp.value.slice(0,500)}); };
+        inp.onchange=()=>persist();
+      });
+    };
+    bindQs();
+    $$("#dyFaces button",sheet).forEach(b=>b.onclick=()=>{
+      draft.face = draft.face===b.dataset.f ? "" : b.dataset.f;
+      $$("#dyFaces button",sheet).forEach(x=>x.classList.toggle("on",x.dataset.f===draft.face));
+      const say=$("#dySay",sheet);
+      say.style.display=draft.face?"":"none"; say.textContent="🪶 "+dyFaceSay(draft.face);
+      $(".dyface",sheet).innerHTML=dyFaceSVG(draft.face);
+      $("#dyQs",sheet).innerHTML=promptHTML(); bindQs();
+      persist();
+    });
+    const paint=()=>{ $$(".dyp",sheet).forEach(el=>el.setAttribute("fill",draft.colors[el.dataset.p]||"#FFFFFF")); };
+    $$("#dyPal .dy-sw",sheet).forEach(b=>b.onclick=()=>{
+      cur=b.dataset.c; $$("#dyPal .dy-sw",sheet).forEach(x=>x.classList.toggle("sel",x===b));
+    });
+    $$(".dyp",sheet).forEach(el=>el.addEventListener("click",()=>{ draft.colors[el.dataset.p]=cur; paint(); persist(); }));
+    $("#dyClassic",sheet).onclick=()=>{ draft.colors=Object.assign({},DY_CLASSIC); paint(); persist(); };
+    $("#dyWipe",sheet).onclick=()=>{ draft.colors={}; paint(); persist(); };
+    const note=$("#dyNote",sheet);
+    note.oninput=()=>{ draft.note=note.value.slice(0,2000); };
+    note.onchange=()=>persist();
+    $("#dyDone",sheet).onclick=()=>{
+      draft.note=note.value.slice(0,2000);
+      if(!persist()) return;
+      closeSheet(); VIEW="diary"; render();
+      const e=dyEntry(T);
+      toast(e ? ("记下了 📔"+(e.face?("\n军师："+dyFaceSay(e.face)):"")) : "今天先不写也没关系",3200);
+    };
+  });
+}
+
+/* ---- 翻看某一天（往日只读，本人可删） ---- */
+function showDiaryEntry(d){
+  if(diaryLocked()){ VIEW="diary"; render(); return; }
+  const e=dyEntry(d); if(!e) return;
+  let h='<h3>'+fmtMD(d)+'（'+WD[parseD(d).getDay()]+'）</h3><div class="sh-sub">'+(e.face?('那天是「'+dyFaceName(e.face)+'」'):'那天的军师')+'</div>';
+  h+='<div style="display:flex;justify-content:center;background:#F6EFE2;border-radius:var(--r-md);padding:8px;margin-bottom:12px">'+zhugeSVG(e,150)+'</div>';
+  for(const a of e.answers){
+    const P=DY_PROMPT_BY_ID[a.id]; if(!P) continue;
+    h+='<div class="hist-item"><div class="hl">'+esc(P.q)+'</div><div style="font-weight:700">'+esc([a.pick,a.text].filter(Boolean).join(" · "))+'</div></div>';
+  }
+  if((e.note||"").trim()) h+='<div class="hist-item"><div class="hl">悄悄话</div><div style="font-weight:600;white-space:pre-wrap;line-height:1.7">'+esc(e.note)+'</div></div>';
+  if(!e.answers.length && !(e.note||"").trim()) h+='<p style="font-size:12.5px;color:var(--ink-3);text-align:center">这天只涂了军师，没写字。</p>';
+  if(d===TODAY()) h+='<button class="btn" style="width:100%;margin-top:6px" onclick="closeSheet();openDiaryWrite()">✍️ 再写一点</button>';
+  h+='<div class="grid2" style="margin-top:9px"><button class="btn ghost" onclick="closeSheet()">合上</button><button class="btn danger" onclick="deleteDiary(\''+d+'\')">删掉这天</button></div>';
+  openSheet(h);
+}
+function deleteDiary(d){
+  if(diaryLocked()) return;
+  if(!dyEntry(d)) return;
+  if(!confirm("删掉 "+fmtMD(d)+" 的日记？删了就找不回来了。")) return;
+  const keep=DY.entries[d];
+  delete DY.entries[d];
+  if(!diarySave()){ DY.entries[d]=keep; return; }
+  closeSheet(); render(); toast("删掉了");
+}
+
+/* ---- 日记锁 ---- */
+function openDiaryLock(){
+  if(diaryLocked()) return;
+  const h='<h3>'+(DY.lock?"换一个密码":"给本子加把锁")+'</h3><div class="sh-sub">4 位数字。要记住哦 —— 忘了只能重设，旧日记会一起清掉。</div>'
+    + '<div class="field"><label>密码</label><input type="password" inputmode="numeric" maxlength="4" id="dyL1"></div>'
+    + '<div class="field"><label>再输一次</label><input type="password" inputmode="numeric" maxlength="4" id="dyL2"></div>'
+    + '<div class="grid2"><button class="btn ghost" onclick="closeSheet()">算了</button><button class="btn" id="dyLok">锁上</button></div>';
+  openSheet(h,sheet=>{ $("#dyLok",sheet).onclick=()=>{ if(diarySetLock($("#dyL1",sheet).value,$("#dyL2",sheet).value)){ closeSheet(); render(); } }; });
+}
+function diarySetLock(a,b){
+  diaryLoad();
+  if(!/^\d{4}$/.test(a||"")){ toast("密码要 4 位数字"); return false; }
+  if(a!==b){ toast("两次不一样"); return false; }
+  const old=DY.lock, salt=uid();
+  DY.lock={salt, h:pinHash(a,salt)};
+  if(!diarySave()){ DY.lock=old; return false; }
+  DY_OPEN=true;
+  toast("锁好了 🔒 离开日记页会自己锁上");
+  return true;
+}
+function diaryUnlock(pin){
+  diaryLoad();
+  if(pin===undefined){ const el=$("#dyPin"); pin=el?el.value:""; }
+  if(!DY.lock){ DY_OPEN=true; render(); return true; }
+  if(pinHash(String(pin),DY.lock.salt)===DY.lock.h){ DY_OPEN=true; render(); return true; }
+  toast("密码不对"); const el=$("#dyPin"); if(el) el.value="";
+  return false;
+}
+function diaryRemoveLock(){
+  if(diaryLocked()) return;
+  if(!confirm("不要锁了？以后打开日记就不用输密码。")) return;
+  const old=DY.lock; DY.lock=null;
+  if(!diarySave()){ DY.lock=old; return; }
+  render(); toast("锁拿掉了");
+}
+function diaryForgot(){
+  diaryLoad();
+  const n=Object.keys(DY.entries).length;
+  if(!confirm("忘了密码只能重设。重设会把以前的 "+n+" 篇日记全部清掉，找不回来。确定吗？")) return;
+  if(!confirm("再确认一次：清掉全部日记，重新开始？")) return;
+  const old={entries:DY.entries, lock:DY.lock};
+  DY.entries={}; DY.lock=null;
+  if(!diarySave()){ DY.entries=old.entries; DY.lock=old.lock; return; }
+  DY_OPEN=false; render(); toast("本子重新开始了");
+}
+
+/* ---- 点卯后顺手问一句：每天只在第一次点卯时出现一次 ---- */
+function diaryNudgeDue(){
+  diaryLoad();
+  if(DY_ERROR) return false;
+  const T=TODAY();
+  return DY.nudged!==T && !DY.entries[T];
+}
+function diaryNudge(){
+  if(!diaryNudgeDue()) return false;
+  DY.nudged=TODAY(); diarySave();
+  const old=$(".dy-nudge"); if(old) old.remove();
+  const el=document.createElement("div");
+  el.className="dy-nudge";
+  el.innerHTML='<span class="dn-t">🪶 今天心情怎么样？</span><span class="dn-go">写两句 ›</span><button class="dn-x" aria-label="关掉">×</button>';
+  el.onclick=e=>{
+    el.remove();
+    if(e.target.classList.contains("dn-x")) return;
+    closeSheet(); VIEW="diary"; setTab(); render();
+    if(!diaryLocked()) openDiaryWrite();
+  };
+  document.body.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); },9000);
+  return true;
+}
+
+/* ---- 备份：日记跟着导出；导入时只补不删 ---- */
+function diaryExport(){
+  diaryLoad();
+  if(DY_ERROR) return undefined;
+  if(!DY.lock && !Object.keys(DY.entries).length) return undefined;
+  return JSON.parse(JSON.stringify(DY));
+}
+function diaryMergeImport(inc){
+  diaryLoad();
+  if(DY_ERROR || !inc) return 0;
+  const o=dyClean(inc);
+  let added=0;
+  for(const k of Object.keys(o.entries)) if(!DY.entries[k]){ DY.entries[k]=o.entries[k]; added++; }
+  if(!DY.lock && o.lock) DY.lock=o.lock;
+  if(o.intro) DY.intro=true;
+  if(added || o.lock || o.intro) diarySave();
+  return added;
 }
 
 /* =====================================================================
@@ -4154,6 +4636,8 @@ function render(){
   else if(VIEW==="stats")    html=viewStats();
   else if(VIEW==="report")   html=viewReport();
   else if(VIEW==="settings") html=viewSettings();
+  else if(VIEW==="diary")    html=viewDiary();
+  if(VIEW!=="diary") diaryRelock();   // 离开日记页，本子自己锁上
   m.innerHTML=html;
   setTab();
   refreshTop();
@@ -4193,7 +4677,7 @@ function render(){
     render();
   });
   $("#btnDraw").addEventListener("click",openDraw);
-  document.addEventListener("visibilitychange",()=>{ if(document.hidden){ lockParent(); if(VIEW==="settings") render(); } });
+  document.addEventListener("visibilitychange",()=>{ if(document.hidden){ lockParent(); diaryRelock(); if(VIEW==="diary") closeSheet(); if(VIEW==="settings"||VIEW==="diary") render(); } });
   render();
   window.render=render; window.setTab=setTab; window.gotoDate=gotoDate;
   window.openCheck=openCheck; window.clearRec=clearRec;
@@ -4213,6 +4697,9 @@ function render(){
   window.requestPersistentStorage=requestPersistentStorage;
   window.openExtraDay=openExtraDay; window.openKidAdd=openKidAdd;
   window.markTooHard=markTooHard; window.markWish=markWish;
+  window.openDiaryWrite=openDiaryWrite; window.showDiaryEntry=showDiaryEntry; window.deleteDiary=deleteDiary;
+  window.diaryMonth=diaryMonth; window.diaryIntroDone=diaryIntroDone; window.openDiaryLock=openDiaryLock;
+  window.diaryUnlock=diaryUnlock; window.diaryRemoveLock=diaryRemoveLock; window.diaryForgot=diaryForgot;
   window.openCouponSettle=openCouponSettle; window.settleCoupon=settleCoupon;
   window.openBreakEdit=openBreakEdit; window.delBreak=delBreak;
   window.applyHint=applyHint;
