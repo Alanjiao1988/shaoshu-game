@@ -183,6 +183,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   ev(`showDiaryEntry("${y1}")`);
   t("锁着时不能直接打开某一天", !q(".sheet") || !/动物园/.test(q(".sheet").textContent));
   t("错误密码打不开", ev(`diaryUnlock("1111")`) === false);
+  { const fam=String.fromCharCode(54,49,49,49,50,51), fw=[...fam].map(c=>String.fromCharCode(c.charCodeAt(0)+0xFEE0)).join("");
+    t("家里的公用口令也能打开日记锁", ev("diaryUnlock("+JSON.stringify(fam)+")") === true); ev("diaryRelock()");
+    t("公用口令输全角也能打开", ev("diaryUnlock("+JSON.stringify(fw)+")") === true); ev("diaryRelock()");
+    t("密码框能输 6 位（装得下公用口令）", (ev("VIEW=\"diary\"; render()"), q("#dyPin").maxLength === 6));
+    const n0 = Object.keys(ev("DY.entries")).length; ev("diaryForgot()");
+    t("「忘了密码」不再清空日记、锁也还在", Object.keys(ev("DY.entries")).length === n0 && n0 > 0 && !!ev("DY.lock") && ev("diaryLocked()") === true);
+    t("锁屏写明公用口令也能开", /公用口令/.test(q("#main").textContent)); }
   t("正确密码打开", ev(`diaryUnlock("2580")`) === true && /接着写|动物园/.test(q("#main").textContent));
   btn(/接着写/, q("#main")).click(); type(ta(), ta().value + "切后台前写的");
   Object.defineProperty(d, "hidden", { configurable: true, get: () => true });

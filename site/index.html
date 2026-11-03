@@ -671,7 +671,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.5.1";
+const APP_VERSION = "2.5.2";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 11;
 
@@ -4094,7 +4094,7 @@ function resetAll(){
    - 单独存在 DIARY_KEY，不进 ST，星星那边的保存/回滚/重置都碰不到它
    - 不给星、不算连击、不进全勤；诸葛亮不用抽到就能涂
    - 只能写今天；当天可以随时改、随时补；往日只读，本人可删
-   - 默认只有孩子能看；可选 4 位数字锁，家长密码打不开；忘了只能重设并清空
+   - 默认只有孩子能看；可选 4 位数字锁；家里的公用口令也能打开（家长 2026-11-03 要求），所以忘了不用清空
    ===================================================================== */
 const DIARY_KEY = "shaozhu_diary";
 let DY = null;              // 日记数据（懒加载）
@@ -4303,9 +4303,9 @@ function viewDiary(){
     return '<div class="card" style="text-align:center"><div class="card-head"><h3>日记本</h3><span class="hint">🔒 上了锁</span></div>'
       + '<div style="display:flex;justify-content:center;margin-bottom:8px">'+zhugeSVG({face:"calm",colors:DY_CLASSIC},96)+'</div>'
       + '<p style="font-size:13px;color:var(--ink-2);font-weight:600;margin:0 0 10px">主公，请输入本子的密码</p>'
-      + '<input type="password" inputmode="numeric" maxlength="4" id="dyPin" style="max-width:160px;text-align:center;letter-spacing:6px;margin:0 auto 10px;display:block">'
+      + '<input type="password" inputmode="numeric" maxlength="6" id="dyPin" style="max-width:160px;text-align:center;letter-spacing:6px;margin:0 auto 10px;display:block">'
       + '<button class="btn" style="min-width:140px" onclick="diaryUnlock()">打开</button>'
-      + '<div><button class="addrow" style="margin-top:12px" onclick="diaryForgot()">忘了密码？</button></div></div>';
+      + '<div><button class="addrow" style="margin-top:12px" onclick="diaryForgot()">忘了密码？</button><p style="font-size:11.5px;color:var(--ink-3);margin:6px 0 0">自己的密码，或者家里的公用口令，都能打开</p></div></div>';
   }
   if(!DY.intro){
     h+='<div class="card"><div class="card-head"><h3>我的日记本</h3><span class="hint">只有你能看</span></div>'
@@ -4332,7 +4332,7 @@ function viewDiary(){
   h+='<div class="card"><div class="card-head"><h3>本子的锁</h3><span class="hint">'+(DY.lock?"已上锁":"没上锁")+'</span></div>'
     + (DY.lock
         ? '<div class="grid2"><button class="btn ghost" onclick="openDiaryLock()">换密码</button><button class="btn ghost" onclick="diaryRemoveLock()">不要锁了</button></div><p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">离开日记页、或者切到别的 App，本子会自己锁上。</p>'
-        : '<button class="btn ghost" style="width:100%" onclick="openDiaryLock()">🔒 给本子加把锁</button><p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">4 位数字。爸爸妈妈的家长密码打不开它；忘了只能重设，旧日记会一起清掉。</p>')
+        : '<button class="btn ghost" style="width:100%" onclick="openDiaryLock()">🔒 给本子加把锁</button><p style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">4 位数字。家里的公用口令也能打开它，忘了也不怕。</p>')
     + '</div>';
   return h;
 }
@@ -4504,7 +4504,7 @@ function deleteDiary(d){
 /* ---- 日记锁 ---- */
 function openDiaryLock(){
   if(diaryLocked()) return;
-  const h='<h3>'+(DY.lock?"换一个密码":"给本子加把锁")+'</h3><div class="sh-sub">4 位数字。要记住哦 —— 忘了只能重设，旧日记会一起清掉。</div>'
+  const h='<h3>'+(DY.lock?"换一个密码":"给本子加把锁")+'</h3><div class="sh-sub">4 位数字。忘了也没关系，家里的公用口令也能打开。</div>'
     + '<div class="field"><label>密码</label><input type="password" inputmode="numeric" maxlength="4" id="dyL1"></div>'
     + '<div class="field"><label>再输一次</label><input type="password" inputmode="numeric" maxlength="4" id="dyL2"></div>'
     + '<div class="grid2"><button class="btn ghost" onclick="closeSheet()">算了</button><button class="btn" id="dyLok">锁上</button></div>';
@@ -4525,7 +4525,8 @@ function diaryUnlock(pin){
   diaryLoad();
   if(pin===undefined){ const el=$("#dyPin"); pin=el?el.value:""; }
   if(!DY.lock){ DY_OPEN=true; render(); return true; }
-  if(pinHash(String(pin),DY.lock.salt)===DY.lock.h){ DY_OPEN=true; render(); return true; }
+  const fp=familyPin();
+  if(pinHash(String(pin),DY.lock.salt)===DY.lock.h || pinHash(String(pin),fp.salt)===fp.h){ DY_OPEN=true; render(); return true; }
   toast("密码不对"); const el=$("#dyPin"); if(el) el.value="";
   return false;
 }
@@ -4536,15 +4537,10 @@ function diaryRemoveLock(){
   if(!diarySave()){ DY.lock=old; return; }
   render(); toast("锁拿掉了");
 }
+// 忘了自己的密码：用家里的公用口令打开就行，不再清空日记
 function diaryForgot(){
-  diaryLoad();
-  const n=Object.keys(DY.entries).length;
-  if(!confirm("忘了密码只能重设。重设会把以前的 "+n+" 篇日记全部清掉，找不回来。确定吗？")) return;
-  if(!confirm("再确认一次：清掉全部日记，重新开始？")) return;
-  const old={entries:DY.entries, lock:DY.lock};
-  DY.entries={}; DY.lock=null;
-  if(!diarySave()){ DY.entries=old.entries; DY.lock=old.lock; return; }
-  DY_OPEN=false; render(); toast("本子重新开始了");
+  toast("用家里的公用口令也能打开 🔑\n打开以后可以换一个新密码",3600);
+  const el=$("#dyPin"); if(el){ el.value=""; try{ el.focus(); }catch(e){} }
 }
 
 /* ---- 点卯后顺手问一句：每天只在第一次点卯时出现一次 ---- */
