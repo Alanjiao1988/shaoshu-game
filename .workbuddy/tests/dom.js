@@ -58,6 +58,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // 启动 260ms 后会自动弹「今日仪式卡」，先等它弹完再关掉，否则会盖住被测面板
   await sleep(450);
   ev("closeSheet()");
+  t("新存档默认已设家长密码（＝家庭口令）", ev("pinSet()") === true && ev("checkPin(\"611123\")") === true);
+  ev("PARENT_UNTIL = 1e15");   // 测试期间保持家长已解锁
 
   console.log("=== A. 启动与视图切换（真实点击） ===");
   t("应用启动无未捕获异常", errors.length === 0, errors.slice(0, 2).join(" | "));

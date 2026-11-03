@@ -671,9 +671,9 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.5.1";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
-const SCHEMA = 10;
+const SCHEMA = 11;
 
 /* ---------------------- 家庭口令（打开 App 的门） ----------------------
    网址是公开的，口令让外人打不开。只存哈希，明文不进源码。
@@ -684,7 +684,8 @@ const SCHEMA = 10;
 const GATE_KEY = "shaozhu_gate";
 /* BUILD:GATE */const GATE_HASH = "bdf6e55fd799e205";/* END:GATE */
 function gateHash(code){
-  let str="shaozhu-gate|"+String(code).trim(), h1=0x9e3779b9, h2=0x85ebca6b;
+  code=String(code==null?"":code).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\s+/g,"");
+  let str="shaozhu-gate|"+code, h1=0x9e3779b9, h2=0x85ebca6b;
   for(let r=0;r<2000;r++){
     for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); }
     h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
@@ -711,7 +712,7 @@ function showGate(){
     +'<div style="font-size:44px;">🏯</div>'
     +'<h2 style="margin:10px 0 6px;">少年主公</h2>'
     +'<div style="color:#7a6a55;font-size:14px;margin-bottom:16px;">这是一个家庭私用的学习工具，请输入家庭口令</div>'
-    +'<input id="gateIn" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;font-size:18px;padding:12px;border:1px solid #c9b48f;border-radius:10px;text-align:center;">'
+    +'<input id="gateIn" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:100%;box-sizing:border-box;font-size:18px;padding:12px;border:1px solid #c9b48f;border-radius:10px;text-align:center;">'
     +'<button id="gateOk" class="btn" style="width:100%;margin-top:12px;padding:12px;font-size:16px;">进入</button>'
     +'<div id="gateMsg" style="color:#b23a2a;font-size:13px;min-height:18px;margin-top:10px;"></div>'
     +'</div>';
@@ -1305,6 +1306,14 @@ function migrate(s){
     s.changeLog.push({ at:Date.now(), date:TODAY(), what:"启用新规「军功只凭学习」：完胜 3 星、破敌 +10，揭榜与集齐不再给星。已有军功不变", locked:!!(s.parentPin&&s.parentPin.h) });
     s.schema=10;
   }
+  if(s.schema < 11){
+    // v10 → v11：家长要求家长密码与家庭口令统一为同一个数字。只存加盐哈希，明文不进源码。
+    s.parentPin = familyPin();
+    s.pinFails = { n:0, until:0 };
+    if(!Array.isArray(s.changeLog)) s.changeLog=[];
+    s.changeLog.push({ at:Date.now(), date:TODAY(), what:"家长密码统一为家庭口令（升级时设置）", locked:true });
+    s.schema=11;
+  }
   if(typeof s.ruleFrom!=="string") s.ruleFrom="";
   if(!s.hintApplied || typeof s.hintApplied!=="object") s.hintApplied={};
   if(!Array.isArray(s.meritEvents)) s.meritEvents=[];
@@ -1681,7 +1690,9 @@ function bossBeaten(dateStr){ return !!ST.bossDefeats[dateStr]; }
 let PARENT_UNTIL=0;
 const PARENT_WINDOW_MS=5*60*1000;
 const PIN_MAX_FAILS=5, PIN_LOCK_MS=5*60*1000;
+function normDigits(s){ return String(s==null?"":s).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\s+/g,""); }
 function pinHash(pin,salt){
+  pin=normDigits(pin);
   let str=String(salt)+"|"+String(pin), h1=0xdeadbeef, h2=0x41c6ce57;
   for(let r=0;r<500;r++){
     for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); }
@@ -1691,6 +1702,8 @@ function pinHash(pin,salt){
   }
   return (h2>>>0).toString(16)+(h1>>>0).toString(16);
 }
+// 家长密码默认＝家庭口令（家长 2026-11-03 要求统一）。只存加盐哈希
+function familyPin(){ return { salt:"pp2026v11", h:"684f5e7970d130f2" }; }
 function pinSet(){ return !!(ST && ST.parentPin && ST.parentPin.h); }
 function parentUnlocked(){ return !pinSet() || Date.now()<PARENT_UNTIL; }
 function lockParent(){ PARENT_UNTIL=0; }
@@ -1737,7 +1750,7 @@ function openPinSetup(){
   h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn" id="pinSave">保存</button></div>';
   openSheet(h,(sheet)=>{
     $("#pinSave",sheet).onclick=()=>{
-      const a=($("#pin1",sheet).value||"").trim(), b=($("#pin2",sheet).value||"").trim();
+      const a=normDigits($("#pin1",sheet).value), b=normDigits($("#pin2",sheet).value);
       if(!setParentPin(a,b)) return;
       closeSheet(); render(); toast("家长密码已设好 🔒");
     };
@@ -4072,7 +4085,7 @@ function resetAll(){
   if(!confirm("再确认一次：所有点卯记录、武将图鉴、锦囊、军报都会被删除。")) return;
   localStorage.removeItem(KEY);
   STORAGE_LAST_RAW=null;
-  ST=defaultState(); save(); refreshTop(); render(); toast("已恢复出厂设置");
+  ST=defaultState(); ST.parentPin=familyPin(); save(); refreshTop(); render(); toast("已恢复出厂设置");
 }
 
 /* =====================================================================
@@ -4724,7 +4737,7 @@ function render(){
     $("#main").innerHTML='<div class="card"><h3>存档需要核查，已暂停写入</h3><p>'+esc(LOAD_ERROR)+'</p><p>原数据没有清空。请导出原始存档后再处理。</p><button class="btn" onclick="exportRawBackup()">导出原始存档</button></div>';
     return;
   }
-  if(!ST){ ST=defaultState(); save(); }
+  if(!ST){ ST=defaultState(); ST.parentPin=familyPin(); save(); }
   applySkin();
   // 存不住的话，先把话说清楚
   checkStorage();

@@ -75,7 +75,7 @@ console.log(`   今天 ${TODAY} · 补录窗口 ${FLOOR} ~ ${TODAY} · 冻结区
 
 console.log("=== 1. 版本与静态资源 ===");
 t("软件版本与 sw.js 一致", run(`APP_VERSION`)===(fs.readFileSync(path.join(ROOT,"site","sw.js"),"utf8").match(/VERSION = "([^"]+)"/)||[])[1], run(`APP_VERSION`));
-t("数据结构版本为 10", run(`SCHEMA`)===10, String(run(`SCHEMA`)));
+t("数据结构版本为 11", run(`SCHEMA`)===11, String(run(`SCHEMA`)));
 t("引用了 apple-touch-icon", /apple-touch-icon\.png/.test(html));
 t("引用了 manifest.json", /rel="manifest" href="manifest\.json"/.test(html));
 t("site 里图标文件齐全", ["apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png",
@@ -668,6 +668,7 @@ t("checkCollection 可作用于迁移中的对象", (()=>{
 })());
 
 console.log("\n=== 10.13 锦囊两处标题区分 ===");
+run(`PARENT_UNTIL=1e15`);
 t("孩子看的页面叫「奖励一览」", /<h3>奖励一览<\/h3>/.test(run(`viewHeroes()`)));
 t("家长改的叫「锦囊设置」", /<h3>锦囊设置<\/h3>/.test(run(`viewSettings()`)));
 t("不再有两处同名「锦囊内容」", !/<h3>锦囊内容<\/h3>/.test(html));
@@ -1019,7 +1020,7 @@ t("★ 升级到 schema 10：设生效日、已有军功一颗不扣", (()=>{
   setup(FROZEN); run(`ST.ruleFrom=""; ST.schema=9; ST.bonusMerit=1585; ST.ledger={};`);
   // 模拟旧版：生效日前的冻结账按旧规
   run(`ST.ruleFrom=TODAY(); settleLedger(); const L=JSON.stringify(ST.ledger); ST.ruleFrom=undefined; ST.schema=9; ST=migrate(ST); globalThis.__L=L;`);
-  return run(`ST.schema`)===10 && run(`ST.ruleFrom`)===TODAY && run(`ST.bonusMerit`)===1585
+  return run(`ST.schema`)===run(`SCHEMA`) && run(`ST.ruleFrom`)===TODAY && run(`ST.bonusMerit`)===1585
       && run(`JSON.stringify(ST.ledger)`)===run(`__L`) && run(`earnedMerit()`)===6.4 && run(`totalMerit()`)===1591.4;
 })(), run(`ST.ruleFrom`)+" / "+run(`totalMerit()`));
 t("升级留痕写进改动记录", /启用新规/.test(run(`JSON.stringify(ST.changeLog||[])`)));
