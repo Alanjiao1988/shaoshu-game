@@ -671,7 +671,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.5.2";
+const APP_VERSION = "2.6.0";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 11;
 
@@ -3780,6 +3780,8 @@ function viewSettings(){
   h+='<div class="setrow"><span class="si">📥</span><span class="sn">导入备份<small>会覆盖当前全部数据，请谨慎</small></span>'
    + '<button class="btn ghost sm" onclick="pickImport()">选择文件</button>'
    + '<input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)"></div>';
+  h+='<div class="setrow"><span class="si">📨</span><span class="sn">远程设置包<small>出差时在自己手机上改好军令、锦囊，生成一段文字发到孩子的 iPad；那边粘贴导入。不含星星和日记</small></span>'
+   + '<button class="btn ghost sm" onclick="openPackMake()">生成</button><button class="btn ghost sm" onclick="openPackImport()">导入</button></div>';
   h+='<div class="quote">📔 日记本单独存放：导出备份会带上；导入备份、恢复出厂都不会清掉孩子的日记。</div>';
   h+='<div class="quote">正式使用不再提供示例数据和调试补令入口，避免覆盖真实记录或反复退还已用招贤令。</div>';
   // 备份提醒：iOS 上删掉主屏幕图标再重装，这个 Web App 的本地数据会一起没掉。
@@ -4587,6 +4589,140 @@ function diaryMergeImport(inc){
   return added;
 }
 
+/* ============ 远程设置包（v2.6.0） ============
+   家长在自己手机上改好军令/锦囊 → 生成一段文字 → 微信发到孩子的 iPad → 粘贴导入。
+   只含军令和锦囊门槛；不含星星、兑现、日记。按名字匹配；不在包里的军令只归档、不删历史；
+   新增/改动从导入当天起生效，不追溯。整包校验，有一处不对就整包拒绝。 */
+const PACK_PREFIX = "SZPK1:";
+function packSum(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h.toString(36); }
+function packSig(body){ const k=familyPin().h; return packSum(k+"|"+body+"|"+k); }
+function packEnc(s){ return btoa(unescape(encodeURIComponent(s))); }
+function packDec(s){ return decodeURIComponent(escape(atob(s))); }
+function packBuild(){
+  const tasks=ST.tasks.filter(t=>!t.archived&&!t.pending).map(t=>({n:t.name,e:t.emoji||"",s:t.subject,y:t.type,m:t.planMin,w:t.weekTarget,d:t.weekdays||[],o:t.timeSlot||"any",b:t.boss?1:0}));
+  const prizes=ST.prizes.map(p=>({n:p.name,e:p.emoji||"",t:p.tier,c:p.merit,w:p.weight}));
+  const body=JSON.stringify({at:Date.now(),tasks,prizes});
+  return PACK_PREFIX+packEnc(body)+"."+packSig(body);
+}
+// 解析并校验；返回 {ok,err,data}
+function packParse(text){
+  try{
+    text=String(text||"").replace(/\s+/g,"");
+    const i=text.indexOf(PACK_PREFIX); if(i<0) return {ok:false,err:"这不是设置包（要以 SZPK1: 开头）"};
+    text=text.slice(i+PACK_PREFIX.length);
+    const dot=text.lastIndexOf("."); if(dot<0) return {ok:false,err:"设置包不完整，可能没复制全"};
+    const body=packDec(text.slice(0,dot)), sig=text.slice(dot+1);
+    if(packSig(body)!==sig) return {ok:false,err:"校验没通过：可能没复制全，或被改过"};
+    const o=JSON.parse(body);
+    if(!o||!Array.isArray(o.tasks)||!Array.isArray(o.prizes)||!Number(o.at)) return {ok:false,err:"设置包格式不对"};
+    if(!o.tasks.length||o.tasks.length>30||o.prizes.length>60) return {ok:false,err:"军令要 1～30 条，锦囊最多 60 个"};
+    const tasks=[], prizes=[], seen=new Set();
+    for(const x of o.tasks){
+      const n=String(x&&x.n||"").trim();
+      if(!n||n.length>20||seen.has(n)) return {ok:false,err:"军令名字有问题（空、过长或重复）"};
+      seen.add(n);
+      const wd=Array.isArray(x.d)?x.d.filter(v=>Number.isInteger(v)&&v>=0&&v<=6):[];
+      const t={name:n,emoji:String(x.e||"").slice(0,8),subject:x.s,type:x.y,planMin:Number(x.m),weekTarget:Number(x.w),weekdays:wd,timeSlot:x.o,boss:!!x.b};
+      if(!SUBJECTS[t.subject]||!["daily","flex","fixed"].includes(t.type)||!["morning","noon","evening","any"].includes(t.timeSlot)) return {ok:false,err:"军令「"+n+"」的设置不对"};
+      if(!Number.isInteger(t.planMin)||t.planMin<1||t.planMin>300||!Number.isInteger(t.weekTarget)||t.weekTarget<1||t.weekTarget>21) return {ok:false,err:"军令「"+n+"」的时间或次数不对"};
+      if(t.type==="fixed"&&!wd.length) return {ok:false,err:"军令「"+n+"」没选星期"};
+      tasks.push(t);
+    }
+    const pn=new Set();
+    for(const x of o.prizes){
+      const n=String(x&&x.n||"").trim();
+      if(!n||n.length>30||pn.has(n)) return {ok:false,err:"锦囊名字有问题（空、过长或重复）"};
+      pn.add(n);
+      const p={name:n,emoji:String(x.e||"🎁").slice(0,8),tier:x.t,merit:moneyNumber(x.c),weight:Number(x.w)};
+      if(!TIERS[p.tier]||!validPrizeCost(p.merit)||!Number.isInteger(p.weight)||p.weight<0||p.weight>999) return {ok:false,err:"锦囊「"+n+"」的档位、门槛或权重不对"};
+      prizes.push(p);
+    }
+    return {ok:true,data:{at:Number(o.at),tasks,prizes}};
+  }catch(e){ return {ok:false,err:"设置包读不出来，可能没复制全"}; }
+}
+// 对比当前设置，列出会发生的变化
+function packDiff(d){
+  const TF=[["planMin","分钟"],["type","安排",x=>({daily:"每日",flex:"灵活",fixed:"固定"})[x]||x],["weekTarget","每周次数"],["weekdays","星期",x=>(x||[]).map(v=>WDX[v]).join("")],["boss","硬仗",x=>x?"是":"否"],["subject","营地",x=>(SUBJECTS[x]||{}).place||x],["timeSlot","时段"]];
+  const PF=[["merit","门槛"],["tier","档位",x=>(TIERS[x]||{}).name||x],["weight","权重"]];
+  const L={addT:[],chgT:[],offT:[],addP:[],chgP:[],delP:[]};
+  const cur=ST.tasks.filter(t=>!t.pending);
+  for(const t of d.tasks){
+    const o=cur.find(x=>x.name===t.name);
+    if(!o||o.archived) L.addT.push(t.name);
+    else { const df=diffText(o,t,TF); if(df) L.chgT.push(t.name+"："+df); }
+  }
+  for(const o of cur) if(!o.archived && !d.tasks.some(t=>t.name===o.name)) L.offT.push(o.name);
+  for(const p of d.prizes){
+    const o=ST.prizes.find(x=>x.name===p.name);
+    if(!o) L.addP.push(p.name+"（门槛 "+p.merit+"）");
+    else { const df=diffText(o,p,PF); if(df) L.chgP.push(p.name+"："+df); }
+  }
+  for(const o of ST.prizes) if(!d.prizes.some(p=>p.name===o.name)) L.delP.push(o.name);
+  return L;
+}
+function packApply(d){
+  settleLedger();   // 先冻结历史，已发的奖励不受影响
+  const today=TODAY();
+  for(const t of d.tasks){
+    const o=ST.tasks.find(x=>x.name===t.name&&!x.pending);
+    if(o){ Object.assign(o,t); if(o.archived){ o.archived=false; o.approvedAt=today; } }
+    else ST.tasks.push(Object.assign({id:uid(),archived:false,approvedAt:today},t));
+  }
+  for(const o of ST.tasks) if(!o.archived&&!o.pending&&!d.tasks.some(t=>t.name===o.name)) o.archived=true;
+  for(const p of d.prizes){
+    const o=ST.prizes.find(x=>x.name===p.name);
+    if(o) Object.assign(o,p); else ST.prizes.push(Object.assign({id:uid()},p));
+  }
+  ST.prizes=ST.prizes.filter(o=>d.prizes.some(p=>p.name===o.name));
+  ST.packAt=d.at;
+}
+function openPackMake(){
+  if(!needParent(openPackMake)) return;
+  const code=packBuild();
+  let h='<h3>📨 生成设置包</h3><div class="sh-sub">先在本机把军令、锦囊改好，再复制这段文字，用微信发给孩子的 iPad。包里只有军令和锦囊，没有星星、日记。</div>';
+  h+='<div class="field"><textarea id="pkOut" rows="6" readonly style="font-size:12px;word-break:break-all;">'+esc(code)+'</textarea></div>';
+  h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">关闭</button><button class="btn" id="pkCopy">复制</button></div>';
+  openSheet(h,(sheet)=>{
+    $("#pkCopy",sheet).onclick=()=>{
+      const ta=$("#pkOut",sheet); ta.focus(); ta.select();
+      let ok=false; try{ ok=document.execCommand("copy"); }catch(e){}
+      if(!ok && navigator.clipboard){ navigator.clipboard.writeText(code).then(()=>toast("已复制 ✓"),()=>toast("请长按文字手动复制")); return; }
+      toast(ok?"已复制 ✓":"请长按文字手动复制");
+    };
+  });
+}
+function openPackImport(){
+  let h='<h3>📥 导入设置包</h3><div class="sh-sub">把爸爸妈妈发来的那段文字（SZPK1: 开头）粘贴到下面。导入前会先告诉你会改什么，星星和日记都不会动。</div>';
+  h+='<div class="field"><textarea id="pkIn" rows="5" placeholder="在这里粘贴" style="font-size:12px;"></textarea></div>';
+  h+='<div class="grid2"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn" id="pkCheck">看看会改什么</button></div>';
+  openSheet(h,(sheet)=>{
+    $("#pkCheck",sheet).onclick=()=>{
+      const r=packParse($("#pkIn",sheet).value);
+      if(!r.ok){ toast(r.err,3600); return; }
+      if(ST.packAt && r.data.at<=ST.packAt){ toast("这份设置已经导入过了，或者比现在的旧"); return; }
+      openPackConfirm(r.data);
+    };
+  });
+}
+function openPackConfirm(d){
+  const L=packDiff(d);
+  const sec=(t,a)=>a.length?'<div style="margin-top:8px;"><b>'+t+'</b><br>'+a.map(esc).join("<br>")+'</div>':"";
+  const any=Object.values(L).some(a=>a.length);
+  let h='<h3>要改这些，确认吗？</h3><div style="font-size:13px;line-height:1.7;font-weight:600;max-height:50vh;overflow:auto;">';
+  h+=any?(sec("新增军令",L.addT)+sec("调整军令",L.chgT)+sec("停用军令（历史记录保留）",L.offT)+sec("新增锦囊",L.addP)+sec("调整锦囊",L.chgP)+sec("撤下锦囊",L.delP)):"和现在的设置完全一样，没有要改的。";
+  h+='<div style="margin-top:10px;color:var(--ink-3);">从今天起生效，之前的记录和星星都不变。</div></div>';
+  h+='<div class="grid2" style="margin-top:12px;"><button class="btn ghost" onclick="closeSheet()">不改</button><button class="btn" id="pkGo">确认应用</button></div>';
+  openSheet(h,(sheet)=>{
+    $("#pkGo",sheet).onclick=()=>{
+      const prev=JSON.stringify([ST.tasks,ST.prizes,ST.packAt]);
+      try{ packApply(d); logChange("导入家长发来的设置包：新增军令 "+L.addT.length+"、调整 "+L.chgT.length+"、停用 "+L.offT.length+"；锦囊新增 "+L.addP.length+"、调整 "+L.chgP.length+"、撤下 "+L.delP.length);
+        if(!save()) throw new Error("save"); }
+      catch(e){ const p=JSON.parse(prev); ST.tasks=p[0]; ST.prizes=p[1]; ST.packAt=p[2]; toast("保存失败，设置没有改"); return; }
+      closeSheet(); refreshTop(); render(); toast("设置已更新 ✓");
+    };
+  });
+}
+
 /* =====================================================================
    弹窗 & 渲染
    ===================================================================== */
@@ -4766,7 +4902,7 @@ function render(){
   window.approveTask=approveTask; window.rejectTask=rejectTask; window.openPinPrompt=openPinPrompt; window.openPinSetup=openPinSetup;
   window.forgotPin=forgotPin; window.lockParent=lockParent; window.pickImport=pickImport;
   window.openPrizeEdit=openPrizeEdit; window.delPrize=delPrize;
-  window.exportData=exportData; window.importData=importData;
+  window.openPackMake=openPackMake; window.openPackImport=openPackImport; window.exportData=exportData; window.importData=importData;
   window.seedDemo=seedDemo; window.resetAll=resetAll;
   window.closeSheet=closeSheet; window.ungraduateConfirm=ungraduateConfirm;
   window.closeRitual=closeRitual; window.grantTickets=grantTickets;

@@ -1,0 +1,76 @@
+/* 远程设置包（v2.6.0）测试：手机生成 → iPad 导入。用法：NODE_PATH=<workspace>/node_modules node .workbuddy/tests/pack.js */
+const path=require("path"),fs=require("fs");const {JSDOM,VirtualConsole}=require("jsdom");
+const html=fs.readFileSync(path.join(__dirname,"..","..","少年主公.html"),"utf8");
+const vc=new VirtualConsole();const errors=[];vc.on("jsdomError",e=>{const m=String(e.message||e);if(/Not implemented|Could not parse CSS|getContext/.test(m))return;errors.push(m);});
+function make(seed){return new JSDOM(html,{runScripts:"dangerously",url:"http://localhost/index.html",pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){w.scrollTo=()=>{};const gh=(html.match(/const GATE_HASH = "([0-9a-f]*)"/)||[])[1];if(gh)w.localStorage.setItem("shaozhu_gate",gh);w.confirm=()=>true;w.alert=()=>{};if(seed)w.localStorage.setItem("shaozhu_v1",seed);}});}
+let pass=0,fail=0;const t=(n,ok,x)=>{if(ok){pass++;console.log("  ✅ "+n);}else{fail++;console.log("  ❌ "+n+(x!==undefined?"  → "+x:""));}};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{
+  const A=make(),B=make();await sleep(450);
+  const a=A.window,b=B.window,ea=c=>a.eval(c),eb=c=>b.eval(c);
+  for(const e of [ea,eb]){e("closeSheet()");e("PARENT_UNTIL=1e15");}
+  console.log("=== A. 手机生成 ===");
+  ea(`ST.tasks.find(x=>x.name==="数学口算").planMin=25; ST.tasks.push({id:"nt1",name:"背古诗",emoji:"📜",subject:"cn",type:"daily",planMin:10,weekTarget:5,weekdays:[1,2,3,4,5,6,0],timeSlot:"morning",boss:false,archived:false}); ST.tasks.find(x=>x.name==="单词打卡").archived=true; ST.prizes.find(x=>x.name==="一支新笔").merit=45; ST.prizes.push({id:"np1",name:"去动物园",emoji:"🦁",tier:"rare",merit:300,weight:5});`);
+  const code=ea("packBuild()");
+  t("以 SZPK1: 开头", code.startsWith("SZPK1:"));
+  t("不含星星/日记字段", !/merit_|ledger|diary|vault|heroes/.test(Buffer.from(code.slice(6,code.lastIndexOf(".")),"base64").toString("utf8")));
+  console.log("=== B. iPad 导入 ===");
+  const before=eb("JSON.stringify({tot:totalMerit(),av:availMerit(),led:ST.ledger,heroes:ST.heroes,vault:ST.vault,coupons:ST.coupons,bonus:ST.bonusMerit})");
+  const r=eb(`JSON.stringify(packParse(${JSON.stringify(code)}))`); const pr=JSON.parse(r);
+  t("解析通过", pr.ok===true, pr.err);
+  const L=eb(`JSON.stringify(packDiff(packParse(${JSON.stringify(code)}).data))`); const d=JSON.parse(L);
+  t("预览：新增军令背古诗", d.addT.includes("背古诗"));
+  t("预览：调整数学口算", d.chgT.some(s=>s.startsWith("数学口算")&&/25/.test(s)));
+  t("预览：停用单词打卡", d.offT.includes("单词打卡"));
+  t("预览：新增锦囊/调整门槛", d.addP.some(s=>s.startsWith("去动物园"))&&d.chgP.some(s=>s.startsWith("一支新笔")));
+  // 界面点击
+  eb("VIEW='settings';render()");
+  const btn=(re,root)=>[...(root||b.document).querySelectorAll("button")].find(x=>re.test(x.textContent));
+  btn(/^导入$/).click();
+  const ta=b.document.querySelector("#pkIn"); ta.value=code; btn(/看看会改什么/).click();
+  t("弹出确认面板", /要改这些/.test(b.document.querySelector(".sheet").textContent));
+  btn(/确认应用/).click();
+  t("军令已更新", eb(`ST.tasks.find(x=>x.name==="数学口算").planMin`)===25 && eb(`!!ST.tasks.find(x=>x.name==="背古诗"&&!x.archived&&x.approvedAt===TODAY())`));
+  t("单词打卡归档但保留（历史不删）", eb(`ST.tasks.find(x=>x.name==="单词打卡").archived`)===true);
+  t("锦囊更新", eb(`ST.prizes.find(x=>x.name==="一支新笔").merit`)===45 && eb(`!!ST.prizes.find(x=>x.name==="去动物园")`));
+  const after=eb("JSON.stringify({tot:totalMerit(),av:availMerit(),led:ST.ledger,heroes:ST.heroes,vault:ST.vault,coupons:ST.coupons,bonus:ST.bonusMerit})");
+  t("星星/账本/图鉴/兑现完全不变", before===after);
+  t("军报留痕", eb(`ST.changeLog.some(x=>/设置包/.test(x.what))`));
+  t("存档可重新加载", (()=>{try{return !!JSON.parse(b.localStorage.getItem("shaozhu_v1")).packAt}catch(e){return false}})());
+  console.log("=== C. 拒绝坏包 ===");
+  const bad=s=>JSON.parse(eb(`JSON.stringify(packParse(${JSON.stringify(s)}))`)).ok===false;
+  t("重复导入同一包被拒", (()=>{eb("closeSheet()");btn(/^导入$/);eb("openPackImport()");b.document.querySelector("#pkIn").value=code;btn(/看看会改什么/).click();return !/要改这些/.test((b.document.querySelector(".sheet")||{textContent:""}).textContent);})());
+  t("被截断拒绝", bad(code.slice(0,code.length-10)));
+  const mid=Math.floor(code.length/2); const tam=code.slice(0,mid)+(code[mid]==="A"?"B":"A")+code.slice(mid+1);
+  t("被改一个字符拒绝", bad(tam));
+  t("乱文字拒绝", bad("hello world")); t("空拒绝", bad(""));
+  t("微信换行/空格仍可解析", !bad(code.replace(/(.{40})/g,"$1\n ")));
+  // 伪造：改内容重算不了签名之外，攻击者需知道算法；这里测“内容合法但值越界”
+  const forge=body=>{const k=ea("familyPin().h");let h=2166136261;const s=k+"|"+body+"|"+k;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return "SZPK1:"+Buffer.from(body).toString("base64")+"."+h.toString(36);};
+  const T=o=>Object.assign({n:"甲",e:"",s:"cn",y:"daily",m:10,w:5,d:[1],o:"any",b:0},o);
+  const P=o=>Object.assign({n:"奖",e:"",t:"rare",c:100,w:5},o);
+  const mk=(ts,ps)=>forge(JSON.stringify({at:Date.now()+9e6,tasks:ts,prizes:ps}));
+  t("合法自造包可通过（校验逻辑自洽）", !bad(mk([T()],[P()])));
+  t("锦囊门槛为负被拒", bad(mk([T()],[P({c:-5})])));
+  t("锦囊门槛为0被拒", bad(mk([T()],[P({c:0})])));
+  t("权重越界被拒", bad(mk([T()],[P({w:1000})])));
+  t("未知档位被拒", bad(mk([T()],[P({t:"god"})])));
+  t("军令分钟越界被拒", bad(mk([T({m:0})],[])));
+  t("军令重名被拒", bad(mk([T(),T()],[])));
+  t("没有任何军令被拒", bad(mk([],[])));
+  t("未知营地被拒", bad(mk([T({s:"zz"})],[])));
+  t("名字里的 HTML 在预览里被转义", (()=>{const p=JSON.parse(eb(`JSON.stringify(packParse(${JSON.stringify(mk([T({n:"<img src=x>"})],[]))}))`));if(!p.ok)return false;eb(`openPackConfirm(${JSON.stringify(p.data)})`);return !b.document.querySelector(".sheet img");})());
+  console.log("=== D. 存不下时整体回滚 ===");
+  const C=make();await sleep(450);const c=C.window;c.eval("closeSheet();PARENT_UNTIL=1e15");
+  const snap=c.eval("JSON.stringify([ST.tasks,ST.prizes])");
+  const code2=(()=>{const x=ea("ST.packAt=0;packBuild()");return x;})();
+  const d2=c.eval(`packParse(${JSON.stringify(code2)})`); 
+  t("跨设备同一口令签名通用", d2.ok===true, d2.err);
+  const orig=c.Storage.prototype.setItem; c.Storage.prototype.setItem=function(){throw new Error("quota");};
+  c.eval(`openPackConfirm(packParse(${JSON.stringify(code2)}).data)`);
+  [...c.document.querySelectorAll("button")].find(x=>/确认应用/.test(x.textContent)).click();
+  c.Storage.prototype.setItem=orig;
+  t("写满时军令/锦囊回滚", c.eval("JSON.stringify([ST.tasks,ST.prizes])")===snap);
+  t("没有页面报错", errors.length===0, errors.slice(0,2).join("|"));
+  console.log(`\n设置包测试：${pass} 通过 / ${fail} 失败`);process.exit(fail?1:0);
+})();
