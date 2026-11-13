@@ -671,7 +671,7 @@ textarea{min-height:66px;line-height:1.6;}
 /* ---------------------- 常量 ---------------------- */
 const KEY = "shaozhu_v1";
 // 软件版本（显示给用户看，也用于命名 service worker 缓存）
-const APP_VERSION = "2.6.1";
+const APP_VERSION = "2.6.2";
 // 数据结构版本。每次往 ST 里加字段就 +1，并在 migrate() 里补一条升级规则。
 const SCHEMA = 11;
 
@@ -1369,8 +1369,60 @@ function checkStorage(){
   return ok;
 }
 /* ---- 存储保护 ----
-   iOS 上「添加到主屏幕」已经豁免了 Safari 的 7 天清理；
-   安卓 / 鸿蒙上还要再申请一次「持久化存储」—— 否则磁盘紧张时浏览器可能自动回收。 */
+   支持时申请持久化，降低自动回收风险；主屏幕安装和持久化均不能替代导出的设备外备份。 */
+let OFFLINE_STATUS="尚未检查；离线保护须先在本设备成功安装，不代表已有备份";
+function offlineStatusText(){ return OFFLINE_STATUS; }
+function setOfflineStatus(text){
+  OFFLINE_STATUS=text;
+  const node=document.getElementById("offlineStatus"); if(node) node.textContent=text;
+}
+async function checkOfflineReady(){
+  try{
+    if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)){
+      setOfflineStatus("此打开方式不支持离线安装；请保留导出的设备外备份"); return false;
+    }
+    const registration=await navigator.serviceWorker.getRegistration();
+    if(!registration || !registration.active){ setOfflineStatus("离线副本尚未安装成功，请保持联网并使用完整分享链接打开"); return false; }
+    if(!navigator.serviceWorker.controller){ setOfflineStatus("离线副本已注册但当前页面尚未受控，请保留图标，稍后正常关闭再打开"); return false; }
+    if(typeof caches==="undefined"){ setOfflineStatus("无法核验离线缓存，不能确认离线可用"); return false; }
+    const names=await caches.keys(), name="shaozhu-v"+APP_VERSION;
+    if(!names.includes(name)){ setOfflineStatus("当前版本离线副本未完成验证；暂勿依赖断网启动"); return false; }
+    const cache=await caches.open(name), base=new URL("./",registration.scope);
+    const proof=await cache.match(new URL(".__shaozhu_verified__",base).href);
+    if(!proof){ setOfflineStatus("离线安装缺少完成凭据；暂勿依赖断网启动"); return false; }
+    const meta=await proof.json();
+    const required=["index.html","manifest.json","apple-touch-icon.png","icon-167.png","icon-192.png","icon-512.png","icon-maskable-192.png","icon-maskable-512.png"];
+    if(meta.version!==APP_VERSION || !meta.hashes || required.some(file=>!/^[a-f0-9]{64}$/.test(meta.hashes[file]||""))){ setOfflineStatus("离线安装版本或完成凭据不匹配，请联网后重试检查"); return false; }
+    for(const file of required){
+      const response=await cache.match(new URL(file,base).href);
+      if(!response || response.status!==200) throw new Error("离线资源缺失");
+      const digest=await crypto.subtle.digest("SHA-256",await response.arrayBuffer());
+      const hex=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+      if(hex!==meta.hashes[file]) throw new Error("离线资源校验不符");
+    }
+    setOfflineStatus("已核验 v"+APP_VERSION+" 离线资源；仍需在此设备试一次断网启动，存档请另行导出"); return true;
+  }catch(e){ setOfflineStatus("离线副本核验未通过，请联网后重试；不会清除学习记录"); return false; }
+}
+function startOfflineProtection(){
+  try{
+    if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return;
+    // 保留当前完整链接中的访问参数，不把依赖授权的脚本请求退回无参入口。
+    const url=new URL("sw.js",location.href); url.search=location.search;
+    navigator.serviceWorker.register(url.href,{updateViaCache:"none"}).then(reg=>{
+      setOfflineStatus("离线保护正在核验，首次安装请保持联网");
+      const watch=worker=>{ if(worker) worker.addEventListener("statechange",()=>{ if(worker.state==="activated") checkOfflineReady(); else if(worker.state==="redundant") setOfflineStatus("本次离线更新失败，原有可用副本将保留；请联网重试"); }); };
+      watch(reg.installing); reg.addEventListener("updatefound",()=>watch(reg.installing));
+      return checkOfflineReady();
+    }).catch(()=>setOfflineStatus("离线保护未安装成功，请核对完整分享链接；当前记录不会因此清空"));
+    navigator.serviceWorker.addEventListener("controllerchange",()=>checkOfflineReady());
+    navigator.serviceWorker.addEventListener("message",event=>{
+      const d=event.data; if(!d || d.type!=="SHAOZHU_OFFLINE_STATUS") return;
+      if(d.state==="authorization-required") setOfflineStatus("正在用离线副本；网络入口需要新的完整分享链接，请先导出备份");
+      else if(d.state==="update-available" || d.state==="content-changed") setOfflineStatus("正在用已验证的离线副本；发现线上更新，完整安装成功后才切换");
+      else if(d.state==="unavailable") setOfflineStatus("网络暂不可用，正在使用本设备已有的离线副本");
+    });
+  }catch(e){ setOfflineStatus("离线保护暂不可用，请保留设备外备份"); }
+}
 function requestPersistentStorage(){
   try{
     if(!navigator.storage || !navigator.storage.persist){
@@ -1386,34 +1438,119 @@ function requestPersistentStorage(){
     ).catch(function(){ return done("unknown"); });
   }catch(e){ STORAGE_PERSIST="unknown"; return Promise.resolve("unknown"); }
 }
+let STATE_SAVED=null;
+let STATE_TX_DEPTH=0;
 function save(){
   try{
+    if(LOAD_ERROR) throw new Error("原存档需要核查，已停止写入");
+    if(localStorage.getItem(KEY+"_import_tx")!==null) throw new Error("备份导入事务尚未恢复，请刷新核查");
+    validateState(ST);
     const raw=JSON.stringify(ST);
     if(STORAGE_LAST_RAW!==undefined && localStorage.getItem(KEY)!==STORAGE_LAST_RAW) throw new Error("另一窗口已修改存档，请刷新后重试");
     localStorage.setItem(KEY, raw);
     STORAGE_LAST_RAW=raw;
+    STATE_SAVED=raw;
     return true;
   }
   catch(e){
+    if(!STATE_TX_DEPTH && STATE_SAVED) ST=JSON.parse(STATE_SAVED);
     const w=$("#storageWarn");
     if(w) w.classList.add("show");
     toast("数据没有保存，请勿继续操作："+(e.message||"本地存储不可用"),4200);
     return false;
   }
 }
-// 对抽卡和开启锦囊，保存成功才算完成；写入失败恢复操作前状态。
-function commitEconomy(action){
+// 所有主存档事务共用完整快照，包含结算、规则历史与改动记录。
+function commitState(action){
   const before=JSON.stringify(ST);
+  STATE_TX_DEPTH++;
   try{
     const result=action();
-    if(save()) return result;
-  }catch(e){ toast("本次操作未完成，星星未变："+e.message,4200); }
+    if(save()) return result===undefined ? true : result;
+  }catch(e){ toast("本次操作未完成："+e.message,4200); }
+  finally{ STATE_TX_DEPTH--; }
   ST=JSON.parse(before);
   return null;
+}
+function commitEconomy(action){ return commitState(action); }
+function stateObject(o){
+  if(!o || typeof o!=="object" || Array.isArray(o)) return false;
+  const p=Object.getPrototypeOf(o);
+  if(p===null) return true;
+  const c=Object.getOwnPropertyDescriptor(p,"constructor");
+  return Object.getPrototypeOf(p)===null && !!c && typeof c.value==="function" && c.value.prototype===p && Function.prototype.toString.call(c.value)===Function.prototype.toString.call(Object);
+}
+function stateDate(s){ return typeof s==="string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(parseD(s).getTime()) && ds(parseD(s))===s; }
+function stateId(s){ return typeof s==="string" && /^[A-Za-z0-9_-]{1,100}$/.test(s) && !["__proto__","prototype","constructor"].includes(s); }
+function validateState(s){
+  const bad=m=>{ throw new Error("存档结构异常："+m+"，原数据请保留核查"); };
+  const walk=(o,depth)=>{
+    if(depth>40) bad("层级过深");
+    if(o===null || typeof o!=="object"){ if(typeof o==="number"&&!Number.isFinite(o)) bad("非有限数"); return; }
+    if(!Array.isArray(o)&&!stateObject(o)) bad("对象类型");
+    for(const k of Object.keys(o)){ if(["__proto__","prototype","constructor"].includes(k)) bad("危险字段"); walk(o[k],depth+1); }
+  };
+  walk(s,0);
+  if(!stateObject(s)||!Array.isArray(s.tasks)) bad("军令清单");
+  if(s.schema!==undefined && (!Number.isInteger(s.schema)||s.schema<1||s.schema>SCHEMA)) bad("schema");
+  const taskList=(list,historical=false)=>{
+    if(!Array.isArray(list)) bad("任务规则清单");
+    const ids=new Set();
+    for(const t of list){
+      if(!stateObject(t)||!stateId(t.id)||ids.has(t.id)) bad("任务 id"); ids.add(t.id);
+      if(typeof t.name!=="string"||!t.name.trim()||!SUBJ_ORDER.includes(t.subject)||!["daily","fixed","flex"].includes(t.type)) bad("军令内容");
+      for(const k of ["emoji","timeSlot","approvedAt","addedAt"]) if(t[k]!==undefined&&typeof t[k]!=="string") bad("军令 "+k);
+      for(const k of ["archived","pending","boss","fromKid"]) if(t[k]!==undefined&&typeof t[k]!=="boolean") bad("军令 "+k);
+      if(t.weekdays!==undefined&&(!Array.isArray(t.weekdays)||t.weekdays.some(d=>!Number.isInteger(d)||d<0||d>6))) bad("军令星期");
+      for(const k of ["planMin","weekTarget"]) if(t[k]!==undefined&&(!Number.isFinite(t[k])||t[k]<(historical&&k==="planMin"?0:1))) bad("军令 "+k);
+    }
+  };
+  taskList(s.tasks);
+  for(const k of ["records","ledger","bossDefeats","heroes","heroCount","graduated","extraDays","hintApplied","reports","achievements","pity","pinFails","story","season","meritSrc","factionDone"]) if(s[k]!==undefined&&!stateObject(s[k])) bad(k);
+  for(const k of ["prizes","vault","coupons","breaks","signals","changeLog","meritEvents"]) if(s[k]!==undefined&&(!Array.isArray(s[k])||s[k].some(x=>!stateObject(x)))) bad(k);
+  for(const k of ["childName","createdAt","lastOpen","lastBackup","ruleFrom","pinResetAt"]) if(s[k]!==undefined&&typeof s[k]!=="string") bad(k);
+  for(const d of Object.keys(s.records||{})){
+    if(!stateDate(d)||!stateObject(s.records[d])) bad("点卯日期");
+    for(const id of Object.keys(s.records[d])){
+      const r=s.records[d][id];
+      if(!stateId(id)||!stateObject(r)||![0,0.5,1].includes(r.level)||!["full","half","poor","miss","skip"].includes(r.type)||!Number.isFinite(r.minutes)||r.minutes<0) bad("点卯条目");
+      if(r.at!==undefined&&(!Number.isFinite(r.at)||r.at<0)) bad("点卯时间");
+    }
+  }
+  for(const d of Object.keys(s.ledger||{})){
+    const l=s.ledger[d];
+    if(!stateDate(d)||!stateObject(l)) bad("历史账目");
+    if(l.tasks!==undefined) taskList(l.tasks,true);
+    for(const k of ["settled","rest","complete"]) if(l[k]!==undefined&&typeof l[k]!=="boolean") bad("历史账目 "+k);
+  }
+  for(const b of s.breaks||[]) if(!stateDate(b.from)||!stateDate(b.to)||b.from>b.to||typeof b.reason!=="string") bad("休整期");
+  for(const k of ["prizes","vault","coupons"]) for(const p of s[k]||[]) if(typeof p.name!=="string"||(k!=="vault"&&!Object.hasOwn(TIERS,p.tier))) bad(k+"条目");
+  for(const k of ["bonusMerit","peakMerit"]) if(s[k]!=null&&!Number.isFinite(moneyNumber(s[k]))) bad(k);
+  if(s.draws!=null&&(!Number.isSafeInteger(Number(s.draws))||Number(s.draws)<0)) bad("招贤令消费记录");
+  for(const k of ["dup","collect","migrate"]) if(s.meritSrc&&s.meritSrc[k]!=null&&!Number.isFinite(moneyNumber(s.meritSrc[k]))) bad("奖励分项");
+  for(const l of Object.values(s.ledger||{})) if(l.merit!=null&&!Number.isFinite(moneyNumber(l.merit))) bad("历史军功");
+  if(s.packAt!==undefined&&(!Number.isSafeInteger(s.packAt)||s.packAt<0)) bad("包时间");
+  for(const x of s.changeLog||[]) if(typeof x.what!=="string"||!stateDate(x.date)||!Number.isFinite(x.at)) bad("改动记录");
+  for(const x of s.signals||[]) if(typeof x.kind!=="string"||!stateDate(x.date)||typeof x.detail!=="string") bad("主动记录");
+  for(const k of Object.keys(s.reports||{})) if(!stateObject(s.reports[k])) bad("军报");
+  for(const k of Object.keys(s.graduated||{})) if(!stateId(k)||!stateObject(s.graduated[k])) bad("毕业记录");
+  if(s.story&&s.story.chapters!==undefined&&(!Array.isArray(s.story.chapters)||s.story.chapters.some(x=>typeof x!=="string"))) bad("故事章节");
+  if(s.parentPin!=null&&(!stateObject(s.parentPin)||typeof s.parentPin.h!=="string"||typeof s.parentPin.salt!=="string")) bad("家长锁");
+  if(s.taskRules!==undefined){
+    if(!Array.isArray(s.taskRules)||!s.taskRules.length) bad("规则版本");
+    let last="";
+    for(const r of s.taskRules){ if(!stateObject(r)||!stateDate(r.from)||r.from<=last) bad("规则生效日"); taskList(r.tasks); last=r.from; }
+    if(s.taskRules[0].from!=="1900-01-01") bad("规则基线");
+  }
+  if(s.packHistory!==undefined&&(!Array.isArray(s.packHistory)||s.packHistory.some(x=>typeof x!=="string"))) bad("包导入历史");
+  return s;
 }
 function prepareState(o){
   if(!o || typeof o!=="object" || Array.isArray(o) || !Array.isArray(o.tasks)) throw new Error("存档格式不对");
   if(Number(o.schema)>SCHEMA) throw new Error("这是更新版本的存档，请先更新应用");
+  validateState(o);
+  o=JSON.parse(JSON.stringify(o));
+  for(const v of o.vault||[]) if(!Object.hasOwn(TIERS,v.tier)) v.tier="common";
   const d=defaultState();
   const merged=Object.assign({},d,o);
   // 不能用默认的最新schema覆盖「没有schema」的老存档，否则升级规则全部被跳过。
@@ -1421,10 +1558,24 @@ function prepareState(o){
   merged.story=Object.assign({},d.story,o.story||{});
   merged.season=Object.assign({},d.season,o.season||{});
   delete merged.diary;
-  return migrate(merged);
+  return validateState(migrate(merged));
+}
+function recoverStateImport(){
+  const key=KEY+"_import_tx", raw=localStorage.getItem(key);
+  if(raw===null) return;
+  const tx=JSON.parse(raw);
+  if(!stateObject(tx)||tx.v!==1||["beforeMain","afterMain","beforeDiary","afterDiary"].some(k=>tx[k]!==null&&typeof tx[k]!=="string")) throw new Error("导入事务凭据异常，已暂停写入");
+  const main=localStorage.getItem(KEY), diary=localStorage.getItem(DIARY_KEY);
+  if(![tx.beforeMain,tx.afterMain].includes(main)||![tx.beforeDiary,tx.afterDiary].includes(diary)) throw new Error("另一窗口已更新导入中的存档，请保留事务凭据核查");
+  for(const [k,current,before] of [[KEY,main,tx.beforeMain],[DIARY_KEY,diary,tx.beforeDiary]]){
+    if(current===before) continue;
+    if(before===null) localStorage.removeItem(k); else localStorage.setItem(k,before);
+  }
+  localStorage.removeItem(key);
 }
 function load(){
   try{
+    recoverStateImport();
     const raw=localStorage.getItem(KEY);
     STORAGE_LAST_RAW=raw;
     LOAD_ERROR="";
@@ -1435,8 +1586,9 @@ function load(){
       try{ localStorage.setItem(KEY+"_before_upgrade",raw); }
       catch(e){ console.warn("升级前快照没存下（空间不足），继续使用新版本"); }
     }
+    STATE_SAVED=JSON.stringify(prepared);
     return prepared;
-  }catch(e){ LOAD_ERROR=e.message||"存档无法读取"; return null; }
+  }catch(e){ LOAD_ERROR=e.message||"存档无法读取"; STATE_SAVED=null; return null; }
 }
 
 /* =====================================================================
@@ -1447,6 +1599,7 @@ function rec(dateStr,taskId){
   return day ? day[taskId] : null;
 }
 function setRec(dateStr,taskId,level,type,minutes){
+  if(!stateDate(dateStr)||!stateId(taskId)) throw new Error("拒绝异常点卯日期或任务 id");
   if(!ST.records[dateStr]) ST.records[dateStr]={};
   if(level===null && type===null){
     delete ST.records[dateStr][taskId];
@@ -1487,15 +1640,30 @@ function markExtraDay(dateStr){
   logSignal("extra", "休整期里主动做了一天");
 }
 
-// 某天应当出现的军令
-// 已经结算过的历史日子直接返回账本里冻结的快照，改任务不再影响它的样子
+// 配置表即时显示新设置，核算始终选原日规则；当天的调整统一从明天生效。
+function taskRulesForDate(dateStr){
+  const versions=ST.taskRules;
+  if(!versions || !versions.length) return ST.tasks;
+  let result=versions[0].tasks;
+  for(const v of versions){ if(v.from>dateStr) break; result=v.tasks; }
+  return result;
+}
+function changeTaskRules(action){
+  if(!ST.taskRules) ST.taskRules=[{from:"1900-01-01",tasks:JSON.parse(JSON.stringify(ST.tasks))}];
+  settleLedger();
+  action();
+  const from=addD(TODAY(),1), snapshot={from,tasks:JSON.parse(JSON.stringify(ST.tasks))};
+  ST.taskRules=ST.taskRules.filter(v=>v.from<from);
+  ST.taskRules.push(snapshot);
+}
+// 某天应当出现的军令，补录只改变记录，不改变该日任务规则。
 function tasksForDate(dateStr){
   const L=ST.ledger[dateStr];
   if(isFrozen(dateStr) && L && L.settled) return (L.tasks||[]).slice();
   if(isRestDay(dateStr)) return [];               // 休整日不派军令
   const dow=parseD(dateStr).getDay();
   const out=[];
-  for(const t of ST.tasks){
+  for(const t of taskRulesForDate(dateStr)){
     if(t.archived||!taskActiveOn(t,dateStr)) continue;
     if(t.type==="daily"){ out.push(t); continue; }
     if(t.type==="fixed"){ if((t.weekdays||[]).includes(dow)) out.push(t); continue; }
@@ -1512,7 +1680,7 @@ function holidayTasks(dateStr){
   const L=ST.ledger[dateStr];
   if(isFrozen(dateStr) && L && L.settled) return [];   // 历史已冻结，不再补挂「休整」
   if(isRestDay(dateStr)) return [];
-  return ST.tasks.filter(t=>{
+  return taskRulesForDate(dateStr).filter(t=>{
     if(t.archived||!taskActiveOn(t,dateStr)||t.type!=="flex") return false;
     if(rec(dateStr,t.id)) return false;
     return weekDone(t.id,dateStr) >= Math.max(1,t.weekTarget||1);
@@ -1539,7 +1707,8 @@ function starRate(dateStr){ return newRuleOn(dateStr) ? STAR_PER_FULL : 1; }
 function bossMeritOn(dateStr){ return newRuleOn(dateStr) && bossBeaten(dateStr) ? BOSS_MERIT : 0; }
 function dayStars(dateStr){
   const day=ST.records[dateStr]; if(!day) return 0;
-  let s=0; for(const k of Object.keys(day)){ const tk=ST.tasks.find(x=>x.id===k); if(tk && !taskActiveOn(tk,dateStr)) continue; s+=recordLevel(day[k] && day[k].level); } return round1(s*starRate(dateStr));
+  const rules=taskRulesForDate(dateStr);
+  let s=0; for(const k of Object.keys(day)){ const tk=rules.find(x=>x.id===k); if(!tk || !taskActiveOn(tk,dateStr)) continue; s+=recordLevel(day[k] && day[k].level); } return round1(s*starRate(dateStr));
 }
 function allDatesWithRecords(){
   const set=new Set(Object.keys(ST.records));
@@ -1772,7 +1941,7 @@ function forgotPin(){
   if(!confirm("清除家长密码？\n清除后首页会连续 14 天显示「家长密码被清除过」，军报里也会留下记录。")) return;
   ST.parentPin=null; ST.pinFails={n:0,until:0}; ST.pinResetAt=TODAY();
   logChange("家长密码被「忘记密码」清除");
-  save(); closeSheet(); render(); toast("密码已清除，请尽快重新设置");
+  if(!save()) return; closeSheet(); render(); toast("密码已清除，请尽快重新设置");
 }
 function logChange(what){
   if(!Array.isArray(ST.changeLog)) ST.changeLog=[];
@@ -1804,19 +1973,21 @@ function kidPendingTasks(){ return ST.tasks.filter(t=>t.pending && !t.archived);
 function approveTask(id){
   if(!needParent(()=>approveTask(id))) return;
   const t=ST.tasks.find(x=>x.id===id); if(!t||!t.pending) return;
-  settleLedger();
-  t.pending=false; t.approvedAt=TODAY();
-  logChange("批准了孩子自己加的军令「"+t.name+"」（每周 "+(t.weekTarget||1)+" 次，从今天起算军功）");
-  save(); closeSheet(); refreshTop(); render(); toast("已批准「"+t.name+"」✓");
+  if(!commitState(()=>{
+    changeTaskRules(()=>{ t.pending=false; t.approvedAt=addD(TODAY(),1); });
+    logChange("批准了孩子自己加的军令「"+t.name+"」（每周 "+(t.weekTarget||1)+" 次，从明天起算军功）");
+  })) return;
+  closeSheet(); refreshTop(); render(); toast("已批准，明日起生效");
 }
 function rejectTask(id){
   if(!needParent(()=>rejectTask(id))) return;
   const t=ST.tasks.find(x=>x.id===id); if(!t||!t.pending) return;
   if(!confirm("不批「"+t.name+"」？这项会从清单里拿掉（它从没算过军功，星星不受影响）。")) return;
-  ST.tasks=ST.tasks.filter(x=>x.id!==id);
-  for(const d in ST.records){ delete ST.records[d][id]; if(!Object.keys(ST.records[d]).length) delete ST.records[d]; }
-  logChange("没有批准孩子加的军令「"+t.name+"」");
-  save(); closeSheet(); refreshTop(); render(); toast("已拿掉");
+  if(!commitState(()=>{
+    changeTaskRules(()=>{ t.archived=true; });
+    logChange("没有批准孩子加的军令「"+t.name+"」，历史记录保留");
+  })) return;
+  closeSheet(); refreshTop(); render(); toast("已收起，历史记录保留");
 }
 function pickImport(){
   if(!needParent(pickImport)) return;
@@ -1875,7 +2046,7 @@ function settleCoupon(id, note){
   const c=(ST.coupons||[]).find(x=>x.id===id); if(!c) return;
   c.status="done"; c.doneAt=TODAY(); c.note=note||"";
   logChange("确认兑现「"+c.name+"」");
-  save(); render(); confetti(70);
+  if(!save()) return; render(); confetti(70);
   toast("兑现完成 ✓ 这份承诺算数了",2600);
 }
 // 有些锦囊在兑现台功能上线之前就已经开掉了，迁移时补一张「已兑现」的券，不然兑现率对不上
@@ -1966,14 +2137,18 @@ function hintCooling(taskId){
 function applyHint(taskId, kind){
   if(!needParent(()=>applyHint(taskId, kind))) return;
   const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
-  settleLedger();                       // 改配置前先冻结历史
-  if(kind==="lower") t.weekTarget=Math.max(1,(t.weekTarget||1)-1);
-  else if(kind==="retime") t.planMin=(t.planMin||15)+10;
-  else if(kind==="switch") t.archived=true;
-  if(!ST.hintApplied) ST.hintApplied={};
-  ST.hintApplied[taskId]=TODAY();
-  save(); render();
-  toast("已调整：「"+t.name+"」按新节奏走，两周后如果还不合适再谈");
+  if(!commitState(()=>{
+    changeTaskRules(()=>{
+      if(kind==="lower") t.weekTarget=Math.max(1,(t.weekTarget||1)-1);
+      else if(kind==="retime") t.planMin=(t.planMin||15)+10;
+      else if(kind==="switch") t.archived=true;
+    });
+    if(!ST.hintApplied) ST.hintApplied={};
+    ST.hintApplied[taskId]=TODAY();
+    logChange("调整军令「"+t.name+"」，明日起生效");
+  })) return;
+  render();
+  toast("已调整，明日起按新节奏走，过去和今天不变");
 }
 
 /* ---- 武将图鉴 ---- */
@@ -2189,14 +2364,18 @@ function checkGraduation(){
 }
 // 执行毕业：移出日常清单，进荣誉墙
 function graduateTask(t){
-  ST.graduated[t.id]={ name:t.name, emoji:t.emoji||"", subject:t.subject, at:TODAY(), weeks:GRADUATE_WEEKS };
-  t.archived=true;
+  changeTaskRules(()=>{
+    ST.graduated[t.id]={ name:t.name, emoji:t.emoji||"", subject:t.subject, at:TODAY(), weeks:GRADUATE_WEEKS };
+    t.archived=true;
+  });
 }
 function ungraduate(taskId){
   const g=ST.graduated[taskId]; if(!g) return;
-  const t=ST.tasks.find(x=>x.id===taskId);
-  if(t) t.archived=false;
-  delete ST.graduated[taskId];
+  changeTaskRules(()=>{
+    const t=ST.tasks.find(x=>x.id===taskId);
+    if(t){ t.archived=false; t.approvedAt=addD(TODAY(),1); }
+    delete ST.graduated[taskId];
+  });
 }
 
 /* ---- 成就 ---- */
@@ -2436,8 +2615,8 @@ function viewToday(){
     const S=SUBJECTS[sk];
     const todayN=tasksForDate(d).filter(t=>t.subject===sk).length;
     let tot=0, done=0;
-    for(const t of ST.tasks){
-      if(t.archived||t.pending||t.subject!==sk) continue;
+    for(const t of taskRulesForDate(d)){
+      if(t.archived||!taskActiveOn(t,d)||t.subject!==sk) continue;
       if(t.type==="flex"){
         const target=Math.max(1,t.weekTarget||1);
         tot+=target; done+=Math.min(weekDone(t.id,d),target);
@@ -2445,8 +2624,8 @@ function viewToday(){
     }
     for(const x of weekDates(d)){
       if(x>TODAY()) continue;
-      for(const t of ST.tasks){
-        if(t.archived||t.pending||t.subject!==sk) continue;
+      for(const t of taskRulesForDate(x)){
+        if(t.archived||!taskActiveOn(t,x)||t.subject!==sk) continue;
         const appear = t.type==="daily" || (t.type==="fixed"&&(t.weekdays||[]).includes(parseD(x).getDay()));
         if(!appear) continue;
         tot++; if((rec(x,t.id)||{level:0}).level>=0.5) done++;
@@ -2589,7 +2768,7 @@ function gotoDate(d){ VIEW_DATE=d; VIEW="today"; setTab(); render(); }
    点卯弹窗
    ===================================================================== */
 function openCheck(taskId,dateStr){
-  const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
+  const t=taskRulesForDate(dateStr).find(x=>x.id===taskId); if(!t) return;
   const S=SUBJECTS[t.subject]||SUBJECTS.other;
   const r=rec(dateStr,taskId)||{};
   const isFlex = t.type==="flex";
@@ -2661,7 +2840,7 @@ function openCheck(taskId,dateStr){
       if(meritDelta!==0) floatFromEl(anchor,"军功 "+(meritDelta>0?"+":"")+meritDelta,true);
       else if(picked==="skip") floatFromEl(anchor,"🏳️",false);
       else floatFromEl(anchor,"已记录 · 军功未变",false);
-      calcAchievements(); save(); closeSheet(); refreshTop(); render();
+      calcAchievements(); if(!save()) return; closeSheet(); refreshTop(); render();
       if(picked==="half") toast("苦战也算数，这份力没有白费 ◑");
       else if(picked==="poor") toast("惨胜也是胜，先把旗子插上 ◐");
       else if(picked==="full") toast("好，完胜一场 ⭐");
@@ -2719,7 +2898,7 @@ function openExtraDay(){
     (sheet)=>{
       $("#exOk",sheet).onclick=()=>{
         markExtraDay(TODAY());
-        save(); closeSheet(); render();
+        if(!save()) return; closeSheet(); render();
         toast("军令已请出 —— 这一条记你主动 ✋",2800);
       };
     }
@@ -2751,7 +2930,7 @@ function openKidAdd(){
       ST.tasks.push(t);
       logSignal("add_task", name);
       logChange("孩子自己加了军令「"+name+"」（每周 "+times+" 次），等待批准");
-      save(); closeSheet(); refreshTop(); render();
+      if(!save()) return; closeSheet(); refreshTop(); render();
       confetti(70);
       toast("「"+name+"」已提交，等大人批准 ⏳",2800);
     };
@@ -2761,19 +2940,16 @@ function openKidAdd(){
 function markTooHard(taskId){
   const t=ST.tasks.find(x=>x.id===taskId); if(!t) return;
   logSignal("too_hard", t.name);
-  save(); closeSheet(); render();
+  if(!save()) return; closeSheet(); render();
   toast("记下了 —— 大人会在军报上看到「"+t.name+"太难」",3000);
 }
 // 标记「最想要这个」
 function markWish(uidv){
   const v=ST.vault.find(x=>x.uid===uidv); if(!v) return;
   const off = !!v.wish;
-  v.wish = !off;
-  if(!off){
-    logSignal("wish", v.name);
-    toast("已标记「最想要这个」——大人看得到 ♡",2600);
-  }
-  save(); render();
+  if(!commitState(()=>{ v.wish=!off; if(!off) logSignal("wish",v.name); })) return;
+  render();
+  if(!off) toast("已标记「最想要这个」——大人看得到 ♡",2600);
 }
 
 /* =====================================================================
@@ -2845,7 +3021,7 @@ function openBreakEdit(id){
       settleLedger();
       if(isNew) ST.breaks.push({ id:uid(), from, to, reason });
       else Object.assign(ST.breaks.find(x=>x.id===id), { from, to, reason });
-      save(); closeSheet(); refreshTop(); render();
+      if(!save()) return; closeSheet(); refreshTop(); render();
       toast(isNew ? ("已进入休整 · 到 "+fmtMD(to)) : "已保存");
     };
   });
@@ -2857,7 +3033,7 @@ function delBreak(id){
   ST.breaks=ST.breaks.filter(x=>x.id!==id);
   for(const d in ST.ledger){ if(ST.ledger[d].rest) delete ST.ledger[d]; }   // 让这段重新结算
   settleLedger();
-  save(); closeSheet(); refreshTop(); render();
+  if(!save()) return; closeSheet(); refreshTop(); render();
   toast("已删除");
 }
 
@@ -3305,7 +3481,7 @@ function openSwap(){
       const tmp={name:a.name,emoji:a.emoji,tier:a.tier,merit:a.merit,from:a.from};
       a.name=b.name; a.emoji=b.emoji; a.tier=b.tier; a.merit=b.merit; a.from=b.from;
       b.name=tmp.name; b.emoji=tmp.emoji; b.tier=tmp.tier; b.merit=tmp.merit; b.from=tmp.from;
-      save(); closeSheet(); render(); toast("已互换 ✓");
+      if(!save()) return; closeSheet(); render(); toast("已互换 ✓");
     };
   });
 }
@@ -3608,18 +3784,22 @@ function viewReport(){
     }
   }
 
-  const rows=[];
-  for(const t of ST.tasks){
-    if(t.archived||t.pending) continue;
+  const rows=[], reportTasks=new Map(), reportEnd=days[6]<TODAY()?days[6]:TODAY();
+  for(const date of days){
+    if(date>reportEnd || isRestDay(date)) continue;
+    for(const t of taskRulesForDate(date)) if(!t.archived&&taskActiveOn(t,date)) reportTasks.set(t.id,t);
+  }
+  for(const t of reportTasks.values()){
     let target=0,dn=0;
-    if(t.type==="flex"){ target=Math.max(1,t.weekTarget||1); dn=Math.min(weekDone(t.id,base),target); }
+    if(t.type==="flex"){ target=Math.max(1,t.weekTarget||1); dn=Math.min(weekDone(t.id,reportEnd),target); }
     else{
-      for(const d of days){
-        if(d>TODAY()) continue;
-        if(isRestDay(d)) continue;                     // 休整日不算
-        const appear = t.type==="daily" || (t.weekdays||[]).includes(parseD(d).getDay());
+      for(const date of days){
+        if(date>reportEnd || isRestDay(date)) continue;
+        const rule=taskRulesForDate(date).find(x=>x.id===t.id);
+        if(!rule || rule.archived || !taskActiveOn(rule,date)) continue;
+        const appear=rule.type==="daily" || (rule.type==="fixed"&&(rule.weekdays||[]).includes(parseD(date).getDay()));
         if(!appear) continue;
-        target++; if((rec(d,t.id)||{level:0}).level>=0.5) dn++;
+        target++; if((rec(date,t.id)||{level:0}).level>=0.5) dn++;
       }
     }
     if(!target) continue;
@@ -3672,7 +3852,7 @@ function saveReport(base){
     done+=list.filter(t=>{const r=rec(d,t.id);return r&&r.level>=0.5;}).length;
   }
   ST.reports[base]={good:g,improve:i,plan:p,savedAt:TODAY(),pct:tot?Math.round(done/tot*100):0};
-  calcAchievements(); save(); render(); toast("军报已存 ✓");
+  calcAchievements(); if(!save()) return; render(); toast("军报已存 ✓");
 }
 
 /* =====================================================================
@@ -3723,6 +3903,7 @@ function viewSettings(){
 
   
   h+='<div class="card"><div class="card-head"><h3>军令管理</h3><button class="btn sm" onclick="openTaskEdit()">+ 新增</button></div>';
+  h+='<div class="quote">这里显示准备采用的军令。新增、修改、归档和批准均从明天生效；今天照原清单点卯，过去三天补录仍用当天旧规则。</div>';
   const act=ST.tasks.filter(t=>!t.archived);
   if(!act.length) h+='<div class="empty"><span class="ee">📋</span>还没有军令，点右上角新增</div>';
   for(const t of act){
@@ -3791,13 +3972,16 @@ function viewSettings(){
    + '。<br>换手机、删掉主屏幕图标重装、清理浏览器数据，都会把记录一起带走 —— 动手之前先导出一份。</div>';
   h+='<div class="setrow"><span class="si">🛡️</span><span class="sn">数据保护<small>'
    + ({
-       granted:     "浏览器已承诺不自动清理这份数据 ✓",
+       granted:     "已获持久化保护，可降低自动回收风险；清理网站数据、删除图标仍可能丢档，请保留设备外备份",
        denied:      "浏览器暂未授予持久化。数据仍在，但磁盘紧张时可能被回收 —— 记得定期导出备份",
-       unsupported: "这个浏览器不支持持久化申请（Safari 加到主屏幕后本身就受保护）",
+       unsupported: "这个浏览器不支持持久化申请；请从主屏幕使用并定期导出设备外备份，不能保证永不丢档",
        unknown:     "尚未确认"
      }[STORAGE_PERSIST] || "尚未确认")
    + '</small></span>'
    + '<button class="btn ghost sm" onclick="requestPersistentStorage().then(function(){render();})">检查</button></div>';
+  h+='<div class="setrow"><span class="sn">离线启动检查<small id="offlineStatus">'+esc(offlineStatusText())+'</small></span>'
+   + '<button class="btn ghost sm" onclick="checkOfflineReady()">核验</button></div>';
+  h+='<div class="quote">本版只在本机保存，没有云备份。导出的备份请另存到设备外；离线缓存不是学习存档的备份。</div>';
   h+='<div class="setrow"><span class="si">🗑️</span><span class="sn">清空全部数据<small>恢复出厂设置，不可撤销</small></span>'
    + '<button class="btn danger sm" onclick="resetAll()">清空</button></div>';
   h+='</div>';
@@ -3828,12 +4012,14 @@ function viewSettings(){
 }
 function saveBasic(){
   if(!needParent(()=>saveBasic())) return;
-  ST.childName=$("#sChild").value.trim()||"主公";
-  ST.season.name=$("#sSeason").value.trim()||"第 1 赛季";
-  logChange("修改了基本设置");
-  const e=$("#sSeasonEnd").value.trim();
-  if(/^\d{4}-\d{2}-\d{2}$/.test(e)) ST.season.endDate=e;
-  save(); refreshTop(); render(); toast("已保存 ✓");
+  if(!commitState(()=>{
+    ST.childName=$("#sChild").value.trim()||"主公";
+    ST.season.name=$("#sSeason").value.trim()||"第 1 赛季";
+    const e=$("#sSeasonEnd").value.trim();
+    if(stateDate(e)) ST.season.endDate=e;
+    logChange("修改了基本设置");
+  })) return;
+  refreshTop(); render(); toast("已保存");
 }
 function openTaskEdit(id){
   if(!needParent(()=>openTaskEdit(id))) return;
@@ -3882,7 +4068,8 @@ function openTaskEdit(id){
       $("#wrapDays",sheet).style.display = v==="fixed"?"":"none";
     };
     $$("#tType button",sheet).forEach(b=>b.addEventListener("click",syncType));
-    $("#tOk",sheet).onclick=()=>{
+    const submit=()=>{
+      if(!needParent(submit)) return;
       const name=$("#tName",sheet).value.trim();
       if(!name){ toast("先起个名吧"); return; }
       const obj={
@@ -3897,24 +4084,28 @@ function openTaskEdit(id){
         archived:false
       };
       if(obj.type==="fixed" && !obj.weekdays.length){ toast("固定日期至少要选一天"); return; }
-      // 改任务之前，先把历史账目冻住，避免追溯改写已发的奖励
-      settleLedger();
       const TF=[["name","名称"],["planMin","计划分钟"],["type","安排",x=>({daily:"每日",flex:"灵活",fixed:"固定"})[x]||x],["weekTarget","每周次数"],["weekdays","星期",x=>(x||[]).map(d=>WDX[d]).join("")],["boss","硬仗",x=>x?"是":"否"]];
-      if(isNew){ ST.tasks.push(Object.assign({id:uid()},obj)); logChange("新增军令「"+name+"」"); }
-      else { const old=ST.tasks.find(x=>x.id===id); const df=diffText(old,obj,TF); const tp=old.pending; Object.assign(old,obj); if(tp) old.pending=true; logChange("修改军令「"+name+"」"+(df?"："+df:"")); }
-      save(); closeSheet(); render(); toast(isNew?"军令已下 ✓":"已保存 ✓");
+      if(!commitState(()=>{
+        changeTaskRules(()=>{
+          if(isNew){ ST.tasks.push(Object.assign({id:uid(),approvedAt:addD(TODAY(),1)},obj)); logChange("新增军令「"+name+"」（明天生效）"); }
+          else { const old=ST.tasks.find(x=>x.id===id); if(!old||old.archived) throw new Error("这项军令已归档，请重新打开设置"); const df=diffText(old,obj,TF); Object.assign(old,obj); logChange("修改军令「"+name+"」"+(df?"："+df:"")+"（明天生效）"); }
+        });
+      })) return;
+      closeSheet(); render(); toast(isNew?"军令已创建，明天生效":"已保存，明天生效");
     };
+    $("#tOk",sheet).onclick=submit;
   });
 }
 function delTask(id){
   if(!needParent(()=>delTask(id))) return;
   const t=ST.tasks.find(x=>x.id===id); if(!t) return;
-  if(!confirm("删除「"+t.name+"」？会同时清掉它的历史点卯记录（已结算的历史军功不受影响）。")) return;
-  settleLedger();   // 先冻结历史，已发的奖励不会被带走
-  ST.tasks=ST.tasks.filter(x=>x.id!==id);
-  for(const d in ST.records){ delete ST.records[d][id]; if(!Object.keys(ST.records[d]).length) delete ST.records[d]; }
-  logChange("删除军令「"+t.name+"」");
-  save(); closeSheet(); refreshTop(); render(); toast("已删除");
+  if(t.archived) return;
+  if(!confirm("归档「"+t.name+"」？从明天起停用，历史点卯记录和军功全部保留。")) return;
+  if(!commitState(()=>{
+    changeTaskRules(()=>{ t.archived=true; });
+    logChange("归档军令「"+t.name+"」（明天停用，历史记录保留）");
+  })) return;
+  closeSheet(); refreshTop(); render(); toast("已归档，历史记录保留");
 }
 function openPrizeEdit(id){
   if(!needParent(()=>openPrizeEdit(id))) return;
@@ -3933,7 +4124,8 @@ function openPrizeEdit(id){
   h+='<button class="btn" id="pOk">'+(isNew?"创建":"保存")+'</button></div>';
   openSheet(h,(sheet)=>{
     $$("#pTier button",sheet).forEach(b=>b.onclick=()=>{ $$("#pTier button",sheet).forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
-    $("#pOk",sheet).onclick=()=>{
+    const submit=()=>{
+      if(!needParent(submit)) return;
       const name=$("#pName",sheet).value.trim();
       if(!name){ toast("先起个名吧"); return; }
       const cost=moneyNumber($("#pCost",sheet).value);
@@ -3944,19 +4136,24 @@ function openPrizeEdit(id){
         tier:$("#pTier button.on",sheet).dataset.v,
         merit:cost, weight };
       const PF=[["name","名称"],["merit","门槛"],["tier","档位",x=>(TIERS[x]||{}).name||x],["weight","权重"]];
-      if(isNew){ ST.prizes.push(Object.assign({id:uid()},obj)); logChange("新增锦囊「"+name+"」门槛 "+cost); }
-      else { const old=ST.prizes.find(x=>x.id===id); const df=diffText(old,obj,PF); Object.assign(old,obj); logChange("修改锦囊「"+name+"」"+(df?"："+df:"")); }
-      save(); closeSheet(); render(); toast(isNew?"锦囊已入榜 🎁":"已保存 ✓");
+      if(!commitState(()=>{
+        if(isNew){ ST.prizes.push(Object.assign({id:uid()},obj)); logChange("新增锦囊「"+name+"」门槛 "+cost); }
+        else { const old=ST.prizes.find(x=>x.id===id); if(!old) throw new Error("锦囊已不存在"); const df=diffText(old,obj,PF); Object.assign(old,obj); logChange("修改锦囊「"+name+"」"+(df?"："+df:"")); }
+      })) return;
+      closeSheet(); render(); toast(isNew?"锦囊已入榜":"已保存");
     };
+    $("#pOk",sheet).onclick=submit;
   });
 }
 function delPrize(id){
   if(!needParent(()=>delPrize(id))) return;
   const p=ST.prizes.find(x=>x.id===id); if(!p) return;
   if(!confirm("删除「"+p.name+"」？")) return;
-  ST.prizes=ST.prizes.filter(x=>x.id!==id);
-  logChange("删除锦囊「"+p.name+"」");
-  save(); closeSheet(); render(); toast("已删除");
+  if(!commitState(()=>{
+    ST.prizes=ST.prizes.filter(x=>x.id!==id);
+    logChange("删除锦囊「"+p.name+"」");
+  })) return;
+  closeSheet(); render(); toast("已删除");
 }
 
 /* ---- 推荐锦囊模板：家长从零想 10 个奖励太费劲，给三组现成的 ---- */
@@ -4019,10 +4216,15 @@ function exportRawBackup(){
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
 }
 function exportData(){
-  const dy=diaryExport();   // 日记单独存，备份时一起带上
-  const json=JSON.stringify(dy ? Object.assign({},ST,{diary:dy}) : ST,null,2);
+  let json;
+  try{
+    if(LOAD_ERROR || localStorage.getItem(KEY+"_import_tx")!==null) throw new Error("主存档尚未恢复，请先核查原始存档");
+    validateState(ST);
+    const dy=diaryExport();
+    json=JSON.stringify(dy ? Object.assign({},ST,{diary:dy}) : ST,null,2);
+  }catch(e){ toast("备份未导出："+e.message,4200); return false; }
   const fname="少年主公备份_"+TODAY()+".json";
-  const done = msg => { ST.lastBackup=TODAY(); save(); toast(msg); };
+  const done = msg => { if(commitState(()=>{ ST.lastBackup=TODAY(); })) toast(msg); };
   // iPad 上优先唤起系统分享面板：可以直接存 iCloud、隔空投送或发微信，
   // 不用先落到「文件」App 再自己找。
   try{
@@ -4058,24 +4260,61 @@ function importData(input){
   if(!needParent(()=>importData(input))) return;
   const f=input.files[0]; if(!f) return;
   const fr=new FileReader();
-  fr.onload=()=>{
+  const apply=()=>{
+    if(!needParent(apply)) return;
+    let pending=false, diaryBefore;
     try{
+      if(LOAD_ERROR || localStorage.getItem(KEY+"_import_tx")!==null) throw new Error("原存档或导入事务需要先恢复");
       const o=JSON.parse(fr.result);
-      const incDiary=(o && typeof o==="object") ? o.diary : null;
-      if(o && typeof o==="object") delete o.diary;   // 日记不进军功存档
-      const next=prepareState(o); // 先在独立对象里校验并迁移，失败不动当前存档
-      if(!confirm("导入会覆盖当前全部数据，确定吗？会先保留当前本地快照。")) return;
-      const current=localStorage.getItem(KEY);
-      localStorage.setItem(KEY+"_before_import",current||JSON.stringify(ST));
-      const previous=ST, expected=STORAGE_LAST_RAW;
-      ST=next;
-      logChange("导入了备份文件（覆盖全部数据）");
-      if(!save()){ ST=previous; STORAGE_LAST_RAW=expected; return; }
-      const dyAdded=diaryMergeImport(incDiary);   // 只补不删：手机上已有的日记一篇不动
-      refreshTop(); render(); toast("导入成功 ✓"+(dyAdded?("（补回 "+dyAdded+" 篇日记）"):""));
-    }catch(e){ alert("导入失败：" + e.message); }
-    input.value="";
+      const incDiary=stateObject(o) ? o.diary : null;
+      if(stateObject(o)) delete o.diary;
+      const next=prepareState(o);
+      if(incDiary!=null&&!stateObject(incDiary)) throw new Error("备份日记格式不对");
+      if(DY_FLUSH && DY_FLUSH()===false) throw new Error("当前日记草稿尚未存好，请先恢复草稿");
+      const beforeMain=localStorage.getItem(KEY), beforeDiary=localStorage.getItem(DIARY_KEY);
+      if(STORAGE_LAST_RAW!==undefined && beforeMain!==STORAGE_LAST_RAW) throw new Error("另一窗口已修改存档，请刷新后重试");
+      let afterDiary=beforeDiary;
+      if(incDiary!=null){
+        const latest=diaryReadLatest();
+        if(latest.raw!==beforeDiary) throw new Error("另一窗口已更新日记，请重试");
+        const merged=latest.data, before=JSON.stringify(merged), incoming=dyClean(incDiary);
+        for(const k of Object.keys(incoming.entries)) if(!merged.entries[k]) merged.entries[k]=incoming.entries[k];
+        if(!merged.lock&&incoming.lock) merged.lock=incoming.lock;
+        if(incoming.intro) merged.intro=true;
+        const raw=JSON.stringify(merged);
+        if(raw!==before) afterDiary=raw;
+      }
+      next.changeLog.push({at:Date.now(),date:TODAY(),what:"导入了备份文件（覆盖主存档，日记只补不删）",locked:pinSet()});
+      next.changeLog=next.changeLog.slice(-400);
+      validateState(next);
+      const afterMain=JSON.stringify(next), txKey=KEY+"_import_tx";
+      if(!confirm("导入会覆盖当前主存档，日记只补不删，确定吗？会先保留当前本地快照。")) return;
+      if(localStorage.getItem(KEY)!==beforeMain||localStorage.getItem(DIARY_KEY)!==beforeDiary) throw new Error("另一窗口已更新数据，请重试");
+      localStorage.setItem(KEY+"_before_import",beforeMain||JSON.stringify(ST));
+      diaryBefore={DY,DY_LAST_RAW,DY_SAVED,DY_ERROR,DY_OPEN,DY_SAVE_ERROR};
+      localStorage.setItem(txKey,JSON.stringify({v:1,beforeMain,afterMain,beforeDiary,afterDiary}));
+      pending=true;
+      if(localStorage.getItem(KEY)!==beforeMain||localStorage.getItem(DIARY_KEY)!==beforeDiary) throw new Error("另一窗口已更新数据，导入未完成");
+      localStorage.setItem(KEY,afterMain);
+      const dyAdded=diaryMergeImport(incDiary);
+      if(localStorage.getItem(KEY)!==afterMain||localStorage.getItem(DIARY_KEY)!==afterDiary) throw new Error("导入落盘校验失败");
+      localStorage.removeItem(txKey);
+      pending=false;
+      ST=next; STORAGE_LAST_RAW=afterMain; STATE_SAVED=afterMain;
+      refreshTop(); render(); toast("导入成功"+(dyAdded?("（补回 "+dyAdded+" 篇日记）"):""));
+    }catch(e){
+      if(pending){
+        try{
+          recoverStateImport();
+          DY=diaryBefore.DY; DY_LAST_RAW=diaryBefore.DY_LAST_RAW; DY_SAVED=diaryBefore.DY_SAVED;
+          DY_ERROR=diaryBefore.DY_ERROR; DY_OPEN=diaryBefore.DY_OPEN; DY_SAVE_ERROR=diaryBefore.DY_SAVE_ERROR;
+        }catch(rollback){ LOAD_ERROR="导入未完成且回滚待恢复："+rollback.message; }
+      }
+      alert("导入失败："+e.message+(LOAD_ERROR?"；"+LOAD_ERROR:""));
+    }finally{ input.value=""; }
   };
+  fr.onload=apply;
+  fr.onerror=()=>{ input.value=""; alert("导入失败：文件读取失败，原存档未改动"); };
   fr.readAsText(f);
 }
 // 保留旧函数名只为兼容旧页面事件；正式版绝不能修改记录或退还消费次数。
@@ -4085,9 +4324,8 @@ function resetAll(){
   if(!needParent(()=>resetAll())) return;
   if(!confirm("清空全部数据并恢复出厂设置？此操作不可撤销！")) return;
   if(!confirm("再确认一次：所有点卯记录、武将图鉴、锦囊、军报都会被删除。")) return;
-  localStorage.removeItem(KEY);
-  STORAGE_LAST_RAW=null;
-  ST=defaultState(); ST.parentPin=familyPin(); save(); refreshTop(); render(); toast("已恢复出厂设置");
+  if(!commitState(()=>{ ST=defaultState(); ST.parentPin=familyPin(); })) return;
+  refreshTop(); render(); toast("已恢复出厂设置，日记仍保留");
 }
 
 /* =====================================================================
@@ -4103,7 +4341,14 @@ let DY = null;              // 日记数据（懒加载）
 let DY_ERROR = "";          // 日记原文读不出时，停止写入、不覆盖
 let DY_OPEN = false;        // 本次已用日记锁打开
 let DY_MONTH = "";          // 正在看的月份 YYYY-MM
-let DY_FLUSH = null;        // 写日记面板关掉前，把还没存的字存下
+let DY_FLUSH = null;        // 返回 false 时不能销毁写作面板
+let DY_HIDE = null;         // 隐私离开时清除输入框，草稿另外保留
+let DY_LAST_RAW = null, DY_SAVED = null, DY_SAVE_ERROR = "";
+const DY_DRAFT_PREFIX = DIARY_KEY+"_draft_";
+const DY_DRAFT_OWNER = uid();
+const DY_DRAFTS = Object.create(null);
+let DY_RESUME = "";
+let DY_PRIVATE = false;     // 后台返回后，主动打开前不显示正文（包括未设锁的本子）
 const DY_FACES = [
   {k:"happy",  n:"开心",   say:"好事要记下来，下次不开心时翻出来看看！"},
   {k:"calm",   n:"平静",   say:"平平安安的一天，也是好日子。"},
@@ -4212,24 +4457,100 @@ function dyFirstLine(e){
   const s=(e&&e.text||"").split("\n").map(x=>x.trim()).find(Boolean)||"";
   return s.length>26 ? s.slice(0,26)+"…" : s;
 }
-function diaryLoad(){
-  if(DY) return DY;
-  DY_ERROR="";
-  let raw=null;
-  try{ raw=localStorage.getItem(DIARY_KEY); }catch(e){ DY_ERROR="本机存储打不开"; DY=dyDefault(); return DY; }
-  if(!raw){ DY=dyDefault(); return DY; }
-  try{ DY=dyClean(JSON.parse(raw)); }
-  catch(e){ DY_ERROR="日记文件读不出来"; DY=dyDefault(); }
+function diaryReadLatest(){
+  const raw=localStorage.getItem(DIARY_KEY);
+  if(raw===null) return {raw,data:dyDefault()};
+  const o=JSON.parse(raw);
+  if(!o || typeof o!=="object" || Array.isArray(o)) throw new Error("日记文件格式不对");
+  return {raw,data:dyClean(o)};
+}
+function diaryAdopt(latest){
+  if(DY && JSON.stringify(DY.lock)!==JSON.stringify(latest.data.lock)) DY_OPEN=false;
+  DY=latest.data; DY_LAST_RAW=latest.raw; DY_SAVED=JSON.stringify(DY); DY_ERROR="";
   return DY;
 }
-function diarySave(){
-  diaryLoad();
-  if(DY_ERROR){ toast("日记文件需要检查，先不写入，原来的日记没有删",3600); return false; }
-  try{ localStorage.setItem(DIARY_KEY, JSON.stringify(DY)); return true; }
-  catch(e){ toast("日记没存上（手机空间可能不够了）",3600); return false; }
+function diaryLoad(){
+  if(DY) return DY;
+  try{ return diaryAdopt(diaryReadLatest()); }
+  catch(e){ DY_ERROR="本机日记暂时读不出来"; DY=dyDefault(); return DY; }
 }
-function diaryLocked(){ diaryLoad(); return !!DY.lock && !DY_OPEN; }
-function diaryRelock(){ DY_OPEN=false; }
+function diarySave(){
+  diaryLoad(); DY_SAVE_ERROR="";
+  try{
+    if(DY_ERROR) throw new Error("日记文件需要检查，原来的日记没有删");
+    const next=JSON.stringify(DY);
+    if(localStorage.getItem(DIARY_KEY)!==DY_LAST_RAW) throw new Error("另一个窗口已更新日记，请重读最新内容后重试");
+    localStorage.setItem(DIARY_KEY,next);
+    DY_LAST_RAW=next; DY_SAVED=next; return true;
+  }catch(e){
+    DY_SAVE_ERROR=e && e.message || "本机存储不可用";
+    if(DY_SAVED!==null) DY=JSON.parse(DY_SAVED);
+    toast("日记没存上："+DY_SAVE_ERROR+"。草稿请勿关闭页面",4200); return false;
+  }
+}
+function diaryDrafts(){
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i); if(!key || !key.startsWith(DY_DRAFT_PREFIX)) continue;
+      try{
+        const r=JSON.parse(localStorage.getItem(key));
+        if(r && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.draft && typeof r.base==="string" && typeof r.lock==="string"){
+          if(!DY_DRAFTS[key]) DY_DRAFTS[key]={key,date:r.date,draft:dyCleanEntry(r.draft),base:r.base,lock:r.lock};
+        }
+      }catch(e){}
+    }
+  }catch(e){}
+  return Object.values(DY_DRAFTS).filter(r=>r.draft).sort((a,b)=>(b.draft.upd||0)-(a.draft.upd||0));
+}
+function diaryKeepDraft(r){
+  DY_DRAFTS[r.key]=r;
+  try{ localStorage.setItem(r.key,JSON.stringify({date:r.date,draft:r.draft,base:r.base,lock:r.lock})); return true; }
+  catch(e){ return false; }
+}
+function diaryDropDraft(r){
+  delete DY_DRAFTS[r.key];
+  try{
+    const raw=localStorage.getItem(r.key);
+    if(raw){ const saved=JSON.parse(raw); if(JSON.stringify(saved.draft)===JSON.stringify(r.draft)) localStorage.removeItem(r.key); }
+  }catch(e){}
+}
+function diaryResumeDraft(key){
+  if(diaryLocked()) return;
+  if(!diaryDrafts().some(r=>r.key===key)) return;
+  DY_RESUME=key; openDiaryWrite();
+}
+function diaryLocked(){ diaryLoad(); return DY_PRIVATE || (!!DY.lock && !DY_OPEN); }
+function diaryScrubSheet(sheet){
+  sheet.querySelectorAll("input,textarea,.dy-page-t").forEach(el=>{
+    el.oninput=null; el.onblur=null;
+    if("value" in el) el.value="";
+    el.textContent="";
+    if(document.activeElement===el) el.blur();
+  });
+  sheet.textContent="";
+}
+function diaryRelock(){
+  try{
+    if(DY_HIDE) DY_HIDE();
+  }finally{
+    const sheet=$(".sheet");
+    if(sheet && sheet.querySelector("#dyText, .dy-page, #dyL1")){
+      diaryScrubSheet(sheet);
+      const mask=sheet.closest(".mask"); if(mask) mask.remove();
+      document.body.style.overflow="";
+    }
+    DY_OPEN=false;
+  }
+}
+function diarySuspend(){
+  DY_PRIVATE=true;
+  diaryRelock();
+  if(VIEW==="diary") render();
+}
+window.addEventListener("pagehide",diarySuspend);
+window.addEventListener("beforeunload",e=>{
+  if(DY_FLUSH && DY_FLUSH()===false){ e.preventDefault(); e.returnValue=""; }
+});
 function dyEntry(d){ diaryLoad(); return DY.entries[d]||null; }
 
 // 每天 3 个「开头的话」：心情重的给两个「说出来」的；昨天出过的今天不再出
@@ -4301,6 +4622,9 @@ function viewDiary(){
   if(DY_ERROR){
     return '<div class="card"><div class="card-head"><h3>日记本</h3></div><p style="font-size:13px;line-height:1.7">'+esc(DY_ERROR)+'。原来的日记没有删，先不写入，请让爸爸妈妈帮忙看看。</p></div>';
   }
+  if(DY_PRIVATE && !DY.lock){
+    return '<div class="card"><h3>日记正文已隐藏</h3><p>草稿仍保留在本机；请主动打开后继续。</p><button class="btn" onclick="diaryUnlock()">打开日记本</button></div>';
+  }
   if(diaryLocked()){
     return '<div class="card" style="text-align:center"><div class="card-head"><h3>日记本</h3><span class="hint">🔒 上了锁</span></div>'
       + '<div style="display:flex;justify-content:center;margin-bottom:8px">'+zhugeSVG({face:"calm",colors:DY_CLASSIC},96)+'</div>'
@@ -4315,6 +4639,12 @@ function viewDiary(){
       + '<div style="font-size:13.5px;line-height:1.8;font-weight:600;color:var(--ink-2)">主公，这是你的<b>日记本</b>。<br>今天发生了什么、心里在想什么，都可以写下来。<br>不知道写什么，就点一句开头。还可以给军师涂个颜色。<br>不想写也没关系，不会催你，也<b>没有星星</b>。<br>这里写的东西，<b>只有你能看</b>。</div></div>'
       + '<div class="grid2" style="margin-top:12px"><button class="btn ghost" onclick="diaryIntroDone(false)">知道了</button><button class="btn" onclick="diaryIntroDone(true)">🔒 给本子加把锁</button></div>'
       + '<p style="font-size:11px;color:var(--ink-3);margin:8px 0 0">小提示：换手机时导出的备份里也带着日记。</p></div>';
+  }
+  const pending=diaryDrafts();
+  if(pending.length){
+    h+='<div class="card"><h3>有尚未存入日记本的草稿</h3><p>草稿只在本机保存，不是设备外备份；本机存储不可用时只留在当前页面内存，请勿关页。</p>';
+    for(const r of pending) h+='<button class="btn ghost" onclick="diaryResumeDraft(decodeURIComponent(\''+encodeURIComponent(r.key)+'\'))">恢复 '+esc(r.date)+' 的草稿</button>';
+    h+='</div>';
   }
   const te=dyEntry(T);
   h+='<div class="card"><div class="card-head"><h3>今天 · '+dyDateLine(T)+'</h3>'+(te?dyWeatherTag(te):'<span class="hint">只能写今天</span>')+'</div>';
@@ -4386,13 +4716,22 @@ function diaryIntroDone(wantLock){
 
 /* ---- 写今天的：正文是主角，天气在上，表情和涂色放在后面（都可跳过） ---- */
 function openDiaryWrite(){
+  if(closeSheet()===false) return false;
   diaryLoad();
-  if(DY_ERROR){ toast("日记文件需要检查，先不写入"); return; }
-  if(diaryLocked()){ VIEW="diary"; setTab(); render(); return; }
-  const T=TODAY();
+  try{ diaryAdopt(diaryReadLatest()); }catch(e){ DY_ERROR="本机日记暂时读不出来"; }
+  if(DY_ERROR){ toast("日记文件需要检查，先不写入"); return false; }
+  if(diaryLocked()){ VIEW="diary"; setTab(); render(); return false; }
+  const pending=diaryDrafts();
+  const recovered=DY_RESUME ? pending.find(r=>r.key===DY_RESUME) : pending.find(r=>r.date===TODAY());
+  DY_RESUME="";
+  const T=recovered ? recovered.date : TODAY();
   const old=dyEntry(T);
-  const draft=old ? JSON.parse(JSON.stringify(old)) : {face:"", weather:"", colors:{}, text:"", at:Date.now(), upd:0};
-  let cur=DY_COLORS[0], timer=0;
+  const draft=recovered ? JSON.parse(JSON.stringify(recovered.draft)) : old ? JSON.parse(JSON.stringify(old)) : {face:"", weather:"", colors:{}, text:"", at:Date.now(), upd:0};
+  const record=recovered || {key:DY_DRAFT_PREFIX+DY_DRAFT_OWNER+"_"+uid(),date:T,draft,base:JSON.stringify(old),lock:JSON.stringify(DY.lock)};
+  record.draft=draft;
+  // 恢复前已经按最新的锁验证身份，但同日正文基线不能随重开而重置。
+  if(recovered) record.lock=JSON.stringify(DY.lock);
+  let dirty=!!recovered, cur=DY_COLORS[0], timer=0;
   const startersHTML=()=>diaryStarters(T,draft.face).map(p=>'<button type="button" data-st="'+p.id+'">'+esc(p.s)+'…</button>').join("");
   const painted = draft.face || Object.keys(draft.colors).length;
   let h='<h3>'+dyDateLine(T)+'</h3><div class="sh-sub">想写多少写多少。写的时候会自动存下来。</div>';
@@ -4411,26 +4750,63 @@ function openDiaryWrite(){
     + '<p style="font-size:11.5px;color:var(--ink-3);margin:6px 0">先点颜色，再点军师的纶巾、脸、鹤氅、内衫、羽扇、鞋。</p>'
     + '<button type="button" class="btn ghost sm" id="dyClassic">原来的样子</button> <button type="button" class="btn ghost sm" id="dyWipe">擦掉</button></div></div></div>'
     + '</details>';
+  h+='<p id="dySaveStatus" role="status">'+(recovered?"已恢复本机草稿，尚未存入日记本。":"草稿仅在本机兜底，不是设备外备份。")+'</p>';
+  h+='<button class="btn ghost" id="dyReload" hidden>重读最新日记后重试（保留草稿）</button>';
   h+='<button class="btn" style="width:100%;margin-top:12px" id="dyDone">写好了</button>';
 
-  openSheet(h,(sheet)=>{
-    const ta=$("#dyText",sheet);
+  return openSheet(h,(sheet)=>{
+    const ta=$("#dyText",sheet), status=$("#dySaveStatus",sheet), reload=$("#dyReload",sheet);
+    const capture=()=>{
+      dirty=true; draft.text=ta.value.slice(0,DY_TEXT_MAX); draft.upd=Date.now();
+      return diaryKeepDraft(record);
+    };
+    const failed=msg=>{
+      const local=diaryKeepDraft(record);
+      status.textContent=msg+"；"+(local?"草稿已在本机兜底，仍未存入日记本。":"草稿只在当前页面内存，请勿关页。")+"不是设备外备份。";
+      reload.hidden=false; return false;
+    };
     const persist=()=>{
       clearTimeout(timer); timer=0;
-      draft.text=ta.value.slice(0,DY_TEXT_MAX);
-      draft.upd=Date.now();
+      const current=dyCleanEntry(Object.assign({},draft,{text:ta.value.slice(0,DY_TEXT_MAX)}));
+      const saved=dyEntry(T);
+      if(!dirty && JSON.stringify(current)===JSON.stringify(saved || {face:"",weather:"",colors:{},text:"",at:draft.at,upd:draft.upd})) return true;
+      capture();
+      try{
+        const latest=diaryReadLatest();
+        if(JSON.stringify(latest.data.lock)!==record.lock) return failed("日记锁已变化，请离开后重新解锁再恢复草稿");
+        if(JSON.stringify(latest.data.entries[T]||null)!==record.base) return failed("这一天已改动，不能用旧草稿覆盖；请保留草稿并核对最新记录");
+        if(latest.raw!==DY_LAST_RAW) return failed("另一个窗口已更新日记，需要重读最新内容");
+      }catch(e){ return failed("本机日记暂时读不出来"); }
       const clean=dyCleanEntry(draft);
-      const prevEntry=DY.entries[T];
       if(dyHasContent(clean)) DY.entries[T]=clean; else delete DY.entries[T];
       DY.promptDay[T]=diaryStarters(T,draft.face).map(p=>p.id);
       for(const k of Object.keys(DY.promptDay)) if(k<addD(T,-7)) delete DY.promptDay[k];
-      if(!diarySave()){ if(prevEntry) DY.entries[T]=prevEntry; else delete DY.entries[T]; return false; }
+      if(!diarySave()) return failed(DY_SAVE_ERROR);
+      dirty=false; record.base=JSON.stringify(dyEntry(T));
+      diaryDropDraft(record); reload.hidden=true; status.textContent="已存入本机日记本。";
       return true;
     };
-    // 边写边存：切到后台、点到外面关掉，都不丢字
-    ta.oninput=()=>{ clearTimeout(timer); timer=setTimeout(persist,600); };
-    ta.onblur=()=>{ if(timer) persist(); };
-    DY_FLUSH=()=>{ if(timer) persist(); };
+    reload.onclick=()=>{
+      capture();
+      try{
+        const latest=diaryReadLatest();
+        if(JSON.stringify(latest.data.lock)!==record.lock){ failed("日记锁已变化，请离开后重新解锁再恢复草稿"); return; }
+        if(JSON.stringify(latest.data.entries[T]||null)!==record.base){
+          failed("这一天在另一个窗口已改动，不能用旧草稿覆盖；请保留草稿并核对最新记录"); return;
+        }
+        diaryAdopt(latest); persist();
+      }catch(e){ failed("本机日记暂时读不出来"); }
+    };
+    ta.oninput=()=>{ capture(); clearTimeout(timer); timer=setTimeout(persist,600); };
+    ta.onblur=()=>{ if(dirty) persist(); };
+    DY_FLUSH=persist;
+    DY_HIDE=()=>{
+      try{ persist(); }finally{
+        clearTimeout(timer); timer=0; DY_FLUSH=null; DY_HIDE=null;
+        diaryScrubSheet(sheet);
+        const mask=sheet.closest(".mask"); if(mask) mask.remove(); document.body.style.overflow="";
+      }
+    };
     const bindSt=()=>{
       $$("#dySt button",sheet).forEach(b=>b.onclick=()=>{
         const P=DY_STARTER_BY_ID[b.dataset.st]; if(!P) return;
@@ -4524,11 +4900,13 @@ function diarySetLock(a,b){
   return true;
 }
 function diaryUnlock(pin){
-  diaryLoad();
   if(pin===undefined){ const el=$("#dyPin"); pin=el?el.value:""; }
-  if(!DY.lock){ DY_OPEN=true; render(); return true; }
+  try{ diaryAdopt(diaryReadLatest()); }
+  catch(e){ toast("本机日记暂时读不出来，先不打开",4200); return false; }
+  if(document.hidden) return false;
+  if(!DY.lock){ DY_OPEN=true; DY_PRIVATE=false; render(); return true; }
   const fp=familyPin();
-  if(pinHash(String(pin),DY.lock.salt)===DY.lock.h || pinHash(String(pin),fp.salt)===fp.h){ DY_OPEN=true; render(); return true; }
+  if(pinHash(String(pin),DY.lock.salt)===DY.lock.h || pinHash(String(pin),fp.salt)===fp.h){ DY_OPEN=true; DY_PRIVATE=false; render(); return true; }
   toast("密码不对"); const el=$("#dyPin"); if(el) el.value="";
   return false;
 }
@@ -4572,27 +4950,34 @@ function diaryNudge(){
 
 /* ---- 备份：日记跟着导出；导入时只补不删 ---- */
 function diaryExport(){
-  diaryLoad();
-  if(DY_ERROR) return undefined;
-  if(!DY.lock && !Object.keys(DY.entries).length) return undefined;
-  return JSON.parse(JSON.stringify(DY));
+  if(DY_FLUSH && DY_FLUSH()===false) throw new Error("日记草稿尚未存好，请先恢复草稿并重试导出");
+  if(diaryDrafts().length) throw new Error("还有未存入日记本的草稿，请先恢复草稿再导出");
+  const latest=diaryReadLatest().data;
+  if(!latest.lock && !Object.keys(latest.entries).length) return undefined;
+  return latest;
 }
+// importData 契约：返回新增篇数（幂等为 0）；失败必须抛错，本函数不负责主存档回滚。
+// 所有合并先在独立对象完成，CAS 写入成功后才接纳内存，失败不留下日记半事务。
 function diaryMergeImport(inc){
-  diaryLoad();
-  if(DY_ERROR || !inc) return 0;
-  const o=dyClean(inc);
+  if(inc===undefined || inc===null) return 0;
+  if(typeof inc!=="object" || Array.isArray(inc)) throw new Error("备份日记格式不对");
+  const latest=diaryReadLatest(), next=latest.data, before=JSON.stringify(next), o=dyClean(inc);
   let added=0;
-  for(const k of Object.keys(o.entries)) if(!DY.entries[k]){ DY.entries[k]=o.entries[k]; added++; }
-  if(!DY.lock && o.lock) DY.lock=o.lock;
-  if(o.intro) DY.intro=true;
-  if(added || o.lock || o.intro) diarySave();
+  for(const k of Object.keys(o.entries)) if(!next.entries[k]){ next.entries[k]=o.entries[k]; added++; }
+  if(!next.lock && o.lock) next.lock=o.lock;
+  if(o.intro) next.intro=true;
+  const raw=JSON.stringify(next);
+  if(localStorage.getItem(DIARY_KEY)!==latest.raw) throw new Error("另一个窗口已更新日记，导入未完成，请重试");
+  if(raw!==before) localStorage.setItem(DIARY_KEY,raw);
+  else { diaryAdopt(latest); return added; }
+  diaryAdopt({raw,data:next});
   return added;
 }
 
 /* ============ 远程设置包（v2.6.0） ============
    家长在自己手机上改好军令/锦囊 → 生成一段文字 → 微信发到孩子的 iPad → 粘贴导入。
    只含军令和锦囊门槛；不含星星、兑现、日记。按名字匹配；不在包里的军令只归档、不删历史；
-   新增/改动从导入当天起生效，不追溯。整包校验，有一处不对就整包拒绝。 */
+   军令新增/改动从明天起生效，不追溯。整包校验，有一处不对就整包拒绝。 */
 const PACK_PREFIX = "SZPK1:";
 function packSum(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h.toString(36); }
 function packSig(body){ const k=familyPin().h; return packSum(k+"|"+body+"|"+k); }
@@ -4614,16 +4999,16 @@ function packParse(text){
     const body=packDec(text.slice(0,dot)), sig=text.slice(dot+1);
     if(packSig(body)!==sig) return {ok:false,err:"校验没通过：可能没复制全，或被改过"};
     const o=JSON.parse(body);
-    if(!o||!Array.isArray(o.tasks)||!Array.isArray(o.prizes)||!Number(o.at)) return {ok:false,err:"设置包格式不对"};
+    if(!stateObject(o)||!Array.isArray(o.tasks)||!Array.isArray(o.prizes)||!Number.isSafeInteger(o.at)||o.at<=0||o.at>Date.now()+86400000) return {ok:false,err:"设置包格式或时间不对"};
     if(!o.tasks.length||o.tasks.length>30||o.prizes.length>60) return {ok:false,err:"军令要 1～30 条，锦囊最多 60 个"};
     const tasks=[], prizes=[], seen=new Set();
     for(const x of o.tasks){
       const n=String(x&&x.n||"").trim();
-      if(!n||n.length>20||seen.has(n)) return {ok:false,err:"军令名字有问题（空、过长或重复）"};
+      if(!stateObject(x)||!n||n.length>20||seen.has(n)) return {ok:false,err:"军令名字有问题（空、过长或重复）"};
       seen.add(n);
       const wd=Array.isArray(x.d)?x.d.filter(v=>Number.isInteger(v)&&v>=0&&v<=6):[];
       const t={name:n,emoji:String(x.e||"").slice(0,8),subject:x.s,type:x.y,planMin:Number(x.m),weekTarget:Number(x.w),weekdays:wd,timeSlot:x.o,boss:!!x.b};
-      if(!SUBJECTS[t.subject]||!["daily","flex","fixed"].includes(t.type)||!["morning","noon","evening","any"].includes(t.timeSlot)) return {ok:false,err:"军令「"+n+"」的设置不对"};
+      if(!Object.hasOwn(SUBJECTS,t.subject)||!["daily","flex","fixed"].includes(t.type)||!["morning","noon","evening","any"].includes(t.timeSlot)) return {ok:false,err:"军令「"+n+"」的设置不对"};
       if(!Number.isInteger(t.planMin)||t.planMin<1||t.planMin>300||!Number.isInteger(t.weekTarget)||t.weekTarget<1||t.weekTarget>21) return {ok:false,err:"军令「"+n+"」的时间或次数不对"};
       if(t.type==="fixed"&&!wd.length) return {ok:false,err:"军令「"+n+"」没选星期"};
       tasks.push(t);
@@ -4631,10 +5016,10 @@ function packParse(text){
     const pn=new Set();
     for(const x of o.prizes){
       const n=String(x&&x.n||"").trim();
-      if(!n||n.length>30||pn.has(n)) return {ok:false,err:"锦囊名字有问题（空、过长或重复）"};
+      if(!stateObject(x)||!n||n.length>30||pn.has(n)) return {ok:false,err:"锦囊名字有问题（空、过长或重复）"};
       pn.add(n);
       const p={name:n,emoji:String(x.e||"🎁").slice(0,8),tier:x.t,merit:moneyNumber(x.c),weight:Number(x.w)};
-      if(!TIERS[p.tier]||!validPrizeCost(p.merit)||!Number.isInteger(p.weight)||p.weight<0||p.weight>999) return {ok:false,err:"锦囊「"+n+"」的档位、门槛或权重不对"};
+      if(!Object.hasOwn(TIERS,p.tier)||!validPrizeCost(p.merit)||!Number.isInteger(p.weight)||p.weight<0||p.weight>999) return {ok:false,err:"锦囊「"+n+"」的档位、门槛或权重不对"};
       prizes.push(p);
     }
     return {ok:true,data:{at:Number(o.at),forName:String(o.for||"").trim().slice(0,20),tasks,prizes}};
@@ -4660,21 +5045,44 @@ function packDiff(d){
   for(const o of ST.prizes) if(!d.prizes.some(p=>p.name===o.name)) L.delP.push(o.name);
   return L;
 }
-function packApply(d){
-  settleLedger();   // 先冻结历史，已发的奖励不受影响
-  const today=TODAY();
+function packContent(d){
+  return JSON.stringify({forName:d.forName||"",tasks:d.tasks.map(t=>[t.name,t.emoji,t.subject,t.type,t.planMin,t.weekTarget,t.weekdays,t.timeSlot,t.boss]),prizes:d.prizes.map(p=>[p.name,p.emoji,p.tier,p.merit,p.weight])});
+}
+function packCheck(d){
+  if(!stateObject(d)||!Number.isSafeInteger(d.at)||d.at<=0||d.at>Date.now()+86400000||!Array.isArray(d.tasks)||!Array.isArray(d.prizes)) throw new Error("设置包格式或时间不对");
+  for(const [list,label] of [[ST.tasks,"本机军令"],[ST.prizes,"本机锦囊"],[d.tasks,"包内军令"],[d.prizes,"包内锦囊"]]){
+    const seen=new Set();
+    for(const x of list){ const name=String(x.name||"").trim(); if(!name||seen.has(name)) throw new Error(label+"存在重名，无法安全按名字匹配"); seen.add(name); }
+  }
   for(const t of d.tasks){
-    const o=ST.tasks.find(x=>x.name===t.name&&!x.pending);
-    if(o){ Object.assign(o,t); if(o.archived){ o.archived=false; o.approvedAt=today; } }
-    else ST.tasks.push(Object.assign({id:uid(),archived:false,approvedAt:today},t));
+    const old=ST.tasks.find(x=>x.name.trim()===t.name.trim());
+    if(old&&(old.archived||old.pending)) throw new Error("军令「"+t.name+"」已归档或待批准，不能用设置包自动恢复，请改名后重发");
   }
-  for(const o of ST.tasks) if(!o.archived&&!o.pending&&!d.tasks.some(t=>t.name===o.name)) o.archived=true;
-  for(const p of d.prizes){
-    const o=ST.prizes.find(x=>x.name===p.name);
-    if(o) Object.assign(o,p); else ST.prizes.push(Object.assign({id:uid()},p));
-  }
-  ST.prizes=ST.prizes.filter(o=>d.prizes.some(p=>p.name===o.name));
-  ST.packAt=d.at;
+  const content=packContent(d);
+  if((ST.packHistory||[]).includes(content)) throw new Error("相同内容的设置已经导入过了");
+  return content;
+}
+function packApply(d){
+  return commitState(()=>{
+    const content=packCheck(d), L=packDiff(d), mism=!!d.forName&&d.forName!==String(ST.childName||"").trim();
+    changeTaskRules(()=>{
+      for(const t of d.tasks){
+        const o=ST.tasks.find(x=>x.name.trim()===t.name.trim()&&!x.pending&&!x.archived);
+        if(o) Object.assign(o,t);
+        else ST.tasks.push(Object.assign({id:uid(),archived:false,approvedAt:addD(TODAY(),1)},t));
+      }
+      for(const o of ST.tasks) if(!o.archived&&!o.pending&&!d.tasks.some(t=>t.name===o.name)) o.archived=true;
+    });
+    for(const p of d.prizes){
+      const o=ST.prizes.find(x=>x.name.trim()===p.name.trim());
+      if(o) Object.assign(o,p); else ST.prizes.push(Object.assign({id:uid()},p));
+    }
+    ST.prizes=ST.prizes.filter(o=>d.prizes.some(p=>p.name===o.name));
+    ST.packAt=d.at;
+    if(!ST.packHistory) ST.packHistory=[];
+    ST.packHistory.push(content);
+    logChange("导入家长发来的设置包"+(mism?"（包上写的是「"+d.forName+"」，与本机名字不符，家长仍确认应用）":"")+"：新增军令 "+L.addT.length+"、调整 "+L.chgT.length+"、停用 "+L.offT.length+"；锦囊新增 "+L.addP.length+"、调整 "+L.chgP.length+"、撤下 "+L.delP.length+"（军令明天生效）");
+  });
 }
 function openPackMake(){
   if(!needParent(openPackMake)) return;
@@ -4702,12 +5110,13 @@ function openPackImport(){
     $("#pkCheck",sheet).onclick=()=>{
       const r=packParse($("#pkIn",sheet).value);
       if(!r.ok){ toast(r.err,3600); return; }
-      if(ST.packAt && r.data.at<=ST.packAt){ toast("这份设置已经导入过了，或者比现在的旧"); return; }
+      try{ packCheck(r.data); }catch(e){ toast(e.message,4200); return; }
       openPackConfirm(r.data);
     };
   });
 }
 function openPackConfirm(d){
+  try{ packCheck(d); }catch(e){ toast(e.message,4200); return false; }
   const L=packDiff(d);
   const sec=(t,a)=>a.length?'<div style="margin-top:8px;"><b>'+t+'</b><br>'+a.map(esc).join("<br>")+'</div>':"";
   const any=Object.values(L).some(a=>a.length);
@@ -4716,16 +5125,15 @@ function openPackConfirm(d){
   if(mism) h+='<div class="quote" style="border-color:#EFC8BC;background:#FCEBE6;font-weight:700;">⚠️ 这份设置是给「'+esc(d.forName)+'」的，这台设备是「'+esc(ST.childName)+'」。可能发错人了，请先确认。</div>';
   h+='<div style="font-size:13px;line-height:1.7;font-weight:600;max-height:50vh;overflow:auto;">';
   h+=any?(sec("新增军令",L.addT)+sec("调整军令",L.chgT)+sec("停用军令（历史记录保留）",L.offT)+sec("新增锦囊",L.addP)+sec("调整锦囊",L.chgP)+sec("撤下锦囊",L.delP)):"和现在的设置完全一样，没有要改的。";
-  h+='<div style="margin-top:10px;color:var(--ink-3);">从今天起生效，之前的记录和星星都不变。</div></div>';
+  h+='<div style="margin-top:10px;color:var(--ink-3);">军令从明天起生效，今天及之前的规则、记录和星星都不变。</div></div>';
   h+='<div class="grid2" style="margin-top:12px;"><button class="btn ghost" onclick="closeSheet()">不改</button><button class="btn" id="pkGo">'+(mism?"仍然应用":"确认应用")+'</button></div>';
   openSheet(h,(sheet)=>{
-    $("#pkGo",sheet).onclick=()=>{
-      const prev=JSON.stringify([ST.tasks,ST.prizes,ST.packAt]);
-      try{ packApply(d); logChange("导入家长发来的设置包"+(mism?"（包上写的是「"+d.forName+"」，与本机名字不符，家长仍确认应用）":"")+"：新增军令 "+L.addT.length+"、调整 "+L.chgT.length+"、停用 "+L.offT.length+"；锦囊新增 "+L.addP.length+"、调整 "+L.chgP.length+"、撤下 "+L.delP.length);
-        if(!save()) throw new Error("save"); }
-      catch(e){ const p=JSON.parse(prev); ST.tasks=p[0]; ST.prizes=p[1]; ST.packAt=p[2]; toast("保存失败，设置没有改"); return; }
-      closeSheet(); refreshTop(); render(); toast("设置已更新 ✓");
+    const submit=()=>{
+      if(!needParent(submit)) return;
+      if(!packApply(d)) return;
+      closeSheet(); refreshTop(); render(); toast("设置已更新，军令明天生效");
     };
+    $("#pkGo",sheet).onclick=submit;
   });
 }
 
@@ -4733,7 +5141,7 @@ function openPackConfirm(d){
    弹窗 & 渲染
    ===================================================================== */
 function openSheet(html, after){
-  closeSheet();
+  if(closeSheet()===false) return false;
   const mask=document.createElement("div");
   mask.className="mask";
   mask.innerHTML='<div class="sheet">'+html+'</div>';
@@ -4743,9 +5151,19 @@ function openSheet(html, after){
   if(after) after($(".sheet",mask));
 }
 function closeSheet(){
-  if(DY_FLUSH){ const f=DY_FLUSH; DY_FLUSH=null; try{ f(); }catch(e){} }
-  const m=$(".mask"); if(m) m.remove();
+  if(DY_FLUSH){
+    try{ if(DY_FLUSH()===false) return false; }
+    catch(e){ toast("日记尚未存好，草稿面板已保留，请重试",4200); return false; }
+  }
+  DY_FLUSH=null; DY_HIDE=null;
+  const m=$(".mask");
+  if(m){
+    const sheet=$(".sheet",m);
+    if(sheet && sheet.querySelector("#dyText, .dy-page, #dyL1")) diaryScrubSheet(sheet);
+    m.remove();
+  }
   document.body.style.overflow="";
+  return true;
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
@@ -4772,8 +5190,7 @@ function floatFromEl(el,text,gold){
 function openGraduation(){
   const list=checkGraduation();
   if(!list.length) return false;
-  for(const t of list) graduateTask(t);
-  save();
+  if(!commitState(()=>{ for(const t of list) graduateTask(t); })) return false;
   const names=list.map(t=>t.name);
   let html='<div class="ceremony-hero"><span class="ce">🎓</span>'
     + '<div class="cn">军令毕业</div></div>'
@@ -4800,7 +5217,7 @@ function ungraduateConfirm(taskId){
   const g=ST.graduated[taskId]; if(!g) return;
   if(!confirm("把「"+g.name+"」放回每日军令清单？")) return;
   ungraduate(taskId);
-  save(); closeSheet(); refreshTop(); render();
+  if(!save()) return; closeSheet(); refreshTop(); render();
   toast("已放回每日清单");
 }
 
@@ -4808,7 +5225,7 @@ function ungraduateConfirm(taskId){
 function openRitual(){
   const t=TODAY();
   if(ST.lastOpen===t) return false;
-  ST.lastOpen=t; save();
+  ST.lastOpen=t; if(!save()) return false;
   const hint=nextStepHint();
   const list=tasksForDate(t);
   const cs=currentStreak();
@@ -4848,6 +5265,7 @@ function setTab(){
 }
 function render(){
   const m=$("#main");
+  if(VIEW!=="diary") diaryRelock();   // 先隐藏正文和失败草稿面板，再渲染其他视图
   let html="";
   if(VIEW==="today")         html=viewToday();
   else if(VIEW==="week")     html=viewWeek();
@@ -4856,7 +5274,6 @@ function render(){
   else if(VIEW==="report")   html=viewReport();
   else if(VIEW==="settings") html=viewSettings();
   else if(VIEW==="diary")    html=viewDiary();
-  if(VIEW!=="diary") diaryRelock();   // 离开日记页，本子自己锁上
   m.innerHTML=html;
   setTab();
   refreshTop();
@@ -4896,7 +5313,7 @@ function render(){
     render();
   });
   $("#btnDraw").addEventListener("click",openDraw);
-  document.addEventListener("visibilitychange",()=>{ if(document.hidden){ lockParent(); diaryRelock(); if(VIEW==="diary") closeSheet(); if(VIEW==="settings"||VIEW==="diary") render(); } });
+  document.addEventListener("visibilitychange",()=>{ if(document.hidden){ lockParent(); diarySuspend(); if(VIEW==="settings") render(); } });
   render();
   window.render=render; window.setTab=setTab; window.gotoDate=gotoDate;
   window.openCheck=openCheck; window.clearRec=clearRec;
@@ -4913,7 +5330,7 @@ function render(){
   window.closeSheet=closeSheet; window.ungraduateConfirm=ungraduateConfirm;
   window.closeRitual=closeRitual; window.grantTickets=grantTickets;
   window.openRitual=openRitual; window.openGraduation=openGraduation;
-  window.requestPersistentStorage=requestPersistentStorage;
+  window.requestPersistentStorage=requestPersistentStorage; window.checkOfflineReady=checkOfflineReady;
   window.openExtraDay=openExtraDay; window.openKidAdd=openKidAdd;
   window.markTooHard=markTooHard; window.markWish=markWish;
   window.openDiaryWrite=openDiaryWrite; window.showDiaryEntry=showDiaryEntry; window.deleteDiary=deleteDiary;
@@ -4922,12 +5339,8 @@ function render(){
   window.openCouponSettle=openCouponSettle; window.settleCoupon=settleCoupon;
   window.openBreakEdit=openBreakEdit; window.delBreak=delBreak;
   window.applyHint=applyHint;
-  // 离线：只有通过 http(s) 打开时才注册（file:// 不支持 service worker，静默跳过）
-  try{
-    if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
-      navigator.serviceWorker.register("sw.js").catch(()=>{});
-    }
-  }catch(e){}
+  // 离线保护：保留完整入口参数，失败必须在设置里可见。
+  startOfflineProtection();
   // 每日首次打开：先看有没有任务毕业，再给一张今日仪式卡
   // 存不住的时候不弹，让告警条先被看见
   setTimeout(()=>{

@@ -92,8 +92,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   t("点批准要先输密码", !!q("#pinIn") && ev("ST.tasks.find(x=>x.name==='多读一章三国').pending")===true);
   q("#pinIn").value="2468"; q("#pinOk").click(); await sleep(20);
   const k2=ev("ST.tasks.find(x=>x.name==='多读一章三国')");
-  t("批准后转正，从今天起算", k2.pending===false && k2.approvedAt===T);
-  t("★ 批准当天的点卯开始算星", ev("totalMerit()")>m0);
+  t("批准后转正，从明天起算", k2.pending===false && k2.approvedAt===ev("addD(TODAY(),1)"));
+  t("批准当天不倒算待批准记录，只计原有任务", ev("dayStars(TODAY())")===3 && ev("totalMerit()")===m0+3);
+  t("批准的军令今天不派、明天开始派", !ev(`tasksForDate(TODAY()).some(x=>x.id==="${kid.id}")`) && ev(`tasksForDate(addD(TODAY(),1)).some(x=>x.id==="${kid.id}")`));
   t("留痕：批准了", /批准了孩子自己加的军令/.test(JSON.stringify(ev("ST.changeLog"))));
   // 批准前的旧日子不倒算
   const y=ev("addD(TODAY(),-1)");
@@ -102,7 +103,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   ev(`ST.tasks.push({id:"k9",name:"玩平板学英语",subject:"en",type:"flex",weekTarget:7,weekdays:[0,1,2,3,4,5,6],fromKid:true,pending:true,addedAt:TODAY()}); setRec(TODAY(),"k9",1,"full",30); save(); render();`);
   const m1=ev("totalMerit()");
   ev("rejectTask('k9')"); await sleep(10);
-  t("不批：任务和它的点卯一起拿掉", !ev("ST.tasks.some(x=>x.id==='k9')") && !ev("rec(TODAY(),'k9')"));
+  t("不批：只归档，历史点卯记录保留", ev("ST.tasks.some(x=>x.id==='k9'&&x.archived&&x.pending)") && ev("rec(TODAY(),'k9').level")===1);
   t("★ 不批不扣已有的星", ev("totalMerit()")===m1);
 
   console.log("\n=== H. 兑现、导入、锦囊匣都要家长 ===");

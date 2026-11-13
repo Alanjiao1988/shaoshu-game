@@ -3,7 +3,6 @@
   "short_name": "少年主公",
   "description": "把每天的学习任务变成治国安邦：点卯得军功，军功招名将。",
   "lang": "zh-CN",
-  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

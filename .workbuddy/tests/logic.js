@@ -188,8 +188,14 @@ t("已开过的旧锦囊补一张已兑现券", (()=>{
   return ok;
 })());
 t("损坏 JSON 返回 null", (()=>{
+  const before=store["shaozhu_v1"];
   store["shaozhu_v1"]="{坏";
-  const r=run(`load()`); run(`ST=defaultState(); save();`); return r===null;
+  const r=run(`load()`);
+  const protectedRaw=store["shaozhu_v1"], blocked=run(`save()`);
+  const protectedOK=store["shaozhu_v1"]===protectedRaw && run(`!!LOAD_ERROR`);
+  store["shaozhu_v1"]=before;
+  run(`ST=load();`);
+  return r===null && blocked===false && protectedOK;
 })());
 
 console.log("\n=== 5. 休假模式 ===");
@@ -718,7 +724,7 @@ t("迁移补偿走 addMerit 记录来源和幂等编号", /addMerit\(s, gone\.le
 
 console.log("\n=== 10.15 星星可靠性回归 ===");
 t("金额字符串转数字，避免11/4050式拼接", (()=>{
-  run(`ST=defaultState(); ST.records[TODAY()]={a:{level:"1"},b:{level:"1"},c:{level:"0.5"},d:{level:999}}; ST.bonusMerit="25"; ST.vault=[{merit:"40",redeemed:true},{merit:"50",redeemed:true}];`);
+  run(`ST=defaultState(); ST.tasks=["a","b","c","d"].map(id=>({id,name:id,subject:"cn",type:"daily"})); ST.records[TODAY()]={a:{level:"1"},b:{level:"1"},c:{level:"0.5"},d:{level:999}}; ST.bonusMerit="25"; ST.vault=[{merit:"40",redeemed:true},{merit:"50",redeemed:true}];`);
   return run(`dayStars(TODAY())`)===7.5 && run(`spentMerit()`)===90 && Number.isFinite(run(`totalMerit()`));
 })());
 t("非法金额拒绝入账且不改余额", (()=>{
@@ -764,9 +770,12 @@ t("导入校验失败不会修改传入的当前存档", (()=>{
   return run(`ST.bonusMerit`)===33;
 })());
 t("读到损坏存档保留原文且提供恢复导出", (()=>{
-  const bad="{broken-json"; store["shaozhu_v1"]=bad;
+  const before=store["shaozhu_v1"], bad="{broken-json"; store["shaozhu_v1"]=bad;
   const result=run(`load()`);
-  return result===null && !!run(`LOAD_ERROR`) && store["shaozhu_v1"]===bad && /exportRawBackup/.test(html);
+  const ok=result===null && !!run(`LOAD_ERROR`) && store["shaozhu_v1"]===bad && /exportRawBackup/.test(html);
+  store["shaozhu_v1"]=before;
+  run(`ST=load();`);
+  return ok;
 })());
 t("没有令不能从正式入口抽卡或获得补偿", (()=>{
   run(`ST=defaultState(); STORAGE_LAST_RAW=undefined;`);
