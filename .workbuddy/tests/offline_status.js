@@ -14,8 +14,8 @@ function make(extra={}){
   Object.defineProperty(w,"crypto",{value:webcrypto});
   const sw={controller:{},register:async(url,opts)=>{calls.push({url,opts});if(extra.fail)throw new Error("403");return registration;},getRegistration:async()=>extra.noRegistration?undefined:registration,addEventListener:(k,fn)=>events[k]=fn};
   Object.defineProperty(w.navigator,"serviceWorker",{value:sw});
-  Object.defineProperty(w,"caches",{value:{keys:async()=>extra.empty?[]:["shaozhu-v"+version],open:async()=>({match:async(url)=>{
-   if(url.includes(".__shaozhu_verified__"))return extra.noProof?undefined:{json:async()=>extra.proof||install};
+  Object.defineProperty(w,"caches",{value:{keys:async()=>extra.empty?[]:(extra.keys||["shaozhu-v"+version]),open:async(cacheName)=>({match:async(url)=>{
+   if(url.includes(".__shaozhu_verified__"))return extra.noProof?undefined:{json:async()=>extra.proof||(extra.proofVersion&&cacheName==="shaozhu-v"+extra.proofVersion?{version:extra.proofVersion,hashes:{}}:install)};
    const b=new TextEncoder().encode("validated fixture");return {status:200,arrayBuffer:async()=>extra.corrupt?new Uint8Array([0]).buffer:b.buffer};
   }})}});
  }});
@@ -29,5 +29,7 @@ function make(extra={}){
  }
  await test("授权失效消息不清存档且可见",async()=>{const h=make();await h.ready();const before=h.w.localStorage.getItem("shaozhu_v1");h.events.message({data:{type:"SHAOZHU_OFFLINE_STATUS",state:"authorization-required"}});assert.match(h.w.eval("offlineStatusText()"),/完整分享链接/);assert.equal(h.w.localStorage.getItem("shaozhu_v1"),before);h.end();});
  await test("设置页明确无云备份与离线状态",async()=>{const h=make();await h.ready();h.w.eval('PARENT_UNTIL=1e15;VIEW="settings";render()');assert.ok(h.w.document.querySelector("#offlineStatus"));assert.match(h.w.document.querySelector("#main").textContent,/没有云备份/);h.end();});
+ await test("已验证新版本缓存就绪时顶部出现一键刷新条，未验证不显示",async()=>{const h=make({keys:["shaozhu-v"+version,"shaozhu-v9.9.9"],proofVersion:"9.9.9"});await h.ready();assert.equal(await h.w.eval("checkNewVersionCached()"),"9.9.9");h.w.eval('showUpdateReady("9.9.9")');assert.equal(h.w.document.querySelector("#updateBanner").classList.contains("show"),true);assert.match(h.w.document.querySelector("#updateBannerText").textContent,/v9\.9\.9/);h.end();});
+ await test("累计>=3天记录且超过14天未备份时今日页显示温和备份提醒",async()=>{const h=make();await h.ready();h.w.eval('ST.records={"2026-11-01":{},"2026-11-02":{},"2026-11-03":{}};ST.lastBackup="";VIEW="today";VIEW_DATE=TODAY();render()');assert.ok(h.w.document.querySelector("#backupNudge"));h.w.eval('ST.lastBackup=TODAY();render()');assert.equal(h.w.document.querySelector("#backupNudge"),null);h.end();});
  console.log(`离线状态测试：${count} 通过 / 0 失败`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,27 @@
+{
+  "source": "少年掌柜_柜台效果预览_v1.png",
+  "sourceSha256": "c2a0fda3f3f3895466e347adb0f922b682f7e29d81e8d0f231d8ac9be8e48035",
+  "backgroundSha256": "3c602e34cd680ae9ced187b4ae38bb2afe46e4d612d84a50039d27799b5448ef",
+  "assetSha256": "7ecc88fe22d81bd190feea85b27ec0b7a9a2acd335204b93362032e16b8a7c82",
+  "sourceSize": [
+    1536,
+    1024
+  ],
+  "sourceBox": [
+    445,
+    311,
+    763,
+    689
+  ],
+  "sceneSize": [
+    1100,
+    844
+  ],
+  "left": 553,
+  "top": 350,
+  "width": 280,
+  "height": 333,
+  "layer": 1,
+  "pointerEvents": "none",
+  "storageChanges": false
+}

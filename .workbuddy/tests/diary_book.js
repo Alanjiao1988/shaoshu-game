@@ -40,7 +40,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log("=== A. 入口与首次打开 ===");
   const tab = q('#tabs button[data-view="diary"]');
   const order = [...d.querySelectorAll("#tabs button")].map(b => b.dataset.view).join(",");
-  t("导航有「日记」，排在武将后面", !!tab && order === "today,week,heroes,diary,stats,report,settings", order);
+  t("导航有「日记」，保留原栏目顺序并包含家业", !!tab && order === "today,week,heroes,jiaye,diary,stats,report,settings", order);
   t("版本 2.5.x", /^2\.[5-9]\./.test(ev("APP_VERSION")));
   tab.click();
   t("首次打开：这是你的日记本、只有你能看、没有星星", /这是你的日记本/.test(q("#main").textContent) && /只有你能看/.test(q("#main").textContent) && /没有星星/.test(q("#main").textContent));

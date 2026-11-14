@@ -35,8 +35,14 @@ const documentFake = {
 let testSeed=20261016;
 const testMath=Object.create(Math);
 testMath.random=()=>{testSeed=(Math.imul(testSeed,1664525)+1013904223)>>>0;return testSeed/4294967296;};
+// Freeze only this VM clock at test startup so a long run cannot mix two dates at midnight.
+const TEST_NOW = Date.now();
+class TestDate extends Date {
+  constructor(...args){ super(...(args.length ? args : [TEST_NOW])); }
+  static now(){ return TEST_NOW; }
+}
 const sandbox = {
-  console, Math:testMath, Date, JSON, Object, Array, String, Number, Boolean, RegExp, Error,
+  console, Math:testMath, Date:TestDate, JSON, Object, Array, String, Number, Boolean, RegExp, Error,
   parseInt, parseFloat, isNaN, setTimeout, clearTimeout,
   Blob:class{}, URL:{createObjectURL(){return "";}, revokeObjectURL(){}}, FileReader:class{},
   localStorage:{ getItem:k=>(k in store?store[k]:null),

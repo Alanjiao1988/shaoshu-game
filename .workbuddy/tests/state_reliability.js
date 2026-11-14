@@ -2,7 +2,8 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
 const { JSDOM, VirtualConsole } = require("jsdom");
-const html = fs.readFileSync(path.join(__dirname, "..", "..", "少年主公.html"), "utf8");
+// 主存档用例不打开家业；去掉惰性7MB载荷以免多实例DOM耗尽内存。家业载荷由jiaye_style.js独立验证。
+const html = fs.readFileSync(path.join(__dirname, "..", "..", "少年主公.html"), "utf8").replace(/<template id="jiaye-payload"[^>]*>[\s\S]*?<\/template>/, '<template id="jiaye-payload"></template>');
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1].replace(/\(function init\(\)\{[\s\S]*?\}\)\(\);\s*$/, "");
 const MAIN = "shaozhu_v1", DIARY = "shaozhu_diary", TX = MAIN + "_import_tx";
 const cases = [], test = (name, action) => cases.push({ name, action });

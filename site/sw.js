@@ -1,6 +1,6 @@
 /* 少年主公 · 已验证应用壳优先。版本内不可变，升级必须完整安装新版本。
    只管理本应用的版本缓存，不读写用户记录，不绕过平台授权。 */
-const VERSION = "2.6.2";
+const VERSION = "2.6.9";
 const PREFIX = "shaozhu-v";
 const CACHE = PREFIX + VERSION;
 const BASE = new URL("./", self.registration.scope);

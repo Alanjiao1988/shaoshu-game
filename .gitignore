@@ -1,6 +1,8 @@
 # ---- 历史版本备份 ----
 # git 自己有版本历史，这些快照是给「线上出问题立刻回退」用的，不进仓库
 .workbuddy/backup/
+.workbuddy/backups/
+.workbuddy/tests/_diag_*
 
 # ---- 孩子的真实数据：绝不进仓库 ----
 # 本地桌面版（启动少年主公.vbs）跑起来会生成这个目录，里面是 localStorage 的落盘副本

@@ -1,0 +1,37 @@
+{
+  "scene-bg": {
+    "file": "jiaye-scene-bg.webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 182478,
+    "sha256": "cb448564b9186d9a5d6148acbdcfe7a52aeace97c0a4e8ee7104fc3abc2081f7"
+  },
+  "bread": {
+    "file": "jiaye-bread.webp",
+    "width": 70,
+    "height": 53,
+    "bytes": 2012,
+    "sha256": "194a9f3d041c1d0283624c7526c06a0cb330f75082b49f6dd4f8123c83fa294a"
+  },
+  "rope": {
+    "file": "jiaye-rope.webp",
+    "width": 493,
+    "height": 427,
+    "bytes": 70222,
+    "sha256": "d37901e90a331d3ef729c7fbcfbb60cc781fe0962117d020bb30e7fa568398fe"
+  },
+  "fan": {
+    "file": "jiaye-fan.webp",
+    "width": 128,
+    "height": 165,
+    "bytes": 6086,
+    "sha256": "5deb28603d07b3e4408843e35d8dc5780fc4c8e375faf9417b5fdf4ef16d20cf"
+  },
+  "shopkeeper": {
+    "file": "jiaye-shopkeeper.webp",
+    "width": 280,
+    "height": 333,
+    "bytes": 25920,
+    "sha256": "1f8110ca8d5a30aa297e122b0faad3702ce761b1718b4f59af80f6b4956b497b"
+  }
+}

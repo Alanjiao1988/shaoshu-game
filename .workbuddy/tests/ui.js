@@ -4,6 +4,9 @@
 const fs = require("fs"), path = require("path"), http = require("http"), os = require("os"), net = require("net"), { spawn } = require("child_process");
 const ROOT = path.join(__dirname, "..", "..");
 const SITE = path.join(ROOT, "site");
+const APP_VERSION = fs.readFileSync(path.join(ROOT,"少年主公.html"),"utf8").match(/const APP_VERSION = "([^"]+)";/)[1];
+const COUNTER_PREVIEW = path.join(ROOT,"outputs",`少年掌柜_本地试玩_v${APP_VERSION}.html`);
+const FULL_PREVIEW = path.join(ROOT,"outputs",`少年主公_iPad横屏完整试玩_v${APP_VERSION}.html`);
 const SHOT = path.join(__dirname, "shots");
 if (!fs.existsSync(SHOT)) fs.mkdirSync(SHOT, { recursive: true });
 
@@ -49,6 +52,12 @@ const MIME = { ".html":"text/html; charset=utf-8", ".js":"application/javascript
   ".json":"application/manifest+json; charset=utf-8", ".png":"image/png", ".ico":"image/x-icon" };
 const server = http.createServer((req, res) => {
   const p = decodeURIComponent(req.url.split("?")[0]);
+  if(p==="/__full_preview.html"&&fs.existsSync(FULL_PREVIEW)){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store"});res.end(fs.readFileSync(FULL_PREVIEW));return;
+  }
+  if(p==="/__counter_preview.html"&&fs.existsSync(COUNTER_PREVIEW)){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store"});res.end(fs.readFileSync(COUNTER_PREVIEW));return;
+  }
   const f = path.join(SITE, p.replace(/^\//, ""));
   if (f.startsWith(SITE) && fs.existsSync(f) && fs.statSync(f).isFile()) {
     res.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream",
@@ -175,10 +184,15 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     console.log("     （持久化结果：" + persist + "）");
 
     console.log("\n=== 2. 应用可运行 ===");
-    await cdp.eval("try{closeSheet();}catch(e){} ST=defaultState(); ST.createdAt=addD(TODAY(),-30); ST.lastOpen=TODAY(); save(); VIEW='today'; VIEW_DATE=TODAY(); render();");
+    // A clean test profile initially stops at the family gate. Seed only this isolated
+    // profile, then reload so real init (listeners and offline registration) runs.
+    await cdp.eval("try{closeSheet();}catch(e){} ST=defaultState(); ST.createdAt=addD(TODAY(),-30); ST.lastOpen=TODAY(); save();");
+    await cdp.send("Page.reload",{ignoreCache:true});
+    await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error("test init timed out")),15000);const check=()=>{if(document.readyState==="complete"&&window.setTab){clearTimeout(end);resolve(true);}else requestAnimationFrame(check);};check();})`);
+    await cdp.eval("try{closeSheet();}catch(e){} VIEW='today'; VIEW_DATE=TODAY(); render();");
     await sleep(400);
     t("今日视图渲染出内容", (await cdp.eval(`document.querySelector("#main").innerHTML.length`)) > 800);
-    t("版本号显示为 2.2.0", /少年主公 v2\.1\.1/.test(await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)));
+    t("版本号显示为 "+APP_VERSION, (await cdp.eval(`(VIEW="settings",render(),document.querySelector("#main").textContent)`)).includes("少年主公 v"+APP_VERSION));
     for (const v of ["today","week","heroes","stats","report","settings"]) {
       const len = await cdp.eval(`(function(){ VIEW="${v}"; render(); return document.querySelector("#main").innerHTML.length; })()`);
       t("切换到「" + v + "」正常", len > 200, "长度 " + len);
@@ -196,14 +210,11 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     t("真实文件导入拒绝异常金额且不覆盖现存档", await cdp.eval(`new Promise(function(resolve){var before=localStorage.getItem(KEY);var oldAlert=window.alert;window.alert=function(){};var bad=JSON.stringify({tasks:[],bonusMerit:-1000});importData({files:[new File([bad],"bad.json",{type:"application/json"})],value:""});setTimeout(function(){window.alert=oldAlert;resolve(localStorage.getItem(KEY)===before && ST.bonusMerit===100);},150);})`));
 
     console.log("\n=== 3. Service Worker ===");
-    const sw = JSON.parse(await cdp.eval(`navigator.serviceWorker.getRegistrations().then(function(rs){
-      return JSON.stringify({ n: rs.length, state: rs[0] && rs[0].active ? rs[0].active.state : "none" }); })`));
+    const sw = JSON.parse(await cdp.eval(`Promise.race([navigator.serviceWorker.ready.then(reg=>new Promise(resolve=>{const done=()=>resolve(JSON.stringify({n:1,state:reg.active?.state||"none"}));if(reg.active?.state==="activated")done();else reg.active?.addEventListener("statechange",done,{once:true});})),new Promise(resolve=>setTimeout(()=>resolve(JSON.stringify({n:0,state:"timeout"})),20000))])`));
     t("已注册并激活", sw.n > 0 && sw.state === "activated", JSON.stringify(sw));
     const caches = await cdp.eval(`caches.keys().then(function(k){ return JSON.stringify(k); })`);
-    t("缓存名为 shaozhu-v2.2.0", /shaozhu-v2\.1\.1/.test(caches), caches);
-    const cached = await cdp.eval(`caches.keys().then(function(k){
-      return caches.open(k[0]).then(function(c){ return c.keys(); }).then(function(rs){
-        return JSON.stringify(rs.map(function(r){ return r.url.split("/").pop() || "root"; })); }); })`);
+    t("缓存名为 shaozhu-v"+APP_VERSION, JSON.parse(caches).includes("shaozhu-v"+APP_VERSION), caches);
+    const cached = await cdp.eval(`caches.open("shaozhu-v${APP_VERSION}").then(c=>c.keys()).then(rs=>JSON.stringify(rs.map(r=>new URL(r.url).pathname.split("/").pop()||"root")))`);
     t("图标与 manifest 已进缓存",
       /apple-touch-icon\.png/.test(cached) && /manifest\.json/.test(cached) && /icon-maskable-512\.png/.test(cached), cached);
 
@@ -249,6 +260,65 @@ let ver = null;              // 浏览器级 CDP 信息，收尾时用它优雅�
     console.log("  📱 iPad-今日.png");
     t("iPad 下触摸样式生效", await cdp.eval(`matchMedia("(pointer: coarse)").matches`));
 
+    console.log("\n=== 4.5 嵌入少年主公的iPad横屏 ===");
+    await cdp.eval(`closeSheet();ST=defaultState();ST.lastOpen=TODAY();save();openJiaye();`);
+    await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error('embedded game timeout')),15000);const check=()=>{const f=document.querySelector('#jiaye-frame');if(f?.dataset.ready&&f.contentWindow.ShopView){clearTimeout(end);resolve(true);}else requestAnimationFrame(check);};check();})`);
+    await cdp.eval(`document.querySelector('#jiaye-frame').contentDocument.querySelector('[data-action="begin"]').click()`);
+    for(const size of [{name:'嵌入-iPad小屏横屏',width:1024,height:660},{name:'嵌入-iPad横屏',width:1180,height:720},{name:'嵌入-iPad大屏横屏',width:1366,height:900}]){
+      await cdp.send('Emulation.setDeviceMetricsOverride',{width:size.width,height:size.height,deviceScaleFactor:1,mobile:true});
+      const layout=await cdp.eval(`(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const f=document.querySelector('#jiaye-frame'),d=f.contentDocument,w=f.contentWindow,q=s=>d.querySelector(s),b=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};return{outerWidth:document.documentElement.scrollWidth,outerHeight:document.documentElement.scrollHeight,width:innerWidth,height:innerHeight,appWidth:document.querySelector('.app').getBoundingClientRect().width,frame:b(f),scene:b(q('#scene')),task:b(q('#task')),button:b(q('#task [data-action="ask"]')),bottom:b(q('.bottom')),innerHeight:w.innerHeight,customerVisuals:d.querySelectorAll('#customer-zone,#bubble,.customer-art').length};})()`);
+      t(size.name+'与少年主公共用<=1020px容器且页面不横溢',layout.appWidth<=1021&&layout.outerWidth<=layout.width+1,JSON.stringify(layout));
+      t(size.name+'店铺交易左右同屏且按钮在可用高度内',layout.scene.right<=layout.task.left+2&&layout.button.bottom<=layout.innerHeight&&layout.button.height>=44&&layout.bottom.bottom<=layout.innerHeight+1,JSON.stringify(layout));
+      t(size.name+'外壳无额外纵向长页且没有顾客图',layout.outerHeight<=layout.height+2&&layout.customerVisuals===0,JSON.stringify(layout));
+      const shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(SHOT,size.name+'.png'),Buffer.from(shot.result.data,'base64'));
+    }
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1024,height:660,deviceScaleFactor:1,mobile:true});
+    for(const selector of ['[data-action="ask"]','[data-action="purchase"]','[data-action="cartplus"]','[data-action="buycart"]','#task [data-action="open"]','#confirm-ok','#task [data-action="select"]']){
+      await cdp.eval(`(async()=>{const d=document.querySelector('#jiaye-frame').contentDocument,b=d.querySelector(${JSON.stringify(selector)});if(!b||b.disabled)throw new Error('Missing embedded control '+${JSON.stringify(selector)});b.click();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true;})()`);
+    }
+    const saleLayout=await cdp.eval(`(()=>{const w=document.querySelector('#jiaye-frame').contentWindow,d=w.document,b=d.querySelector('[data-action="trade"]').getBoundingClientRect(),request=d.querySelector('.counter-request').getBoundingClientRect();return{height:w.innerHeight,bottom:b.bottom,top:b.top,buttonHeight:b.height,requestTop:request.top,scrolled:d.querySelector('#task').scrollTop};})()`);
+    t('1024横屏首笔交货按钮无需滚动且>=44px',saleLayout.bottom<=saleLayout.height-82+2&&saleLayout.requestTop>=0&&saleLayout.buttonHeight>=44&&saleLayout.scrolled===0,JSON.stringify(saleLayout));
+    const saleShot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(SHOT,'嵌入-iPad首笔待成交.png'),Buffer.from(saleShot.result.data,'base64'));
+    const gameBefore=await cdp.eval(`localStorage.getItem('shaozhu_jiaye_child_v7')`);
+    await cdp.eval(`returnFromJiaye();openJiaye();`);
+    await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error('game reentry timeout')),10000);const check=()=>{const f=document.querySelector('#jiaye-frame');if(f?.dataset.ready&&f.contentWindow.ShopView){clearTimeout(end);resolve(true);}else requestAnimationFrame(check);};check();})`);
+    t('返回军令台再进家业保留进度不自动推进',await cdp.eval(`localStorage.getItem('shaozhu_jiaye_child_v7')===${JSON.stringify(gameBefore)}&&document.querySelector('#jiaye-frame').contentWindow.ShopView.getState().day===1`));
+    await cdp.eval(`returnFromJiaye()`);
+    if(fs.existsSync(COUNTER_PREVIEW)){
+      console.log("\n=== 5. 少年掌柜文字柜台 ===");
+      await cdp.send("Page.navigate",{url:`http://127.0.0.1:${PORT}/__counter_preview.html?run=${RUN_ID}`});
+      await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error("counter preview timed out")),15000);const check=()=>{if(window.ShopView&&document.querySelector('[data-action="begin"]')){clearTimeout(end);resolve(true);}else requestAnimationFrame(check);};check();})`);
+      await cdp.eval(`document.querySelector('[data-action="begin"]').click()`);
+      for(const size of [{name:"家业-桌面",width:1440,height:1100,mobile:false},{name:"家业-iPad横屏",width:1180,height:820,mobile:true},{name:"家业-iPad竖屏",width:768,height:1024,mobile:true},{name:"家业-窄屏",width:390,height:844,mobile:true}]){
+        await cdp.send("Emulation.setDeviceMetricsOverride",{width:size.width,height:size.height,deviceScaleFactor:1,mobile:size.mobile});
+        const layout=await cdp.eval(`(async()=>{await Promise.all([...document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;})));await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const q=s=>document.querySelector(s),box=s=>{const r=q(s).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};return {overflow:document.documentElement.scrollWidth>innerWidth+1,missing:[...document.images].filter(i=>!i.complete||!i.naturalWidth).length,customerVisuals:document.querySelectorAll('#customer-zone,#bubble,.customer-art,.customer-placeholder,.customer-name,.visitor-card').length,requests:document.querySelectorAll('.counter-request').length,shopkeeper:box('#jiaye-shopkeeper'),shelf:box('.shelf'),task:box('#task'),request:box('.counter-request'),button:box('#task [data-action="ask"]'),pointer:getComputedStyle(q('#jiaye-shopkeeper')).pointerEvents};})()`);
+        t(size.name+"无横向溢出且所有内嵌图片加载",!layout.overflow&&layout.missing===0,JSON.stringify(layout));
+        t(size.name+"只有文字需求和少年人物",layout.customerVisuals===0&&layout.requests===1&&layout.pointer==="none",JSON.stringify(layout));
+        t(size.name+"人物避开货架且主按钮触控高度足够",layout.shopkeeper.left>=layout.shelf.right-1&&layout.button.height>=44,JSON.stringify(layout));
+        const screenshot=await cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:true});
+        if(!screenshot.result?.data)throw new Error("Missing counter screenshot");
+        fs.writeFileSync(path.join(SHOT,size.name+".png"),Buffer.from(screenshot.result.data,"base64"));
+      }
+      const previewStudy=await cdp.eval(`({study:localStorage.getItem('shaozhu_v1'),diary:localStorage.getItem('shaozhu_diary'),production:localStorage.getItem('shaozhu_jiaye_child_v7')})`);
+      // Native dialog close dispatch is asynchronous; wait a frame after each real click.
+      for(const selector of ['[data-action="ask"]','[data-action="purchase"]','[data-action="cartplus"]','[data-action="buycart"]','#task [data-action="open"]','#confirm-ok','#task [data-action="select"]','[data-action="trade"]','#confirm-ok']){
+        await cdp.eval(`(async()=>{const selector=${JSON.stringify(selector)},button=document.querySelector(selector);if(!button||button.disabled)throw new Error('Missing/disabled preview control: '+selector);button.click();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true;})()`);
+      }
+      const trade=await cdp.eval(`({cash:ShopView.getState().cash,phase:ShopView.getState().phase,study:localStorage.getItem('shaozhu_v1'),diary:localStorage.getItem('shaozhu_diary'),production:localStorage.getItem('shaozhu_jiaye_child_v7'),preview:!!localStorage.getItem('shaozhu_jiaye_preview_v${APP_VERSION.replaceAll(".","")}')})`);
+      t("真实浏览器首笔52钱且只写试玩命名空间",trade.cash===52&&trade.phase==="receipt"&&trade.production===previewStudy.production&&trade.preview&&trade.study===previewStudy.study&&trade.diary===previewStudy.diary,JSON.stringify({cash:trade.cash,phase:trade.phase,production:trade.production,preview:trade.preview,studyUnchanged:trade.study===previewStudy.study,diaryUnchanged:trade.diary===previewStudy.diary}));
+      const r=await cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:true});fs.writeFileSync(path.join(SHOT,"家业-交易小票.png"),Buffer.from(r.result.data,"base64"));
+    }
+    if(fs.existsSync(FULL_PREVIEW)){
+      const productionBefore=await cdp.eval(`JSON.stringify(['shaozhu_v1','shaozhu_diary','shaozhu_jiaye_child_v7'].map(k=>localStorage.getItem(k)))`);
+      await cdp.send('Page.navigate',{url:`http://127.0.0.1:${PORT}/__full_preview.html?run=${RUN_ID}`});
+      await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error('isolated shell timeout')),12000);const check=()=>{const f=document.querySelector('#jiaye-frame');if(f?.dataset.ready&&f.contentWindow.ShopView){clearTimeout(end);resolve(true);}else requestAnimationFrame(check);};check();})`);
+      const isolation=await cdp.eval(`(()=>{const f=document.querySelector('#jiaye-frame'),key=f.contentWindow.SeasonSave.KEY;f.contentDocument.querySelector('[data-action="begin"]')?.click();return{key,production:JSON.stringify(['shaozhu_v1','shaozhu_diary','shaozhu_jiaye_child_v7'].map(k=>localStorage.getItem(k))),previewSaved:!!localStorage.getItem(key)};})()`);
+      t('完整外壳试玩仅写隔离键，不改正式三模块进度',isolation.key.startsWith('shaozhu_preview')&&isolation.previewSaved&&isolation.production===productionBefore,JSON.stringify({key:isolation.key,previewSaved:isolation.previewSaved,productionUnchanged:isolation.production===productionBefore}));
+      const fileUrl='file:///'+FULL_PREVIEW.split(path.sep).join('/');
+      await cdp.send('Page.navigate',{url:fileUrl});
+      const fileLoaded=await cdp.eval(`new Promise((resolve,reject)=>{const end=setTimeout(()=>reject(new Error('file:// preview timeout')),12000);const check=()=>{const f=document.querySelector('#jiaye-frame');if(f?.dataset.ready&&f.contentWindow.ShopView){clearTimeout(end);resolve({proto:location.protocol,ready:f.dataset.ready,day:f.contentWindow.ShopView.getState().day});}else requestAnimationFrame(check);};check();})`);
+      t('本地file://直接打开完整试玩不卡死且正常挂载小铺',fileLoaded.proto==='file:'&&fileLoaded.ready==='true'&&fileLoaded.day===1,JSON.stringify(fileLoaded));
+    }
     try { cdp.ws.close(); } catch (e) {}
   } catch (e) {
     console.error("执行失败：" + e.message);

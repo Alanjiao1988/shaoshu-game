@@ -4,7 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM, VirtualConsole } = require("jsdom");
 const ROOT = path.join(__dirname, "..", "..");
-const html = fs.readFileSync(path.join(ROOT, "少年主公.html"), "utf8");
+// 日记故障测试不打开家业；家业载荷另测，避免几十个DOM重复解析惰性图片载荷耗尽堆。
+const html = fs.readFileSync(path.join(ROOT, "少年主公.html"), "utf8").replace(/<template id="jiaye-payload"[^>]*>[\s\S]*?<\/template>/, '<template id="jiaye-payload"></template>');
 const KEY = "shaozhu_diary", DRAFT = KEY + "_draft_";
 let pass = 0, fail = 0;
 const cases = [];
