@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(root, "site/sw.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "site/manifest.json"), "utf8"));
 const page = fs.readFileSync(path.join(root, "site/index.html"), "utf8");
 const base = "https://offline.test/site/";
-const current = "shaozhu-v2.6.9";
+const current = "shaozhu-v2.7.0";
 const proofKey = base + ".__shaozhu_verified__";
 const icons = ["apple-touch-icon.png", "icon-167.png", "icon-192.png", "icon-512.png", "icon-maskable-192.png", "icon-maskable-512.png"];
 const core = ["index.html", "manifest.json", ...icons];
@@ -30,12 +30,12 @@ function changedPNG(name) {
 }
 const tests = [];
 const test = (name, action) => tests.push([name, action]);
-const versioned = (version = "2.6.9", suffix = "") => page.replace(
+const versioned = (version = "2.7.0", suffix = "") => page.replace(
   /const APP_VERSION = "[^"]+";/, `const APP_VERSION = "${version}";`
 ).replace("</body>", `${suffix}</body>`);
 const html = (text, status = 200) => new Response(text, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
 const json = (value) => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/manifest+json" } });
-function resource(name, version = "2.6.9", suffix = "", legacy = false) {
+function resource(name, version = "2.7.0", suffix = "", legacy = false) {
   if (name === "index.html") return html(versioned(version, suffix));
   if (name === "manifest.json") return json(legacy ? { ...manifest, start_url: "./" } : manifest);
   return new Response(png[name], { headers: { "Content-Type": "image/png" } });
@@ -149,8 +149,8 @@ async function unavailable(response, status) {
   return text;
 }
 
-test("版本为 2.6.9，manifest 不再强制无参根入口", async () => {
-  assert.match(source, /const VERSION = "2\.6\.9";/);
+test("版本为 2.7.0，manifest 不再强制无参根入口", async () => {
+  assert.match(source, /const VERSION = "2\.7\.0";/);
   assert.equal(Object.hasOwn(manifest, "start_url"), false);
   assert.doesNotMatch(source, /localStorage|indexedDB|\.unregister\(/);
 });
@@ -194,12 +194,12 @@ for (const status of [403, 500]) {
 }
 const invalidHTML = [
   ["普通 200 HTML 错误页", "<!doctype html><html><title>服务不可用</title><body>错误</body></html>"],
-  ["只有版本标志的错误页", '<!doctype html><html><body><script>\nconst APP_VERSION = "2.6.9";\n</script></body></html>'],
+  ["只有版本标志的错误页", '<!doctype html><html><body><script>\nconst APP_VERSION = "2.7.0";\n</script></body></html>'],
   ["缺失唯一应用标志", versioned().replace('const KEY = "shaozhu_v1";', 'const KEY = "another-app";')],
-  ["版本跨到 2.7.0", versioned("2.7.0")],
+  ["版本跨到 2.8.0", versioned("2.8.0")],
   ["主页面仍为旧版 2.6.1", versioned("2.6.1")],
-  ["缺失 const APP_VERSION", versioned().replace('const APP_VERSION = "2.6.9";', "")],
-  ["重复版本常量", versioned().replace("</script>", '\nconst APP_VERSION = "2.6.9";\n</script>')],
+  ["缺失 const APP_VERSION", versioned().replace('const APP_VERSION = "2.7.0";', "")],
+  ["重复版本常量", versioned().replace("</script>", '\nconst APP_VERSION = "2.7.0";\n</script>')],
   ["截断 HTML", versioned().replace(/<\/body>[\s\S]*$/, "")]
 ];
 for (const [name, text] of invalidHTML) {
@@ -280,13 +280,13 @@ test("激活只删除已验证的更老整包，保留上一完整版本和其�
   await seed(h.caches, "2.6.1");
   await seed(h.caches, "2.6.0");
   await seed(h.caches, "2.5.9", { omit: "icon-512.png" });
-  await seed(h.caches, "2.7.0", { proof: true });
+  await seed(h.caches, "2.8.0", { proof: true });
   await (await h.caches.open("shaozhu-v2.5.8")).put(base + "index.html", html("损坏"));
   for (const name of ["another-app", "shaozhu-settings", "shaozhu-v2.0.0-other"]) await h.caches.open(name);
   await h.lifecycle("activate");
   assert.equal(h.claimed, 1);
   assert.deepEqual(h.caches.deleted, ["shaozhu-v2.6.0"]);
-  for (const name of [current, "shaozhu-v2.6.1", "shaozhu-v2.5.9", "shaozhu-v2.5.8", "shaozhu-v2.7.0", "another-app", "shaozhu-settings", "shaozhu-v2.0.0-other"]) assert.ok(h.caches.maps.has(name), name);
+  for (const name of [current, "shaozhu-v2.6.1", "shaozhu-v2.5.9", "shaozhu-v2.5.8", "shaozhu-v2.8.0", "another-app", "shaozhu-settings", "shaozhu-v2.0.0-other"]) assert.ok(h.caches.maps.has(name), name);
 });
 test("最近旧版本只有 HTML 时不据此删掉上一完整版本", async () => {
   const h = harness();
@@ -335,8 +335,8 @@ for (const [name, handler, state] of [
   ["500", () => html("错误", 500), "unavailable"],
   ["200 错误页", () => html("普通错误页"), "unavailable"],
   ["离线", () => { throw new TypeError("离线"); }, "unavailable"],
-  ["新版本", () => resource("index.html", "2.7.0"), "update-available"],
-  ["相同版本不同内容", () => resource("index.html", "2.6.9", "<!--不同构建-->"), "content-changed"],
+  ["新版本", () => resource("index.html", "2.8.0"), "update-available"],
+  ["相同版本不同内容", () => resource("index.html", "2.7.0", "<!--不同构建-->"), "content-changed"],
   ["相同版本相同内容", () => resource("index.html"), "verified"]
 ]) {
   test(`已有应用壳遇到${name}仍返回原缓存且不静默覆盖`, async () => {
@@ -369,7 +369,7 @@ test("同版本重新安装不同内容必须拒绝且不动既有缓存", async
   const h = harness();
   await h.lifecycle("install");
   const before = await h.caches.snapshot();
-  h.handler = (url) => resource(new URL(url).pathname.split("/").pop() || "index.html", "2.6.9", "<!--另一构建-->");
+  h.handler = (url) => resource(new URL(url).pathname.split("/").pop() || "index.html", "2.7.0", "<!--另一构建-->");
   await assert.rejects(h.lifecycle("install"));
   assert.equal(h.skipped, 1);
   assert.equal(await h.caches.snapshot(), before);
@@ -409,7 +409,7 @@ test("同版本缓存 HTML 被改为另一合法构建时摘要拒绝并回退",
   const h = harness();
   await h.lifecycle("install");
   await seed(h.caches, "2.6.1");
-  h.caches.maps.get(current).set(base + "index.html", resource("index.html", "2.6.9", "<!--非法替换-->"));
+  h.caches.maps.get(current).set(base + "index.html", resource("index.html", "2.7.0", "<!--非法替换-->"));
   h.handler = () => html("403", 403);
   assert.equal(await (await h.navigate()).text(), versioned("2.6.1"));
 });
@@ -421,7 +421,7 @@ test("无缓存合法网络壳可返回，但不会单独写成完整离线安�
 test("只有他人缓存、未来缓存或不匹配版本缓存时不冒充可用", async () => {
   const caches = storage();
   await (await caches.open("another-app")).put(base + "index.html", resource("index.html"));
-  await seed(caches, "2.7.0", { proof: true });
+  await seed(caches, "2.8.0", { proof: true });
   await (await caches.open("shaozhu-v2.6.1")).put(base + "index.html", resource("index.html", "2.6.0"));
   const h = harness({ caches, fetch: () => { throw new TypeError("离线"); } });
   await unavailable(await h.navigate(), 503);
