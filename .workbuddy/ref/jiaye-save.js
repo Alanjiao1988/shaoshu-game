@@ -9,7 +9,7 @@ function cleanAction(a){
   const fields={
     begin:[],next:[],continue_beyond:[],
     ask:["id"],buy:["item","quantity"],bundle:[],mystery:[],
-    relic_choice:["choice"],upgrade_shop:[],
+    relic_choice:["choice"],upgrade_shop:[],inherit_relics:["ids"],
     synclord:["chapter","rankLevel","rankName","bossIndex","advisors","merchants","warriors","ownedCount"],
     price:["item","price"],open:[],trade:["id","item","quantity"],pass:["id"],continue:[],close:[],
     deposit:["amount","term"],withdraw:["id"],invest:[],clear:["quantity"],shelf:[],work:[]
@@ -24,6 +24,7 @@ function cleanAction(a){
   if(a.type==="withdraw")check(Number.isSafeInteger(a.id)&&a.id>=1&&a.id<=200,"存款标记无效。");
   if(a.type==="deposit")check([20,40].includes(a.amount)&&[1,2].includes(a.term),"存期无效。");
   if(a.type==="relic_choice")check(["keep","sell"].includes(a.choice),"奇物处置选项无效。");
+  if(a.type==="inherit_relics")check(Array.isArray(a.ids)&&a.ids.length<=20&&a.ids.every(x=>typeof x==="string"&&/^[a-z]{3,15}$/.test(x)),"传承奇物列表无效。");
   if(a.type==="synclord"){
     check(Number.isInteger(a.chapter)&&a.chapter>=1&&a.chapter<=120,"回目无效。");
     check(Number.isInteger(a.rankLevel)&&a.rankLevel>=0&&a.rankLevel<=8,"官职等级无效。");

@@ -32,9 +32,11 @@ assert.ok(placed,"Original shop background is missing");
 for(const fragment of ['<div id="bubble" class="bubble" hidden></div>','<div id="customer-zone" class="customer-zone"></div>'])game=game.replace(fragment,"");
 game=game.replace(/<p class="footnote art-note">[\s\S]*?<\/p>/,'<p class="footnote art-note">少年掌柜照看小铺；不渲染顾客人物，来客需求用文字呈现，货架随真实库存变化。</p>');
 
+const artSource=fs.readFileSync(path.join(root,".workbuddy","ref","shaozhu-art.js"),"utf8");
 const engineSource=fs.readFileSync(path.join(root,".workbuddy","ref","jiaye-engine.js"),"utf8");
 const saveSource=fs.readFileSync(path.join(root,".workbuddy","ref","jiaye-save.js"),"utf8");
 const counterSource=fs.readFileSync(path.join(root,".workbuddy","ref","jiaye-counter.js"),"utf8");
+new vm.Script(artSource);
 new vm.Script(engineSource);
 new vm.Script(saveSource);
 
@@ -54,6 +56,10 @@ view=view.replace(/else if\(\["summary","finished"\]\.includes\(state\.phase\)\)
 view=view.replace(/else if\(state\.phase==="prep"&&state\.day>1\)\{html=[\s\S]*?\}\nelse if\(c\)/,'else if(state.phase==="prep"&&state.day>1){html=counterPrepHTML();}\nelse if(state.pendingRelic){html=pendingRelicHTML();}\nelse if(c)');
 view=view.replace('if(name==="resume"){resume=false;if(actions.length&&actions[actions.length-1].type==="synclord"&&!temporary)persist();render();return;}','if(name==="resume"){resume=false;render();return;}');
 view=view.replace('if(name==="resume"){resume=false;render();return;}','if(name==="resume"){resume=false;if(actions.length&&actions[actions.length-1].type==="synclord"&&!temporary)persist();render();return;}');
+view=view.replace(/\n*\/\* SHAOZHU_ART:START \*\/[\s\S]*?\/\* SHAOZHU_ART:END \*\/\n*/g,"");
+view=`/* SHAOZHU_ART:START */\n${artSource}\n/* SHAOZHU_ART:END */\n`+view;
+view=view.replace('if(name==="restart"||name==="alternate"){restartWithRelics(name==="alternate");return;}','if(name==="restart"||name==="alternate"){restart(name==="alternate");return;}');
+view=view.replace('if(name==="restart"||name==="alternate"){restart(name==="alternate");return;}','if(name==="restart"||name==="alternate"){restartWithRelics(name==="alternate");return;}');
 // Remove previously injected custom action block before re-injecting cleanly for byte-idempotence
 view=view.replace(/\n*\/\* WORLD_ACTIONS:START \*\/[\s\S]*?\/\* WORLD_ACTIONS:END \*\/\n*/g,"");
 view=view.replace(/if\(name==="saleqty"\)\{changeCounterQuantity\(Number\(d\.delta\)\);return;\}/g,"");
@@ -84,7 +90,7 @@ new vm.Script(view);
 const refreshedScripts=[...game.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];
 game=game.replace(refreshedScripts[4][0],()=>"<script>"+view+"</script>");
 
-const codec=`/* BUILD:JIAYE_CODEC */\nconst JIAYE_CODEC=Object.freeze({engine:(function(){const module={exports:{}};${engineSource};return module.exports;})(),save:(function(){const module={exports:{}};${saveSource};return module.exports;})()});\n/* END:JIAYE_CODEC */`;
+const codec=`/* BUILD:JIAYE_CODEC */\nconst SHAOZHU_ART=Object.freeze((function(){const module={exports:{}};${artSource};return module.exports;})());\nconst JIAYE_CODEC=Object.freeze({engine:(function(){const module={exports:{}};${engineSource};return module.exports;})(),save:(function(){const module={exports:{}};${saveSource};return module.exports;})()});\n/* END:JIAYE_CODEC */`;
 assert.ok(page.includes('/* BUILD:JIAYE_CODEC */'),"Full backup codec marker missing");
 page=page.replace(/\/\* BUILD:JIAYE_CODEC \*\/[\s\S]*?\/\* END:JIAYE_CODEC \*\//,()=>codec);
 

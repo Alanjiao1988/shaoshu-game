@@ -246,6 +246,11 @@ function step(input,a){
     s.lord=cleanLord(a);
     validate(s);return s;
   }
+  if(a.type==="inherit_relics"){
+    check(Array.isArray(a.ids)&&a.ids.every(id=>Boolean(RELIC_MAP[id])),"传承奇物无效。");
+    for(const id of a.ids)if(!s.relics.includes(id))s.relics.push(id);
+    validate(s);return s;
+  }
   if(a.type==="continue_beyond"){
     check(s.phase==="finished"&&s.day<MAX_DAYS,"当前不在五日收官后续营节点。");
     advanceDay(s);

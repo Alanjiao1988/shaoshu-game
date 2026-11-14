@@ -156,8 +156,27 @@ t("存档序列化与完整备份兼容新动作，且外层主公藏珍阁只�
   assert.ok(heroesView.includes("主公藏珍阁"));
   assert.ok(heroesView.includes(relicObj.name));
   assert.ok(heroesView.includes("已收 1 / 12 件"));
+  assert.ok(heroesView.includes("<svg"));
+  w.eval(`showLordRelic("${relicObj.id}")`);
+  assert.ok(w.document.querySelector(".sheet").textContent.includes(relicObj.story));
+  w.eval("closeSheet()");
   assert.equal(w.eval("availMerit()"),meritBefore);
   dom.window.close();
+});
+
+t("全套12件三国名物与主界面古风矢量美术齐全，且重开商路支持永久传承藏珍",()=>{
+  const A=require(path.join(root,".workbuddy/ref/shaozhu-art.js"));
+  for(const r of E.RELICS){
+    assert.ok(A.RELIC_SVG[r.id]&&A.RELIC_SVG[r.id].startsWith("<svg"),"Missing SVG for "+r.id);
+  }
+  for(let i=0;i<7;i++)assert.ok(A.UI_SVG["boss"+i]&&A.UI_SVG["boss"+i].startsWith("<svg"));
+  const decor=A.shopDecorHTML(3,["qixing","yushan"],E.RELIC_MAP);
+  assert.ok(decor.includes("九州通商")&&decor.includes("shop-curio-rack"));
+  const inh=S.cleanAction({type:"inherit_relics",ids:["qixing","shujin"]});
+  const s=E.step(E.initial(1),inh);
+  assert.equal(s.day,1);
+  assert.equal(s.cash,50);
+  assert.deepEqual(s.relics,["qixing","shujin"]);
 });
 
 console.log(`三国大世界联动专项：${pass} 通过 / 0 失败`);

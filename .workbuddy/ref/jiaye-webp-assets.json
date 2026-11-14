@@ -8,24 +8,24 @@
   },
   "bread": {
     "file": "jiaye-bread.webp",
-    "width": 70,
-    "height": 53,
-    "bytes": 2012,
-    "sha256": "194a9f3d041c1d0283624c7526c06a0cb330f75082b49f6dd4f8123c83fa294a"
+    "width": 220,
+    "height": 171,
+    "bytes": 15396,
+    "sha256": "ca159ac45942178c620868719282a3e8c4207995599b3c9ff869cb0866217b7d"
   },
   "rope": {
     "file": "jiaye-rope.webp",
-    "width": 493,
-    "height": 427,
-    "bytes": 70222,
-    "sha256": "d37901e90a331d3ef729c7fbcfbb60cc781fe0962117d020bb30e7fa568398fe"
+    "width": 220,
+    "height": 206,
+    "bytes": 26336,
+    "sha256": "7e600cbd50fd25ce2c5aa52bca33b37d469ad314dd1f48b3c2b9655090bf0c0d"
   },
   "fan": {
     "file": "jiaye-fan.webp",
-    "width": 128,
-    "height": 165,
-    "bytes": 6086,
-    "sha256": "5deb28603d07b3e4408843e35d8dc5780fc4c8e375faf9417b5fdf4ef16d20cf"
+    "width": 205,
+    "height": 240,
+    "bytes": 20960,
+    "sha256": "1a42609052e2f4dd9d7e989c02c26b4984b97402e4f5a0631497e6b3ad44393f"
   },
   "shopkeeper": {
     "file": "jiaye-shopkeeper.webp",
